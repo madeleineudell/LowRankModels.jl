@@ -1,7 +1,6 @@
 import Stats.sample, Base.size
-include("loss_and_reg.jl")
-include("convergence.jl")
 
+export GLRM, objective, Params, FunctionArray, getindex, display, size, autoencode
 # type GLRM{T,I}
 # 	A::Array{T,2}
 # 	obs::Array{(I,I),1}
@@ -115,69 +114,4 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 end
 function autoencode!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"))
 	glrm.X, glrm.Y = autoencode(glrm,params)
-end
-
-function autoencode_pca(m,n,k)
-	# matrix to encode
-	A = randn(m,k)*randn(k,n)
-	losses = fill(quadratic(),n)
-	r = identityreg()
-	glrm = GLRM(A,losses,r,r,k)
-	X,Y,ch = autoencode!(glrm)
-	println("Convergence:",ch.objective)
-end
-
-function autoencode_nnmf(m,n,k)
-	# matrix to encode
-	A = rand(m,k)*rand(k,n)
-	losses = fill(quadratic(),n)
-	r = nonnegative()
-	glrm = GLRM(A,losses,r,r,k)
-	X,Y,ch = autoencode!(glrm)
-	println("Convergence:",ch.objective)
-end
-
-function autoencode_pca_nucnorm(m,n,k)
-	# matrix to encode
-	A = randn(m,k)*randn(k,n)
-	losses = fill(quadratic(),n)
-	r = quadreg(.1)
-	glrm = GLRM(A,losses,r,r,k)
-	X,Y,ch = autoencode!(glrm)	
-	println("Convergence:",ch.objective)
-end
-
-function autoencode_kmeans(m,n,k)
-	# matrix to encode
-	Y = randn(k,n)
-	A = zeros(m,n)
-	for i=1:m
-		A[i,:] = Y[mod(i,k)+1,:]
-	end
-	losses = fill(quadratic(),n)
-	rt = identityreg()
-	r = onesparse() 
-	glrm = GLRM(A,losses,rt,r,k+4)
-	X,Y,ch = autoencode!(glrm)	
-	println("Convergence:",ch.objective)
-end
-
-function autoencode_pca_nucnorm_sparse(m,n,k,s)
-	# matrix to encode
-	A = randn(m,k)*randn(k,n)
-	losses = fill(quadratic(),n)
-	r = quadreg(.1)
-	obsx = sample(1:m,s); obsy = sample(1:n,s)
-	obs = [(obsx[i],obsy[i]) for i=1:s]
-	glrm = GLRM(A,obs,losses,r,r,k)
-	X,Y,ch = autoencode!(glrm)	
-	println("Convergence:",ch.objective)
-end
-
-if true
-	#autoencode_pca(100,100,2)
-	#autoencode_pca_nucnorm(500,500,2)
-	#autoencode_pca_nucnorm_sparse(1000,1000,2,10000)
-	#autoencode_kmeans(50,50,10)
-	#autoencode_nnmf(50,50,2)
 end

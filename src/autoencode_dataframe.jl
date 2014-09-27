@@ -1,5 +1,4 @@
 using DataFrames
-include("autoencoder.jl")
 
 max_ordinal_levels = 9
 

@@ -6,6 +6,10 @@ type quadratic<:Loss
     scale
 end
 quadratic() = quadratic(1)
+type l1<:Loss
+    scale
+end
+l1() = l1(1)
 type hinge<:Loss
     scale
 end
@@ -17,8 +21,13 @@ type ordinal_hinge<:Loss
 end
 ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
 
+## gradients of loss functions
 function grad(l::quadratic)
     return (u,a) -> (u-a)*l.scale
+end
+
+function grad(l::l1)
+    return (u,a) -> sign(u-a)*l.scale
 end
 
 function grad(l::hinge)
@@ -47,8 +56,12 @@ function grad(l::ordinal_hinge)
     end
 end
 
+## evaluating loss functions
 function evaluate(l::quadratic,u::Number,a::Number)
     l.scale*(u-a)^2
+end
+function evaluate(l::l1,u::Number,a::Number)
+    l.scale*abs(u-a)
 end
 function evaluate(l::hinge,u::Number,a::Number)
     l.scale*max(-a*u,0)
@@ -63,8 +76,14 @@ function evaluate(l::ordinal_hinge,u::Number,a::Number)
     end    
 end
 
+## minimum_offset (average error of l (a, offset))
 function variance(a::AbstractArray, l::quadratic)
     m = mean(a)
+    sum(map(ai->evaluate(l,m,ai),a))/length(a)
+end
+
+function variance(a::AbstractArray, l::l1)
+    m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
@@ -79,11 +98,12 @@ function variance(a::AbstractArray, l::hinge)
 end
 
 # regularizers
-# regularizers r should have the method `prox` defined so that 
+# regularizers r should have the method `prox` defined such that 
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
 
 abstract Regularizer
 
+## quadratic regularization
 type quadreg<:Regularizer
     scale
 end
@@ -91,31 +111,47 @@ quadreg() = quadreg(1)
 function prox(r::quadreg)
     return (u,alpha) -> 1/(1+alpha*r.scale/2)*u
 end
-type identityreg<:Regularizer
+
+## no regularization
+type zeroreg<:Regularizer
 end
-function prox(r::identityreg)
+function prox(r::zeroreg)
     return (u,alpha) -> u
 end
+
+## indicator of the nonnegative orthant 
+## (enforces nonnegativity, eg for nonnegative matrix factorization)
 type nonnegative<:Regularizer
 end
 function prox(r::nonnegative)
     return (u,alpha) -> broadcast(max,u,0)
 end
+
+## indicator of the last column being equal to 1
+## (allows an unpenalized offset term into the glrm when used in conjunction with lastcol_unpenalized)
 type lastcol1<:Regularizer
     r::Regularizer
 end
 function prox(r::lastcol1)
     return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), 1]
 end
+
+## makes the last entry unpenalized
+## (allows an unpenalized offset term into the glrm when used in conjunction with lastcol1)
 type lastcol_unpenalized<:Regularizer
     r::Regularizer
 end
 function prox(r::lastcol_unpenalized)
     return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), u[end]]
 end
+
+## adds an offset to the model by modifying the regularizers
 function add_offset(r::Regularizer,rt::Regularizer)
     return lastcol1(r), lastcol_unpenalized(rt)
 end
+
+## indicator of 1-sparse vectors
+## (enforces that only 1 entry is nonzero, eg for kmeans)
 type onesparse<:Regularizer
 end
 function prox(r::onesparse)
@@ -133,38 +169,4 @@ function equilibrate_variance!(losses::Array{Loss}, A)
         end
     end
     return losses
-end
-
-if false
-    import CVX
-    function cvxjl(l::quadratic)
-        return ((u,a) -> l.scale*CVX.square(u-a))
-    end
-
-    function cvxjl(l::hinge)
-        return (u,a -> l.scale*CVX.pos(-a*u))
-    end
-
-    function cvxjl(l::ordinal_hinge)
-        function(u,a)
-            if a == l.min 
-                return l.scale*CVX.pos(u-a)
-            elseif a == l.max
-                return l.scale*CVX.pos(a-u)
-            else
-                return l.scale*CVX.abs(u-a)
-            end
-        end
-    end    
-
-    function variance_cvx(a::AbstractArray, l::loss)
-        cvxjlloss = cvxjl(l)
-        u = CVX.Variable()
-        p = CVX.minimize(sum([cvxjlloss(u, ai) for ai in a]))
-        CVX.solve!(p)
-        return p.optval/length(a)
-    end
-
-    loss2char = {identityreg=>'i', quadratic=>'q', hinge=>'b', ordinal_hinge=>'o'}
-    char2loss = {'i'=>identityreg, 'q'=>quadratic, 'b'=>hinge, 'o'=>ordinal_hinge}
 end
