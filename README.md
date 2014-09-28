@@ -7,16 +7,17 @@ GLRMs model a data array by a low rank matrix, and
 include many well known models in data analysis, such as 
 principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
+
 GLRM.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
 In particular, it supports 
 
-	* using different loss functions for different columns of the data array, 
-	  which can be very useful when data types are heterogeneous 
-	  (eg, real, boolean, and ordinal columns);
-	* data tables with many missing (unobserved) entries
-	* adding offsets and scalings to the model without destroying sparsity,
-	  which can be very useful when the data is poorly scaled.
+* using different loss functions for different columns of the data array, 
+  which can be very useful when data types are heterogeneous 
+  (eg, real, boolean, and ordinal columns);
+* data tables with many missing (unobserved) entries
+* adding offsets and scalings to the model without destroying sparsity,
+  which can be very useful when the data is poorly scaled.
 
 # Generalized Low Rank Models
 
@@ -38,23 +39,23 @@ $$
 The basic type used by GLRM.jl is (unsurprisingly), the GLRM. To form a GLRM,
 the user specifies
 
-	* the data `A`
-	* the observed entries `obs`
-	* the array of loss functions `losses`
-	* the regularizers `r` (which acts on `X`) and `rt` (which acts on `Y`)
-	* the rank `k`
+* the data `A`
+* the observed entries `obs`
+* the array of loss functions `losses`
+* the regularizers `r` (which acts on `X`) and `rt` (which acts on `Y`)
+* the rank `k`
 
 Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
 and may be chosen from a list of supported losses and regularizers, which include
 
-	* quadratic loss `quadratic`
-	* hinge loss `hinge`
-	* l1 loss `l1`
-	* ordinal hinge loss `ordinal_hinge`
-	* quadratic regularization `quadreg`
-	* no regularization `zeroreg`
-	* nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
-	* 1-sparse constraint `onesparse` (eg, for k-means)
+* quadratic loss `quadratic`
+* hinge loss `hinge`
+* l1 loss `l1`
+* ordinal hinge loss `ordinal_hinge`
+* quadratic regularization `quadreg`
+* no regularization `zeroreg`
+* nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
+* 1-sparse constraint `onesparse` (eg, for k-means)
 
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
