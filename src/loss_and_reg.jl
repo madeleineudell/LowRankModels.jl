@@ -1,4 +1,10 @@
-# Loss functions and regularizers
+# Predefined loss functions and regularizers
+# You may also implement your own loss or regularizer by subtyping 
+# the abstract type Loss or Regularizer.
+# Losses will need to have the methods `evaluate` and `grad` defined, 
+# while regularizers should implement `prox`. 
+# For automatic scaling, losses should also implement `variance`.
+
 abstract Loss
 
 # loss functions
