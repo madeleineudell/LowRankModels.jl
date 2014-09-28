@@ -1,3 +1,5 @@
+export ConvergenceHistory, update!
+
 type ConvergenceHistory
     name::String
     objective::Array

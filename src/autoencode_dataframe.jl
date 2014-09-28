@@ -1,5 +1,7 @@
 using DataFrames
 
+export autoencode_dataframe, observations
+
 max_ordinal_levels = 9
 
 function df2array(df::DataFrame,z::Number)

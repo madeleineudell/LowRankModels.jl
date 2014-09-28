@@ -83,6 +83,19 @@ which runs an alternating directions proximal gradient method on `glrm` to find 
 (`ch` gives the convergence history; see [Technical details](https://github.com/madeleineudell/GLRM.jl#technical-details) below for more information.)
 The fields `glrm.X` and `glrm.Y` are also set by this call.
 
+# Missing data
+
+If not all entries are present in your data table, just tell the GLRM
+which observations to fit the model to by listing their indices in `obs`.
+Then initialize the model using
+
+	GLRM(A,obs,losses,rt,r,k)
+
+If `A` is a DataFrame and you just want the model to ignore 
+any entry that is of type `NA`, you can use
+
+	obs = observations(A)
+
 # Scaling and offsets
 
 GLRM.jl is capable of adding offsets to your model, and of scaling the loss 
@@ -116,7 +129,7 @@ Never fear! Just call
 
 This will fit a GLRM to your data, using a quadratic loss for real valued columns,
 hinge loss for boolean columns, and ordinal hinge loss for integer columns.
-(Right now, all other data types are ignored.)
+(Right now, all other data types are ignored, as are `NA`s.)
 It returns the column labels for the columns it fit, along with the model.
 
 You can use the model to get some intuition for the data set. For example,
