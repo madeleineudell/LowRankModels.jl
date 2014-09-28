@@ -27,11 +27,12 @@ which can be input as an array or any array-like object (for example, a data fra
 It is fine if only some of the entries $(i,j) \in \Omega$ have been observed 
 (i.e., the others are missing or `NA`); the GLRM will only be fit on the observed entries.
 The desired model is specified by choosing a rank $k$ for the model,
-an array of loss functions $L_j$, and two regularizers, $r$ and $rt$.
+an array of loss functions $L_j$, and two regularizers, $r$ and $\tilde r$.
 The data is modeled as $XY$, where $X \in R^{m \times k}$ and $Y \in R^{k \times n}$.
 $X$ and $Y$ are found by solving the optimization problem
-$$\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) 
-+ \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)$$
+<!--$$\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) + \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)$$-->
+
+	minimize sum_{(i,j) in Omega} L_{ij}(x_i y_j, A_{ij}) + sum_i r_i(x_i) + sum_j \tilde r_j(y_j)
 
 The basic type used by GLRM.jl is (unsurprisingly), the GLRM. To form a GLRM,
 the user specifies
