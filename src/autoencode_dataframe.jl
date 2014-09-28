@@ -1,4 +1,4 @@
-using DataFrames
+using GLRM, DataFrames
 
 export autoencode_dataframe, observations
 

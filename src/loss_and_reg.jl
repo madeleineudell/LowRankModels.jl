@@ -3,12 +3,12 @@
 # the abstract type Loss or Regularizer.
 # Losses will need to have the methods `evaluate` and `grad` defined, 
 # while regularizers should implement `prox`. 
-# For automatic scaling, losses should also implement `variance`.
+# For automatic scaling, losses should also implement `avgerror`.
 
 export Loss, Regularizer, # abstract types
        quadratic, hinge, ordinal_hinge, l1, # concrete losses
-       grad, evaluate, variance # methods on losses
-       quadreg, zeroreg, nonnegative, onesparse, lastentry1, lastentry_unpenalized # concrete regularizers
+       grad, evaluate, avgerror, # methods on losses
+       quadreg, zeroreg, nonnegative, onesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
        add_offset, equilibrate_variance! # utilities
 
@@ -90,22 +90,22 @@ function evaluate(l::ordinal_hinge,u::Number,a::Number)
 end
 
 ## minimum_offset (average error of l (a, offset))
-function variance(a::AbstractArray, l::quadratic)
+function avgerror(a::AbstractArray, l::quadratic)
     m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
-function variance(a::AbstractArray, l::l1)
+function avgerror(a::AbstractArray, l::l1)
     m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
-function variance(a::AbstractArray, l::ordinal_hinge)
+function avgerror(a::AbstractArray, l::ordinal_hinge)
     m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
-function variance(a::AbstractArray, l::hinge)
+function avgerror(a::AbstractArray, l::hinge)
     m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
@@ -174,7 +174,7 @@ end
 # scalings
 function equilibrate_variance!(losses::Array{Loss}, A)
     for i=1:size(A,2)
-        vari = variance(dropna(A[:,i]), losses[i])
+        vari = avgerror(dropna(A[:,i]), losses[i])
         if vari > 0
             losses[i].scale = 1/vari
         else
