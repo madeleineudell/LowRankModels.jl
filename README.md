@@ -69,6 +69,27 @@ For example, the following code forms a k-means model with $k=5$ on the matrix `
 
 For more examples, see `examples/simple_glrms.jl`.
 
+To fit the model, we call
+
+	X,Y,ch = autoencode!(glrm)
+
+which runs an alternating directions proximal gradient method on `glrm` to find the 
+`X` and `Y` minimizing the objective function.
+(`ch` gives the convergence history; see the section `Technical details` below for more information.)
+The fields `glrm.X` and `glrm.Y` are also set by this call.
+
 # Scaling and offsets
 
 # Fitting DataFrames
+
+# Technical details
+
+## Optimization
+
+### Warm start
+
+### Parameters
+
+### Convergence
+`ch` gives the convergence history so that the success of the optimization can be monitored;
+`ch.objective` stores the objective values, and `ch.times` captures the times these objective values were achieved.
