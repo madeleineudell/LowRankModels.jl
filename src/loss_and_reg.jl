@@ -5,6 +5,13 @@
 # while regularizers should implement `prox`. 
 # For automatic scaling, losses should also implement `variance`.
 
+export Loss, Regularizer, # abstract types
+       quadratic, hinge, ordinal_hinge, l1, # concrete losses
+       grad, evaluate, variance # methods on losses
+       quadreg, zeroreg, nonnegative, onesparse, lastentry1, lastentry_unpenalized # concrete regularizers
+       prox, # methods on regularizers
+       add_offset, equilibrate_variance! # utilities
+
 abstract Loss
 
 # loss functions
@@ -133,27 +140,27 @@ function prox(r::nonnegative)
     return (u,alpha) -> broadcast(max,u,0)
 end
 
-## indicator of the last column being equal to 1
-## (allows an unpenalized offset term into the glrm when used in conjunction with lastcol_unpenalized)
-type lastcol1<:Regularizer
+## indicator of the last entry being equal to 1
+## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
+type lastentry1<:Regularizer
     r::Regularizer
 end
-function prox(r::lastcol1)
+function prox(r::lastentry1)
     return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), 1]
 end
 
 ## makes the last entry unpenalized
-## (allows an unpenalized offset term into the glrm when used in conjunction with lastcol1)
-type lastcol_unpenalized<:Regularizer
+## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry1)
+type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
-function prox(r::lastcol_unpenalized)
+function prox(r::lastentry_unpenalized)
     return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), u[end]]
 end
 
 ## adds an offset to the model by modifying the regularizers
 function add_offset(r::Regularizer,rt::Regularizer)
-    return lastcol1(r), lastcol_unpenalized(rt)
+    return lastentry1(r), lastentry_unpenalized(rt)
 end
 
 ## indicator of 1-sparse vectors
