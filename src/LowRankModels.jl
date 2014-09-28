@@ -1,4 +1,4 @@
-module GLRM
+module LowRankModels
 
 # package code goes here
 include("loss_and_reg.jl")

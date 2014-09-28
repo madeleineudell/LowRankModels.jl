@@ -1,5 +1,5 @@
 using RDatasets
-using GLRM
+using LowRankModels
 
 # pick a data set
 df = RDatasets.dataset("psych", "msq")

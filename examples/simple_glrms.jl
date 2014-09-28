@@ -1,4 +1,4 @@
-using GLRM
+using LowRankModels
 
 function autoencode_pca(m,n,k)
 	# matrix to encode
@@ -7,7 +7,7 @@ function autoencode_pca(m,n,k)
 	r = zeroreg()
 	glrm = GLRM(A,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)
-	println("Convergence:",ch.objective)
+	println("Convergence history:",ch.objective)
 end
 
 function autoencode_nnmf(m,n,k)
@@ -17,7 +17,7 @@ function autoencode_nnmf(m,n,k)
 	r = nonnegative()
 	glrm = GLRM(A,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)
-	println("Convergence:",ch.objective)
+	println("Convergence history:",ch.objective)
 end
 
 function autoencode_pca_nucnorm(m,n,k)
@@ -27,7 +27,7 @@ function autoencode_pca_nucnorm(m,n,k)
 	r = quadreg(.1)
 	glrm = GLRM(A,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)	
-	println("Convergence:",ch.objective)
+	println("Convergence history:",ch.objective)
 end
 
 function autoencode_kmeans(m,n,k)
@@ -42,7 +42,7 @@ function autoencode_kmeans(m,n,k)
 	r = onesparse() 
 	glrm = GLRM(A,losses,rt,r,k+4)
 	X,Y,ch = autoencode!(glrm)	
-	println("Convergence:",ch.objective)
+	println("Convergence history:",ch.objective)
 end
 
 function autoencode_pca_nucnorm_sparse(m,n,k,s)
@@ -54,7 +54,7 @@ function autoencode_pca_nucnorm_sparse(m,n,k,s)
 	obs = [(obsx[i],obsy[i]) for i=1:s]
 	glrm = GLRM(A,obs,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)	
-	println("Convergence:",ch.objective)
+	println("Convergence history:",ch.objective)
 end
 
 if true

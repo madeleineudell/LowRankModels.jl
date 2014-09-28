@@ -1,6 +1,6 @@
 import Stats.sample, Base.size
 
-export GLRM, objective, Params, FunctionArray, getindex, display, size, autoencode
+export GLRM, objective, Params, FunctionArray, getindex, display, size, autoencode, autoencode!
 # type GLRM{T,I}
 # 	A::Array{T,2}
 # 	obs::Array{(I,I),1}
@@ -40,7 +40,7 @@ type Params
 	max_iter # maximum number of iterations
 	convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
 end
-Params() = Params(1,100,.01)
+Params() = Params(1,100,.001)
 
 type FunctionArray<:AbstractArray
 	f::Function
@@ -68,7 +68,7 @@ function sort_observations(obs,m,n)
     return observed_features, observed_examples
 end
 
-function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"))
+function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	# initialization
 	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
@@ -85,6 +85,7 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 	alpha = params.stepsize / max(M,N)
 
 	# alternating updates of X and Y
+	if verbose println("Fitting GLRM") end
 	for i=1:params.max_iter
 		# X update
 		t = time()
@@ -108,6 +109,9 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 		# check stopping criterion
 		if i>10 && ch.objective[end-1] - ch.objective[end] < tol
 			break
+		end
+		if verbose && i%10==0 
+			println("Iteration $i: objective value = $(ch.objective[end])") 
 		end
 	end
 	return glrm.X,glrm.Y,ch

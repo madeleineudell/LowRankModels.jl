@@ -82,6 +82,7 @@ which runs an alternating directions proximal gradient method on `glrm` to find 
 `X` and `Y` minimizing the objective function.
 (`ch` gives the convergence history; see [Technical details](https://github.com/madeleineudell/GLRM.jl#technical-details) below for more information.)
 The fields `glrm.X` and `glrm.Y` are also set by this call.
+(If you prefer not to have `glrm.X` and `glrm.Y`, you can use the function `autoencode`.)
 
 # Missing data
 
@@ -167,9 +168,9 @@ so that step *lengths* remain of order 1.
 is less than `convergence_tol*length(obs)`, 
 * or when the maximum number of rounds `max_iter` has been reached.
 
-By default, the parameters are set to use a step size of 1, a maximum of 100 iterations, and a convergence tolerance of .01:
+By default, the parameters are set to use a step size of 1, a maximum of 100 iterations, and a convergence tolerance of .001:
 
-	Params(1,100,.01)
+	Params(1,100,.001)
 
 ### Convergence
 `ch` gives the convergence history so that the success of the optimization can be monitored;
