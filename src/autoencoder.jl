@@ -36,8 +36,8 @@ function objective(glrm::GLRM)
 end
 
 type Params
-	alpha # step size
-	num_rounds # maximum number of iterations
+	stepsize # stepsize
+	max_iter # maximum number of iterations
 	convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
 end
 Params() = Params(1,100,.01)
@@ -82,10 +82,10 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 	## ensure step size alpha = O(1/g) is apx bounded by maximum size of gradient
 	N = maximum(map(length,observed_features))
 	M = maximum(map(length,observed_examples))
-	alpha = params.alpha / max(M,N)
+	alpha = params.stepsize / max(M,N)
 
 	# alternating updates of X and Y
-	for i=1:params.num_rounds
+	for i=1:params.max_iter
 		# X update
 		t = time()
 		XY = glrm.X*glrm.Y

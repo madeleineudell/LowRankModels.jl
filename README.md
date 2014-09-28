@@ -7,6 +7,7 @@ GLRMs model a data array by a low rank matrix, and
 include many well known models in data analysis, such as 
 principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
+For more information on GLRMs, watch the arXiv... (paper coming by October 1)
 
 GLRM.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
@@ -29,12 +30,8 @@ The desired model is specified by choosing a rank $k$ for the model,
 an array of loss functions $L_j$, and two regularizers, $r$ and $rt$.
 The data is modeled as $XY$, where $X \in R^{m \times k}$ and $Y \in R^{k \times n}$.
 $X$ and $Y$ are found by solving the optimization problem
-$$
-\begin{array}{ll}
-\mbox{minimize} & \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) 
-+ \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j),
-\end{array}
-$$
+$$\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) 
++ \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)$$
 
 The basic type used by GLRM.jl is (unsurprisingly), the GLRM. To form a GLRM,
 the user specifies
@@ -62,6 +59,7 @@ see `loss_and_reg.jl` for more details.
 
 For example, the following code forms a k-means model with $k=5$ on the matrix `A`:
 
+	using GLRM
 	m,n,k = 100,100,5
 	Y = randn(k,n)
 	A = zeros(m,n)
@@ -86,15 +84,74 @@ The fields `glrm.X` and `glrm.Y` are also set by this call.
 
 # Scaling and offsets
 
+GLRM.jl is capable of adding offsets to your model, and of scaling the loss 
+functions so all columns have the same pull in the model.
+(For more about what these functions do, see the code or the paper.)
+Starting with loss functions `losses` and regularizers `r` and `rt`:
+
+* Add an offset to the model (by applying no regularization to the last row 
+  of the matrix `Y`) using
+
+	  r, rt = add_offset(r, rt)
+
+* Scale the loss functions `losses` by calling
+
+      equilibrate_variance!(losses, A)
+
+Then form your scaled, offset GLRM with `glrm = GLRM(A,losses,rt,r,k)`
+
 # Fitting DataFrames
+
+Perhaps all this sounds like too much work. Perhaps you happen to have a 
+[DataFrame](https://github.com/JuliaStats/DataFrames.jl) `df` lying around 
+that you'd like a low rank (eg, k=2) model for. For example,
+
+	using RDatasets
+	df = RDatasets.dataset("psych", "msq")
+
+Never fear! Just call
+
+	X,Y,labels,ch = autoencode_dataframe(df,2)
+
+This will fit a GLRM to your data, using a quadratic loss for real valued columns,
+hinge loss for boolean columns, and ordinal hinge loss for integer columns.
+(Right now, all other data types are ignored.)
+It returns the column labels for the columns it fit, along with the model.
+
+You can use the model to get some intuition for the data set. For example,
+try plotting the columns of `Y` with the labels; you might see
+that similar features are close to each other!
 
 # Technical details
 
 ## Optimization
 
+`autoencoder` uses an alternating directions proximal gradient method
+to minimize the objective. This method is *not* guaranteed to converge to 
+the optimum, or even to a local minimum. If your code is not converging,
+there are a number of parameters to tweak.
+
 ### Warm start
 
+The algorithm starts with `glrm.X` and `glrm.Y` as the initial estimates
+for `X` and `Y`. If these are not given explicitly, they will be initialized randomly.
+If you have a good guess for a model, try setting them explicitly.
+If you think that you're getting stuck in a local minimum, try reinitializing your
+GLRM (so as to construct a new initial random point) and see if the model you obtain improves.
+
 ### Parameters
+
+Parameters are encoded in a Parameter type, which sets the step size `stepsize`,
+number of rounds `max_iter` of alternating proximal gradient,
+and the convergence tolerance.
+
+* The step size controls the speed of convergence. Small step sizes will slow convergence,
+while large ones will cause divergence. `stepsize` should be of order 1;
+`autoencode` scales it by the maximum number of entries per column or row
+so that step *lengths* remain of order 1.
+* The algorithm stops when the decrease in the objective per iteration 
+is less than `convergence_tol*length(obs)`, 
+* or when the maximum number of rounds `max_iter` has been reached.
 
 ### Convergence
 `ch` gives the convergence history so that the success of the optimization can be monitored;
