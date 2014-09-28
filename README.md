@@ -7,18 +7,19 @@ GLRMs model a data array by a low rank matrix, and
 include many well known models in data analysis, such as 
 principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
-For more information on GLRMs, watch the arXiv... (paper coming by October 1)
+
+For more information on GLRMs, watch the arXiv... (Paper coming by October 1.)
 
 LowRankModels.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
 In particular, it supports 
 
 * using different loss functions for different columns of the data array, 
-  which can be very useful when data types are heterogeneous 
+  which is useful when data types are heterogeneous 
   (eg, real, boolean, and ordinal columns);
-* data tables with many missing (unobserved) entries
+* fitting the model to only *some* of the entries in the talbe, which is useful for data tables with many missing (unobserved) entries; and
 * adding offsets and scalings to the model without destroying sparsity,
-  which can be very useful when the data is poorly scaled.
+  which is useful when the data is poorly scaled.
 
 # Generalized Low Rank Models
 
@@ -76,18 +77,17 @@ For more examples, see `examples/simple_glrms.jl`.
 
 To fit the model, call
 
-	X,Y,ch = autoencode!(glrm)
+	X,Y,ch = autoencode(glrm)
 
 which runs an alternating directions proximal gradient method on `glrm` to find the 
 `X` and `Y` minimizing the objective function.
 (`ch` gives the convergence history; see [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) below for more information.)
-The fields `glrm.X` and `glrm.Y` are also set by this call.
-(If you prefer not to have `glrm.X` and `glrm.Y`, you can use the function `autoencode`.)
 
 # Missing data
 
 If not all entries are present in your data table, just tell the GLRM
 which observations to fit the model to by listing their indices in `obs`.
+(ie, `obs` is a list of tuples.)
 Then initialize the model using
 
 	GLRM(A,obs,losses,rt,r,k)
@@ -153,6 +153,15 @@ for `X` and `Y`. If these are not given explicitly, they will be initialized ran
 If you have a good guess for a model, try setting them explicitly.
 If you think that you're getting stuck in a local minimum, try reinitializing your
 GLRM (so as to construct a new initial random point) and see if the model you obtain improves.
+
+You can use the function `autoencode!` to set the fields `glrm.X` and `glrm.Y` 
+after fitting the autoencoder. This is particularly useful if you want to use 
+the model you generate as a warm start for further iterations.
+
+You can even start with an easy-to-optimize loss function, run `autoencode!`,
+change the loss function (`glrm.losses = newlosses`), 
+and keep going from your warm start by calling `autoencode!` again to fit 
+the new loss functions.
 
 ### Parameters
 
