@@ -8,6 +8,7 @@ function autoencode_pca(m,n,k)
 	glrm = GLRM(A,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)
 	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
 end
 
 function autoencode_nnmf(m,n,k)
@@ -18,6 +19,7 @@ function autoencode_nnmf(m,n,k)
 	glrm = GLRM(A,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)
 	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
 end
 
 function autoencode_pca_nucnorm(m,n,k)
@@ -28,6 +30,7 @@ function autoencode_pca_nucnorm(m,n,k)
 	glrm = GLRM(A,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)	
 	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
 end
 
 function autoencode_kmeans(m,n,k)
@@ -43,6 +46,7 @@ function autoencode_kmeans(m,n,k)
 	glrm = GLRM(A,losses,rt,r,k+4)
 	X,Y,ch = autoencode!(glrm)	
 	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
 end
 
 function autoencode_pca_nucnorm_sparse(m,n,k,s)
@@ -55,6 +59,7 @@ function autoencode_pca_nucnorm_sparse(m,n,k,s)
 	glrm = GLRM(A,obs,losses,r,r,k)
 	X,Y,ch = autoencode!(glrm)	
 	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
 end
 
 if true

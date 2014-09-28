@@ -1,15 +1,15 @@
-# GLRM.jl
+# LowRankModels.jl
 
-[![Build Status](https://travis-ci.org/madeleineudell/GLRM.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/GLRM.jl)
+[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)
 
-GLRM.jl is a julia package for modeling and fitting generalized low rank models (GLRMs).
+LowRankModels.jl is a julia package for modeling and fitting generalized low rank models (GLRMs).
 GLRMs model a data array by a low rank matrix, and
 include many well known models in data analysis, such as 
 principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
 For more information on GLRMs, watch the arXiv... (paper coming by October 1)
 
-GLRM.jl makes it easy to mix and match loss functions and regularizers
+LowRankModels.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
 In particular, it supports 
 
@@ -34,7 +34,7 @@ $X$ and $Y$ are found by solving the optimization problem
 
 	minimize sum_{(i,j) in Omega} L_{ij}(x_i y_j, A_{ij}) + sum_i r_i(x_i) + sum_j \tilde r_j(y_j)
 
-The basic type used by GLRM.jl is (unsurprisingly), the GLRM. To form a GLRM,
+The basic type used by LowRankModels.jl is (unsurprisingly), the GLRM. To form a GLRM,
 the user specifies
 
 * the data `A`
@@ -80,7 +80,7 @@ To fit the model, call
 
 which runs an alternating directions proximal gradient method on `glrm` to find the 
 `X` and `Y` minimizing the objective function.
-(`ch` gives the convergence history; see [Technical details](https://github.com/madeleineudell/GLRM.jl#technical-details) below for more information.)
+(`ch` gives the convergence history; see [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) below for more information.)
 The fields `glrm.X` and `glrm.Y` are also set by this call.
 (If you prefer not to have `glrm.X` and `glrm.Y`, you can use the function `autoencode`.)
 
@@ -99,7 +99,7 @@ any entry that is of type `NA`, you can use
 
 # Scaling and offsets
 
-GLRM.jl is capable of adding offsets to your model, and of scaling the loss 
+LowRankModels.jl is capable of adding offsets to your model, and of scaling the loss 
 functions so all columns have the same pull in the model.
 (For more about what these functions do, see the code or the paper.)
 Starting with loss functions `losses` and regularizers `r` and `rt`:
