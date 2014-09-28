@@ -58,7 +58,7 @@ and may be chosen from a list of supported losses and regularizers, which includ
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
 
-For example, the following code forms a k-means model with $k=5$ on the matrix `A`:
+For example, the following code forms a k-means model with `k=5` on the matrix `A`:
 
 	using GLRM
 	m,n,k = 100,100,5
@@ -74,7 +74,7 @@ For example, the following code forms a k-means model with $k=5$ on the matrix `
 
 For more examples, see `examples/simple_glrms.jl`.
 
-To fit the model, we call
+To fit the model, call
 
 	X,Y,ch = autoencode!(glrm)
 
@@ -105,7 +105,7 @@ Then form your scaled, offset GLRM with `glrm = GLRM(A,losses,rt,r,k)`
 
 Perhaps all this sounds like too much work. Perhaps you happen to have a 
 [DataFrame](https://github.com/JuliaStats/DataFrames.jl) `df` lying around 
-that you'd like a low rank (eg, k=2) model for. For example,
+that you'd like a low rank (eg, `k=2`) model for. For example,
 
 	using RDatasets
 	df = RDatasets.dataset("psych", "msq")
@@ -127,10 +127,10 @@ that similar features are close to each other!
 
 ## Optimization
 
-`autoencoder` uses an alternating directions proximal gradient method
+The function `autoencode` uses an alternating directions proximal gradient method
 to minimize the objective. This method is *not* guaranteed to converge to 
-the optimum, or even to a local minimum. If your code is not converging,
-there are a number of parameters to tweak.
+the optimum, or even to a local minimum. If your code is not converging
+or is converging to a model you dislike, there are a number of parameters you can tweak.
 
 ### Warm start
 
@@ -142,9 +142,9 @@ GLRM (so as to construct a new initial random point) and see if the model you ob
 
 ### Parameters
 
-Parameters are encoded in a Parameter type, which sets the step size `stepsize`,
+Parameters are encoded in a `Parameter` type, which sets the step size `stepsize`,
 number of rounds `max_iter` of alternating proximal gradient,
-and the convergence tolerance.
+and the convergence tolerance `convergence_tol`.
 
 * The step size controls the speed of convergence. Small step sizes will slow convergence,
 while large ones will cause divergence. `stepsize` should be of order 1;
@@ -154,6 +154,11 @@ so that step *lengths* remain of order 1.
 is less than `convergence_tol*length(obs)`, 
 * or when the maximum number of rounds `max_iter` has been reached.
 
+By default, the parameters are set to use a step size of 1, a maximum of 100 iterations, and a convergence tolerance of .01:
+
+	Params(1,100,.01)
+
 ### Convergence
 `ch` gives the convergence history so that the success of the optimization can be monitored;
 `ch.objective` stores the objective values, and `ch.times` captures the times these objective values were achieved.
+Try plotting this to see if you just need to increase `max_iter` to converge to a better model.
