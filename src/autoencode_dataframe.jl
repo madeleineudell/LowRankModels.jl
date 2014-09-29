@@ -72,8 +72,8 @@ function get_ordinals(df::DataFrame)
 end
 
 function autoencode_dataframe(df::DataFrame, k::Integer; 
-                              losses = None, r = quadreg(.1), rt = quadreg(.1), 
-                              offset = true, scale = true)
+                              losses = None, rx = quadreg(.1), ry = quadreg(.1), 
+                              offset = true, scale = true, params = Params())
     # identify ordinal, boolean and real columns
     if losses == None
         reals, real_losses = get_reals(df)
@@ -97,11 +97,11 @@ function autoencode_dataframe(df::DataFrame, k::Integer;
     end
     # don't penalize the offset of the columns
     if offset
-        r, rt = add_offset(r, rt)
+        rx, ry = add_offset(rx, ry)
     end
 
     # go!
-    glrm = GLRM(A, obs, losses, rt, r, k)
-    X,Y,ch = autoencode(glrm)
+    glrm = GLRM(A, obs, losses, rx, ry, k)
+    X,Y,ch = autoencode(glrm, params)
     return X,Y,labels,ch
 end

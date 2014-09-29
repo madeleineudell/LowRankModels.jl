@@ -8,7 +8,7 @@ type ConvergenceHistory
     times::Array
     optval
 end
-ConvergenceHistory(name::String,optval=0) = ConvergenceHistory(name,Any[],Any[],Any[],Any[],optval)
+ConvergenceHistory(name::String,optval=0) = ConvergenceHistory(name,Float64[],Float64[],Float64[],Float64[],optval)
 
 function update!(ch::ConvergenceHistory, dt, 
                  obj=0, pr=0, dr=0)

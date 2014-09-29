@@ -41,9 +41,9 @@ function autoencode_kmeans(m,n,k)
 		A[i,:] = Y[mod(i,k)+1,:]
 	end
 	losses = fill(quadratic(),n)
-	rt = zeroreg()
-	r = onesparse() 
-	glrm = GLRM(A,losses,rt,r,k+4)
+	ry = zeroreg()
+	rx = onesparse() 
+	glrm = GLRM(A,losses,rx,ry,k+4)
 	X,Y,ch = autoencode!(glrm)	
 	println("Convergence history:",ch.objective)
 	return A,X,Y,ch
@@ -64,8 +64,8 @@ end
 
 if true
 	autoencode_pca(100,100,2)
-	autoencode_pca_nucnorm(500,500,2)
-	autoencode_pca_nucnorm_sparse(1000,1000,2,10000)
+	autoencode_pca_nucnorm(100,100,2)
+	autoencode_pca_nucnorm_sparse(500,500,2,10000)
 	autoencode_kmeans(50,50,10)
 	autoencode_nnmf(50,50,2)
 end

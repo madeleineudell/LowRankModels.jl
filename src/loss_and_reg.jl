@@ -124,12 +124,18 @@ quadreg() = quadreg(1)
 function prox(r::quadreg)
     return (u,alpha) -> 1/(1+alpha*r.scale/2)*u
 end
+function evaluate(r::quadreg,a)
+    return r.scale*sum(a.^2)
+end
 
 ## no regularization
 type zeroreg<:Regularizer
 end
 function prox(r::zeroreg)
     return (u,alpha) -> u
+end
+function evaluate(r::zeroreg,a)
+    return 0
 end
 
 ## indicator of the nonnegative orthant 
@@ -138,6 +144,9 @@ type nonnegative<:Regularizer
 end
 function prox(r::nonnegative)
     return (u,alpha) -> broadcast(max,u,0)
+end
+function evaluate(r::nonnegative,a)
+    return any(map(x->x<0,a)) ? Inf : 0
 end
 
 ## indicator of the last entry being equal to 1
@@ -148,6 +157,9 @@ end
 function prox(r::lastentry1)
     return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), 1]
 end
+function evaluate(r::lastentry1,a)
+    return a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf
+end
 
 ## makes the last entry unpenalized
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry1)
@@ -156,6 +168,9 @@ type lastentry_unpenalized<:Regularizer
 end
 function prox(r::lastentry_unpenalized)
     return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), u[end]]
+end
+function evaluate(r::lastentry_unpenalized,a)
+    return evaluate(r.r,a[1:end-1])
 end
 
 ## adds an offset to the model by modifying the regularizers
@@ -169,6 +184,9 @@ type onesparse<:Regularizer
 end
 function prox(r::onesparse)
     return (u,alpha) -> (maxu = maximum(u); [int(ui==maxu) for ui in u])
+end
+function evaluate(r::onesparse,a)
+    return sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 end
 
 # scalings

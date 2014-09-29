@@ -21,28 +21,39 @@ In particular, it supports
 * adding offsets and scalings to the model without destroying sparsity,
   which is useful when the data is poorly scaled.
 
+## Installation
+
+To install, just call
+```
+Pkg.install("https://github.com/madeleineudell/LowRankModels.jl.git")
+```
+at the julia prompt.
+
 # Generalized Low Rank Models
 
-GLRMs form a low rank model for tabular data $A$ with $m$ rows and $n$ columns, 
+GLRMs form a low rank model for tabular data `A` with `m` rows and `n` columns, 
 which can be input as an array or any array-like object (for example, a data frame).
-It is fine if only some of the entries $(i,j) \in \Omega$ have been observed 
-(i.e., the others are missing or `NA`); the GLRM will only be fit on the observed entries.
-The desired model is specified by choosing a rank $k$ for the model,
-an array of loss functions $L_j$, and two regularizers, $r$ and $\tilde r$.
-The data is modeled as $XY$, where $X \in R^{m \times k}$ and $Y \in R^{k \times n}$.
-$X$ and $Y$ are found by solving the optimization problem
-<!--$$\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) + \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)$$-->
+It is fine if only some of the entries have been observed 
+(i.e., the others are missing or `NA`); the GLRM will only be fit on the observed entries `obs`.
+The desired model is specified by choosing a rank `k` for the model,
+an array of loss functions `losses`, and two regularizers, `rx` and `ry`.
+The data is modeled as `XY`, where `X` is a `m`x`k` matrix and `Y` is a `k`x`n` matrix.
+`X` and `Y` are found by solving the optimization problem
+<!--``\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) + \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)``-->
 
-	minimize sum_{(i,j) in Omega} L_{ij}(x_i y_j, A_{ij}) + sum_i r_i(x_i) + sum_j \tilde r_j(y_j)
+	minimize sum_{(i,j) in obs} losses[j](x[i,:] y[:,j], A[i,j]) + sum_i rx(x[i,:]) + sum_j ry(y[:,j])
 
-The basic type used by LowRankModels.jl is (unsurprisingly), the GLRM. To form a GLRM,
+The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
 * the data `A`
 * the observed entries `obs`
 * the array of loss functions `losses`
-* the regularizers `r` (which acts on `X`) and `rt` (which acts on `Y`)
+* the regularizers `rx` and `ry`
 * the rank `k`
+
+`obs` is a list of tuples of the indices of the observed entries in the matrix,
+and may be omitted if all the entries in the matrix have been observed.
 
 Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
 and may be chosen from a list of supported losses and regularizers, which include
@@ -81,13 +92,14 @@ To fit the model, call
 
 which runs an alternating directions proximal gradient method on `glrm` to find the 
 `X` and `Y` minimizing the objective function.
-(`ch` gives the convergence history; see [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) below for more information.)
+(`ch` gives the convergence history; see 
+[Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) 
+below for more information.)
 
 # Missing data
 
 If not all entries are present in your data table, just tell the GLRM
 which observations to fit the model to by listing their indices in `obs`.
-(ie, `obs` is a list of tuples.)
 Then initialize the model using
 
 	GLRM(A,obs,losses,rt,r,k)
