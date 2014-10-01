@@ -8,7 +8,7 @@ include many well known models in data analysis, such as
 principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
 
-For more information on GLRMs, see [http://www.stanford.edu/~udell/doc/glrm.pdf](our paper).
+For more information on GLRMs, see [our paper](http://www.stanford.edu/~udell/doc/glrm.pdf).
 
 LowRankModels.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
