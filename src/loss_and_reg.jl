@@ -2,7 +2,7 @@
 # You may also implement your own loss or regularizer by subtyping 
 # the abstract type Loss or Regularizer.
 # Losses will need to have the methods `evaluate` and `grad` defined, 
-# while regularizers should implement `prox`. 
+# while regularizers should implement `evaluate` and `prox`. 
 # For automatic scaling, losses should also implement `avgerror`.
 
 export Loss, Regularizer, # abstract types

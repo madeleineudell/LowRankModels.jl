@@ -89,7 +89,7 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 	m,n = size(gradL)
 	if verbose println("Sorting observations") end
 	observed_features, observed_examples = sort_observations(glrm.obs,m,n)
-	X = glrm.X; Y = glrm.Y
+	X, Y = copy(glrm.X), copy(glrm.Y)
 
 	# scale optimization parameters
 	## stopping criterion: stop when decrease in objective < tol
@@ -125,11 +125,11 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 		if obj < ch.objective[end]
 			t = time() - t
 			update!(ch, t, obj)
-			glrm.X, glrm.Y = X, Y
+			glrm.X[:], glrm.Y[:] = X, Y
 			t = time()
 		end
 		# check stopping criterion
-		if i>10 && ch.objective[end-1] - ch.objective[end] < tol
+		if i>10 && ch.objective[end-1] - obj < tol
 			break
 		end
 		if verbose && i%10==0 
