@@ -1,6 +1,6 @@
 using DataFrames
 
-export autoencode_dataframe, observations
+export GLRM, observations
 
 max_ordinal_levels = 9
 
@@ -22,10 +22,6 @@ function observations(df::DataFrame)
         end
     end
     return obs
-end
-function check_observations(obs)
-    # XXX make sure we have at least one observation of each feature and example
-    true
 end
 GLRM(df::DataFrame,args...) = GLRM(df2array(df,0),args...)
 
@@ -71,9 +67,9 @@ function get_ordinals(df::DataFrame)
     return ordinals, losses
 end
 
-function autoencode_dataframe(df::DataFrame, k::Integer; 
-                              losses = None, rx = quadreg(.1), ry = quadreg(.1), 
-                              offset = true, scale = true, params = Params())
+function GLRM(df::DataFrame, k::Integer; 
+              losses = None, rx = quadreg(.1), ry = quadreg(.1), 
+              offset = true, scale = true)
     # identify ordinal, boolean and real columns
     if losses == None
         reals, real_losses = get_reals(df)
@@ -100,8 +96,6 @@ function autoencode_dataframe(df::DataFrame, k::Integer;
         rx, ry = add_offset(rx, ry)
     end
 
-    # go!
-    glrm = GLRM(A, obs, losses, rx, ry, k)
-    X,Y,ch = autoencode(glrm, params)
-    return X,Y,labels,ch
+    # form model
+    return GLRM(A, obs, losses, rx, ry, k)
 end

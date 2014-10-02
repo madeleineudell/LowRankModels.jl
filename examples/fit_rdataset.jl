@@ -4,8 +4,8 @@ using LowRankModels
 # pick a data set
 df = RDatasets.dataset("psych", "msq")
 
-# encode it!
-X,Y,labels,ch = autoencode_dataframe(df,2)
+# fit it!
+X,Y,labels,ch = fit(GLRM(df,2))
 
 # print results
 println(ch)

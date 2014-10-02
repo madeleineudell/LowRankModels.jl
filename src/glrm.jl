@@ -1,6 +1,6 @@
 import Stats.sample, Base.size
 
-export GLRM, objective, Params, FunctionArray, getindex, display, size, autoencode, autoencode!
+export GLRM, objective, Params, FunctionArray, getindex, display, size, fit, fit!
 # type GLRM{T,I}
 # 	A::Array{T,2}
 # 	obs::Array{(I,I),1}
@@ -82,7 +82,7 @@ function sort_observations(obs,m,n)
     return observed_features, observed_examples
 end
 
-function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
+function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	# initialization
 	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
@@ -139,6 +139,6 @@ function autoencode(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Co
 
 	return glrm.X,glrm.Y,ch
 end
-function autoencode!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"))
-	glrm.X, glrm.Y = autoencode(glrm,params)
+function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"))
+	glrm.X, glrm.Y = fit(glrm,params)
 end
