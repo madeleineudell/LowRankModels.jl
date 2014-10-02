@@ -97,5 +97,5 @@ function GLRM(df::DataFrame, k::Integer;
     end
 
     # form model
-    return GLRM(A, obs, losses, rx, ry, k)
+    return GLRM(A, obs, losses, rx, ry, k), labels
 end

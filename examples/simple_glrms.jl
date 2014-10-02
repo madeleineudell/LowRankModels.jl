@@ -62,7 +62,7 @@ function fit_pca_nucnorm_sparse(m,n,k,s)
 	return A,X,Y,ch
 end
 
-if false
+if true
 	fit_pca(100,100,2)
 	fit_pca_nucnorm(100,100,2)
 	fit_pca_nucnorm_sparse(500,500,2,10000)

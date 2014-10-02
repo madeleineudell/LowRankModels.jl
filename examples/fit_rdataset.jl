@@ -5,7 +5,8 @@ using LowRankModels
 df = RDatasets.dataset("psych", "msq")
 
 # fit it!
-X,Y,labels,ch = fit(GLRM(df,2))
+glrm, labels = GLRM(df,2)
+X, Y, ch = fit(glrm)
 
 # print results
 println(ch)
