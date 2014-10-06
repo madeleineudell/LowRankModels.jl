@@ -25,7 +25,7 @@ In particular, it supports
 
 To install, just call
 ```
-Pkg.install("https://github.com/madeleineudell/LowRankModels.jl.git")
+Pkg.clone("git@github.com:madeleineudell/LowRankModels.jl.git")
 ```
 at the julia prompt.
 
@@ -72,7 +72,7 @@ see `loss_and_reg.jl` for more details.
 
 For example, the following code forms a k-means model with `k=5` on the matrix `A`:
 
-	using GLRM
+	using LowRankModels
 	m,n,k = 100,100,5
 	Y = randn(k,n)
 	A = zeros(m,n)
