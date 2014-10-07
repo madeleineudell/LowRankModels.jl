@@ -139,6 +139,6 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 
 	return glrm.X,glrm.Y,ch
 end
-function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"))
-	glrm.X, glrm.Y = fit(glrm,params)
+function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"), verbose=true)
+	glrm.X, glrm.Y = fit(glrm,params, ch, verbose)
 end
