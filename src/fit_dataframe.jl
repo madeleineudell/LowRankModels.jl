@@ -68,7 +68,7 @@ function get_ordinals(df::DataFrame)
 end
 
 function GLRM(df::DataFrame, k::Integer; 
-              losses = None, rx = quadreg(.1), ry = quadreg(.1), 
+              losses = None, rx = quadreg(.01), ry = quadreg(.01), 
               offset = true, scale = true)
     # identify ordinal, boolean and real columns
     if losses == None

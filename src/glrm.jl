@@ -47,7 +47,9 @@ type Params
 	stepsize # stepsize
 	max_iter # maximum number of iterations
 	convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
+	min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
 end
+Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
 Params() = Params(1,100,.001)
 
 type FunctionArray<:AbstractArray
@@ -80,12 +82,13 @@ function sort_observations(obs,m,n)
     return observed_features, observed_examples
 end
 
-function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
+function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"); verbose=true)
 	
 	# initialization
 	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
 	m,n = size(gradL)
 	X, Y = copy(glrm.X), copy(glrm.Y)
+	k = glrm.k
 
 	# scale optimization parameters
 	## stopping criterion: stop when decrease in objective < tol
@@ -104,7 +107,10 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 		XY = X*Y
 		for e=1:m
 			# a gradient of L wrt e
-			g = sum([gradL[e,f](XY[e,f])*Y[:,f:f]' for f in glrm.observed_features[e]])
+			g = zeros(1,k)
+			for f in glrm.observed_features[e]
+				g += gradL[e,f](XY[e,f])*Y[:,f:f]'
+			end
 			# take a proximal gradient step
 			X[e,:] = prox(glrm.rx)(X[e:e,:]-alpha*g,alpha)
 		end
@@ -112,7 +118,10 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 		XY = X*Y
 		for f=1:n
 			# a gradient of L wrt f
-			g = sum([X[e:e,:]'*gradL[e,f](XY[e,f]) for e in glrm.observed_examples[f]])
+			g = zeros(k,1)
+			for e in glrm.observed_examples[f]
+				g += X[e:e,:]'*gradL[e,f](XY[e,f])
+			end
 			# take a proximal gradient step
 			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha*g,alpha)
 		end
@@ -126,7 +135,11 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 		end
 		# check stopping criterion
 		if i>10 && ch.objective[end-1] - obj < tol
-			break
+			if alpha <= params.min_stepsize / max(M,N)
+				break
+			else
+				alpha = alpha/2
+			end
 		end
 		if verbose && i%10==0 
 			println("Iteration $i: objective value = $(ch.objective[end])") 
