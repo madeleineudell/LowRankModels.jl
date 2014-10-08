@@ -52,7 +52,7 @@ type Params
 	min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
 end
 Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
-Params() = Params(1,100,.001)
+Params() = Params(1,100,.001,.01)
 
 type FunctionArray<:AbstractArray
 	f::Function
@@ -150,6 +150,6 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 
 	return glrm.X,glrm.Y,ch
 end
-function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"))
-	glrm.X, glrm.Y = fit(glrm,params)
+function fit!(glrm::GLRM, args...; kwargs...)
+	glrm.X, glrm.Y = fit(glrm, args...; kwargs...)
 end
