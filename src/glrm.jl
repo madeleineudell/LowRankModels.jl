@@ -82,7 +82,7 @@ function sort_observations(obs,m,n)
     return observed_features, observed_examples
 end
 
-function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
+function fit(glrm::GLRM;params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	# initialization
 	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
@@ -129,7 +129,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 			t = time()
 		end
 		# check stopping criterion
-		if i>10 && ch.objective[end-1] - obj < tol
+		if i>10 && length(ch.objective) >1 && ch.objective[end-1] - obj < tol
 			break
 		end
 		if verbose && i%10==0 
@@ -139,6 +139,6 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 
 	return glrm.X,glrm.Y,ch
 end
-function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"), verbose=true)
+function fit!(glrm::GLRM;params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"), verbose=true)
 	glrm.X, glrm.Y = fit(glrm,params, ch, verbose)
 end
