@@ -70,18 +70,13 @@ and may be chosen from a list of supported losses and regularizers, which includ
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
 
-For example, the following code forms a k-means model with `k=5` on the matrix `A`:
+For example, the following code forms a k-means model with `k=5` on the `100`x`100` matrix `A`:
 
 	using LowRankModels
 	m,n,k = 100,100,5
-	Y = randn(k,n)
-	A = zeros(m,n)
-	for i=1:m
-		A[i,:] = Y[mod(i,k)+1,:]
-	end
 	losses = fill(quadratic(),n)
-	rt = zeroreg()
-	r = onesparse() 
+	rx = onesparse() # each row is assigned to exactly one cluster
+	ry = zeroreg() # no regularization on the cluster centroids
 	glrm = GLRM(A,losses,rt,r,k)
 
 For more examples, see `examples/simple_glrms.jl`.
