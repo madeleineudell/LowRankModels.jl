@@ -6,7 +6,7 @@ type GLRM
 	A
 	observed_features
 	observed_examples
-	losses::Array{Loss, }
+	losses::Array{Loss,1}
 	rx::Regularizer
 	ry::Regularizer
 	k::Int64
@@ -14,6 +14,8 @@ type GLRM
 	Y::Array{Float64,2}
 end
 # default initializations for obs, X, and Y
+GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
+	GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,obs,losses,rx,ry,k,X,Y) = 
 	GLRM(A,sort_observations(obs,size(A)...)...,losses,rx,ry,k,X,Y)
 GLRM(A,obs,losses,rx,ry,k) = 
@@ -68,14 +70,14 @@ getindex(fa::ColumnFunctionArray,idx::Integer...) = x->fa.f[idx[2]](x,fa.arr[idx
 display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
 size(fa::ColumnFunctionArray) = size(fa.arr)
 
-function sort_observations(obs,m,n)
+function sort_observations(obs,m,n; check_empty=true)
     observed_features = [Int32[] for i=1:m]
     observed_examples = [Int32[] for j=1:n]
     for (i,j) in obs
         push!(observed_features[i],j)
         push!(observed_examples[j],i)
     end
-    if any(map(x->length(x)==0,observed_examples)) || 
+    if check_empty && any(map(x->length(x)==0,observed_examples)) || 
         	any(map(x->length(x)==0,observed_features))
         error("Every row and column must contain at least one observation")
     end
