@@ -5,7 +5,7 @@ do_cv_by_iter = false
 do_reg_path = true
 
 m,n,k = 100,100,3
-A = randn(m,k+5)*randn(k+5,n) + 5*(sprandn(m,n,.05).-0.5) + randn(m,n)
+A = randn(m,k)*randn(k,n) + 5*(sprandn(m,n,.01).-0.5) + .5*randn(m,n)
 losses = fill(huber(),n)
 r = quadreg(.1)
 glrm = GLRM(A,losses,r,r,k)
@@ -25,9 +25,9 @@ end
 if do_reg_path
 	println("Computing regularization path")
 	train_error, test_error, train_time, reg_params = 
-		regularization_path(glrm, params=Params(1,20,.0001,.01), reg_params=logspace(1,-3,1))
+		regularization_path(glrm, params=Params(1,20,.0001,.01), reg_params=logspace(1,-3,8))
 	df = DataFrame(train_error = train_error, test_error = test_error,
-		           train_time = train_time, reg_param = reg_params)
+		           cum_train_time = train_time, reg_param = reg_params)
 end
 
 println(df)

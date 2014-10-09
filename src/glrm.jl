@@ -106,7 +106,6 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	update!(ch, 0, objective(glrm))
 	t = time()
 	for i=1:params.max_iter
-		println(alpha)
 		# X update
 		XY = X*Y
 		for e=1:m

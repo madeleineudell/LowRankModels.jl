@@ -113,10 +113,11 @@ function cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01
 
 	train_error = Array(Float64, niters)
 	test_error = Array(Float64, niters)
+	ch = ConvergenceHistory("cv_by_iter")
 	for iter=1:niters
 		# evaluate train and test error
 		if verbose println("fitting train GLRM") end
-		X, Y, ch = fit!(train_glrm, params, verbose=false)
+		X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=false)
 		if verbose println("computing train and test error for iter $iter:") end
 		train_error[iter] = objective(train_glrm, X, Y, include_regularization=false)
 		if verbose println("\ttrain error: $(train_error[iter])") end
@@ -145,12 +146,13 @@ function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,
 	train_error = Array(Float64, length(reg_params))
 	test_error = Array(Float64, length(reg_params))
 	train_time = Array(Float64, length(reg_params))
+	ch = ConvergenceHistory("regularization_path")
 	for iparam=1:length(reg_params)
 		reg_param = reg_params[iparam]
 		# evaluate train and test error
 		if verbose println("fitting train GLRM") end
 		train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
-		X, Y, ch = fit!(train_glrm, params, verbose=false)
+		X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=false)
 		train_time[iparam] = ch.times[end]
 		if verbose println("computing train and test error for reg_param $reg_param:") end
 		train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false)
