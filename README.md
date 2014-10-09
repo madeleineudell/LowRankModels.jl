@@ -83,7 +83,7 @@ For more examples, see `examples/simple_glrms.jl`.
 
 To fit the model, call
 
-	X,Y,ch = fit(glrm)
+	X,Y,ch = fit!(glrm)
 
 which runs an alternating directions proximal gradient method on `glrm` to find the 
 `X` and `Y` minimizing the objective function.
@@ -134,7 +134,7 @@ that you'd like a low rank (eg, `k=2`) model for. For example,
 Never fear! Just call
 
 	glrm, labels = GLRM(df,2)
-	X, Y, ch = fit(glrm)
+	X, Y, ch = fit!(glrm)
 
 This will fit a GLRM to your data, using a quadratic loss for real valued columns,
 hinge loss for boolean columns, and ordinal hinge loss for integer columns.
@@ -149,7 +149,7 @@ that similar features are close to each other!
 
 ## Optimization
 
-The function `fit` uses an alternating directions proximal gradient method
+The function `fit!` uses an alternating directions proximal gradient method
 to minimize the objective. This method is *not* guaranteed to converge to 
 the optimum, or even to a local minimum. If your code is not converging
 or is converging to a model you dislike, there are a number of parameters you can tweak.
@@ -162,9 +162,11 @@ If you have a good guess for a model, try setting them explicitly.
 If you think that you're getting stuck in a local minimum, try reinitializing your
 GLRM (so as to construct a new initial random point) and see if the model you obtain improves.
 
-You can use the function `fit!` to set the fields `glrm.X` and `glrm.Y` 
+The function `fit!` sets the fields `glrm.X` and `glrm.Y`
 after fitting the model. This is particularly useful if you want to use 
 the model you generate as a warm start for further iterations.
+If you prefer to preserve the original `glrm.X` and `glrm.Y` (eg, for cross validation),
+you should call the function `fit`, which does not mutate its arguments.
 
 You can even start with an easy-to-optimize loss function, run `fit!`,
 change the loss function (`glrm.losses = newlosses`), 
