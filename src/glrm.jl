@@ -134,9 +134,11 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 			update!(ch, t, obj)
 			glrm.X[:], glrm.Y[:] = X, Y
 			t = time()
+		else
+			alpha = alpha/2
 		end
 		# check stopping criterion
-		if i>10 && ch.objective[end-1] - obj < tol
+		if i>10 && length(ch.objective)>1 && ch.objective[end-1] - obj < tol
 			if alpha <= params.min_stepsize / max(M,N)
 				break
 			else
