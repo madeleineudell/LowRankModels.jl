@@ -6,7 +6,7 @@ type GLRM
 	A
 	observed_features
 	observed_examples
-	losses::Array{Loss, }
+	losses::Array{Loss,1}
 	rx::Regularizer
 	ry::Regularizer
 	k::Int64
@@ -14,6 +14,8 @@ type GLRM
 	Y::Array{Float64,2}
 end
 # default initializations for obs, X, and Y
+GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
+	GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,obs,losses,rx,ry,k,X,Y) = 
 	GLRM(A,sort_observations(obs,size(A)...)...,losses,rx,ry,k,X,Y)
 GLRM(A,obs,losses,rx,ry,k) = 
@@ -50,7 +52,7 @@ type Params
 	min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
 end
 Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
-Params() = Params(1,100,.001)
+Params() = Params(1,100,.0001,.01)
 
 type FunctionArray<:AbstractArray
 	f::Function
@@ -68,14 +70,14 @@ getindex(fa::ColumnFunctionArray,idx::Integer...) = x->fa.f[idx[2]](x,fa.arr[idx
 display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
 size(fa::ColumnFunctionArray) = size(fa.arr)
 
-function sort_observations(obs,m,n)
+function sort_observations(obs,m,n; check_empty=true)
     observed_features = [Int32[] for i=1:m]
     observed_examples = [Int32[] for j=1:n]
     for (i,j) in obs
         push!(observed_features[i],j)
         push!(observed_examples[j],i)
     end
-    if any(map(x->length(x)==0,observed_examples)) || 
+    if check_empty && any(map(x->length(x)==0,observed_examples)) || 
         	any(map(x->length(x)==0,observed_features))
         error("Every row and column must contain at least one observation")
     end
@@ -104,6 +106,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	update!(ch, 0, objective(glrm))
 	t = time()
 	for i=1:params.max_iter
+		println(alpha)
 		# X update
 		XY = X*Y
 		for e=1:m
@@ -133,14 +136,17 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 			update!(ch, t, obj)
 			glrm.X[:], glrm.Y[:] = X, Y
 			t = time()
-		end
-		# check stopping criterion
-		if i>10 && length(ch.objective) > 1 && ch.objective[end-1] - obj < tol
+		else
+			# if the objective increased, perhaps the step size is too big
 			if alpha <= params.min_stepsize / max(M,N)
 				break
 			else
 				alpha = alpha/2
 			end
+		end
+		# check stopping criterion
+		if i>10 && length(ch.objective) > 1 && ch.objective[end-1] - obj < tol
+			break
 		end
 		if verbose && i%10==0 
 			println("Iteration $i: objective value = $(ch.objective[end])") 
@@ -149,9 +155,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 
 	return glrm.X,glrm.Y,ch
 end
-function fit(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
+function fit(glrm::GLRM, args...; kwargs...)
 	Xorig, Yorig = copy(glrm.X), copy(glrm.Y)
-	X,Y,ch = fit!(glrm,params=params,ch=ch,verbose=verbose)
+	X,Y,ch = fit!(glrm, args...; kwargs...)
 	glrm.X, glrm.Y = Xorig, Yorig
 	return X,Y,ch
 end

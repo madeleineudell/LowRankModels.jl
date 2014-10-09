@@ -6,7 +6,7 @@
 # For automatic scaling, losses should also implement `avgerror`.
 
 export Loss, Regularizer, # abstract types
-       quadratic, hinge, ordinal_hinge, l1, # concrete losses
+       quadratic, hinge, ordinal_hinge, l1, huber, # concrete losses
        grad, evaluate, avgerror, # methods on losses
        quadreg, zeroreg, nonnegative, onesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
@@ -33,6 +33,12 @@ type ordinal_hinge<:Loss
     scale
 end
 ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
+type huber<:Loss
+    scale
+    crossover # where quadratic loss ends and linear loss begins; =1 for standard huber
+end
+huber(scale) = huber(scale,1)
+huber() = huber(1)
 
 ## gradients of loss functions
 function grad(l::quadratic)
@@ -69,6 +75,10 @@ function grad(l::ordinal_hinge)
     end
 end
 
+function grad(l::huber)
+    return (u,a) -> abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
+end
+
 ## evaluating loss functions
 function evaluate(l::quadratic,u::Number,a::Number)
     l.scale*(u-a)^2
@@ -88,6 +98,9 @@ function evaluate(l::ordinal_hinge,u::Number,a::Number)
         return l.scale*abs(u-a)
     end    
 end
+function evaluate(l::huber,u::Number,a::Number)
+    abs(u-a) > l.crossover ? (abs(u-a) - l.crossover + l.crossover^2)*l.scale : (u-a)^2*l.scale
+end
 
 ## minimum_offset (average error of l (a, offset))
 function avgerror(a::AbstractArray, l::quadratic)
@@ -106,6 +119,12 @@ function avgerror(a::AbstractArray, l::ordinal_hinge)
 end
 
 function avgerror(a::AbstractArray, l::hinge)
+    m = median(a)
+    sum(map(ai->evaluate(l,m,ai),a))/length(a)
+end
+
+function avgerror(a::AbstractArray, l::huber)
+    # XXX this is not quite right
     m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
