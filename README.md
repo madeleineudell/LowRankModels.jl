@@ -25,7 +25,7 @@ In particular, it supports
 
 To install, just call
 ```
-Pkg.clone("git@github.com:madeleineudell/LowRankModels.jl.git")
+Pkg.clone("https://github.com/madeleineudell/LowRankModels.jl.git")
 ```
 at the julia prompt.
 
