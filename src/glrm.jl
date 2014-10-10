@@ -92,13 +92,10 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 	X, Y = copy(glrm.X), copy(glrm.Y)
 	k = glrm.k
 
-	# scale optimization parameters
-	## stopping criterion: stop when decrease in objective < tol
+	# step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
+	alpha = params.stepsize
+	##stopping criterion: stop when decrease in objective < tol
 	tol = params.convergence_tol * sum(map(length,glrm.observed_features))
-	## ensure step size alpha = O(1/g) is apx bounded by maximum size of gradient
-	N = maximum(map(length,glrm.observed_features))
-	M = maximum(map(length,glrm.observed_examples))
-	alpha = params.stepsize / max(M,N)
 
 	# alternating updates of X and Y
 	if verbose println("Fitting GLRM") end
@@ -114,7 +111,8 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 				g += gradL[e,f](XY[e,f])*Y[:,f:f]'
 			end
 			# take a proximal gradient step
-			X[e,:] = prox(glrm.rx)(X[e:e,:]-alpha*g,alpha)
+			l = length(glrm.observed_features[e])
+			X[e,:] = prox(glrm.rx)(X[e:e,:]-alpha/l*g,alpha/l)
 		end
 		# Y update
 		XY = X*Y
@@ -125,7 +123,8 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 				g += X[e:e,:]'*gradL[e,f](XY[e,f])
 			end
 			# take a proximal gradient step
-			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha*g,alpha)
+			l = length(glrm.observed_examples[f])
+			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha/l*g,alpha/l)
 		end
 		obj = objective(glrm,X,Y)
 		# record the best X and Y yet found
@@ -133,13 +132,16 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 			t = time() - t
 			update!(ch, t, obj)
 			glrm.X[:], glrm.Y[:] = X, Y
+			alpha = alpha*1.05
 			t = time()
 		else
-			alpha = alpha/2
+			# if the objective went up, reduce the step size, and undo the step
+			alpha = alpha*.8
+			X[:], Y[:] = glrm.X, glrm.Y
 		end
 		# check stopping criterion
 		if i>10 && length(ch.objective)>1 && ch.objective[end-1] - obj < tol
-			if alpha <= params.min_stepsize / max(M,N)
+			if alpha <= params.min_stepsize
 				break
 			else
 				alpha = alpha/2
