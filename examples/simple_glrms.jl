@@ -62,10 +62,26 @@ function fit_pca_nucnorm_sparse(m,n,k,s)
 	return A,X,Y,ch
 end
 
+function fit_pca_nucnorm_sparse_nonuniform(m,n,k,s)
+	# matrix to encode
+	A = randn(m,k)*randn(k,n)
+	losses = fill(quadratic(),n)
+	r = quadreg(.1)
+	obsx = [sample(1:int(m/4),int(s/2)), sample(int(m/4)+1:m,s-int(s/2))] 
+	obsy = sample(1:n,s)
+	obs = [(obsx[i],obsy[i]) for i=1:s]
+	glrm = GLRM(A,obs,losses,r,r,k)
+	X,Y,ch = fit!(glrm)	
+	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
+end
+
 if true
+	srand(10)
 	fit_pca(100,100,2)
 	fit_pca_nucnorm(100,100,2)
 	fit_pca_nucnorm_sparse(500,500,2,10000)
+	fit_pca_nucnorm_sparse_nonuniform(1000,1000,2,20000)
 	fit_kmeans(50,50,10)
 	fit_nnmf(50,50,2)
 end
