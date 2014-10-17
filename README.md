@@ -195,3 +195,20 @@ By default, the parameters are set to use a step size of 1, a maximum of 100 ite
 `ch` gives the convergence history so that the success of the optimization can be monitored;
 `ch.objective` stores the objective values, and `ch.times` captures the times these objective values were achieved.
 Try plotting this to see if you just need to increase `max_iter` to converge to a better model.
+
+# Citing this package
+
+If you use LowRankModels for published work, 
+we encourage you to cite the software.
+
+Use the following BibTeX citation:
+
+    @article{udell2014,
+    title = {Generalized Low Rank Models},
+    author ={Udell, Madeleine and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
+    year = {2014},
+    archivePrefix = "arXiv",
+    eprint = {1410.0342},
+    primaryClass = "stat-ml",
+    journal={arXiv preprint arXiv:1410.0342},
+    }
