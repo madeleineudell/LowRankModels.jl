@@ -86,18 +86,21 @@ end
 
 function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"); verbose=true)
 	
-	# initialization
+	### initialization
 	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
 	m,n = size(gradL)
+	# at any time, glrm.X and glrm.Y will be the best model yet found, while
+	# X and Y will be the working variables
 	X, Y = copy(glrm.X), copy(glrm.Y)
 	k = glrm.k
 
+	### optimization parameters
 	# step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
 	alpha = params.stepsize
-	##stopping criterion: stop when decrease in objective < tol
+	# stopping criterion: stop when decrease in objective < tol
 	tol = params.convergence_tol * sum(map(length,glrm.observed_features))
 
-	# alternating updates of X and Y
+	### alternating updates of X and Y
 	if verbose println("Fitting GLRM") end
 	update!(ch, 0, objective(glrm))
 	t = time()
@@ -105,7 +108,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 		# X update
 		XY = X*Y
 		for e=1:m
-			# a gradient of L wrt e
+			# compute a gradient of L wrt e
 			g = zeros(1,k)
 			for f in glrm.observed_features[e]
 				g += gradL[e,f](XY[e,f])*Y[:,f:f]'
@@ -117,7 +120,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 		# Y update
 		XY = X*Y
 		for f=1:n
-			# a gradient of L wrt f
+			# compute a gradient of L wrt f
 			g = zeros(k,1)
 			for e in glrm.observed_examples[f]
 				g += X[e:e,:]'*gradL[e,f](XY[e,f])
@@ -127,7 +130,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha/l*g,alpha/l)
 		end
 		obj = objective(glrm,X,Y)
-		# record the best X and Y yet found
+		# if the objective went down, record the best X and Y yet found, and try a larger stepsize
 		if obj < ch.objective[end]
 			t = time() - t
 			update!(ch, t, obj)
