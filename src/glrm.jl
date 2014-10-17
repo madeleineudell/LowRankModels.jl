@@ -107,18 +107,18 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	t = time()
 	for i=1:params.max_iter
 		# X update
-		XY = X*Y
+		XY = glrm.X*glrm.Y
 		for e=1:m
 			# a gradient of L wrt e
 			g = zeros(1,k)
 			for f in glrm.observed_features[e]
-				g += gradL[e,f](XY[e,f])*Y[:,f:f]'
+				g += gradL[e,f](XY[e,f])*glrm.Y[:,f:f]'
 			end
 			# take a proximal gradient step
-			X[e,:] = prox(glrm.rx)(X[e:e,:]-alpha*g,alpha)
+			X[e,:] = prox(glrm.rx)(glrm.X[e:e,:]-alpha*g,alpha)
 		end
 		# Y update
-		XY = X*Y
+		XY = X*glrm.Y
 		for f=1:n
 			# a gradient of L wrt f
 			g = zeros(k,1)
@@ -126,7 +126,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 				g += X[e:e,:]'*gradL[e,f](XY[e,f])
 			end
 			# take a proximal gradient step
-			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha*g,alpha)
+			Y[:,f] = prox(glrm.ry)(glrm.Y[:,f:f]-alpha*g,alpha)
 		end
 		obj = objective(glrm,X,Y)
 		# record the best X and Y yet found
