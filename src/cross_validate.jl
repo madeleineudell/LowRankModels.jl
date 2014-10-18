@@ -126,7 +126,9 @@ function cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01
 	return train_error, test_error
 end
 
-function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), holdout_proportion=.1, verbose=true)
+function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
+	                                     holdout_proportion=.1, verbose=true,
+	                                     ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
 	if verbose println("flattening observations") end
 	obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
 	
@@ -148,9 +150,32 @@ function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,
 	for iparam=1:length(reg_params)
 		reg_param = reg_params[iparam]
 		# evaluate train and test error
-		if verbose println("fitting train GLRM") end
+		if verbose println("fitting train GLRM for reg_param $reg_param") end
 		train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
-		X, Y, ch = fit!(train_glrm, params, verbose=false)
+		X, Y, ch = fit!(train_glrm, params, ch, verbose=verbose)
+		train_time[iparam] = ch.times[end]
+		if verbose println("computing train and test error for reg_param $reg_param:") end
+		train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false)
+		if verbose println("\ttrain error: $(train_error[iparam])") end
+		test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false)
+		if verbose println("\ttest error:  $(test_error[iparam])") end
+	end
+	return train_error, test_error, train_time, reg_params
+end
+
+
+function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
+	                                     holdout_proportion=.1, verbose=true,
+	                                     ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
+	train_error = Array(Float64, length(reg_params))
+	test_error = Array(Float64, length(reg_params))
+	train_time = Array(Float64, length(reg_params))
+	for iparam=1:length(reg_params)
+		reg_param = reg_params[iparam]
+		# evaluate train and test error
+		if verbose println("fitting train GLRM for reg_param $reg_param") end
+		train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
+		X, Y, ch = fit!(train_glrm, params, ch, verbose=verbose)
 		train_time[iparam] = ch.times[end]
 		if verbose println("computing train and test error for reg_param $reg_param:") end
 		train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false)

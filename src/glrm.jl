@@ -70,15 +70,15 @@ getindex(fa::ColumnFunctionArray,idx::Integer...) = x->fa.f[idx[2]](x,fa.arr[idx
 display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
 size(fa::ColumnFunctionArray) = size(fa.arr)
 
-function sort_observations(obs,m,n; check_empty=true)
+function sort_observations(obs,m,n; check_empty=false)
     observed_features = [Int32[] for i=1:m]
     observed_examples = [Int32[] for j=1:n]
     for (i,j) in obs
         push!(observed_features[i],j)
         push!(observed_examples[j],i)
     end
-    if check_empty && any(map(x->length(x)==0,observed_examples)) || 
-        	any(map(x->length(x)==0,observed_features))
+    if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
+        	any(map(x->length(x)==0,observed_features)))
         error("Every row and column must contain at least one observation")
     end
     return observed_features, observed_examples
@@ -101,6 +101,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 	if verbose println("Fitting GLRM") end
 	update!(ch, 0, objective(glrm))
 	t = time()
+	steps_in_a_row = 0
 	for i=1:params.max_iter
 		# X update
 		XY = X*Y
@@ -111,7 +112,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 				g += gradL[e,f](XY[e,f])*Y[:,f:f]'
 			end
 			# take a proximal gradient step
-			l = length(glrm.observed_features[e])
+			l = length(glrm.observed_features[e]) + 1
 			X[e,:] = prox(glrm.rx)(X[e:e,:]-alpha/l*g,alpha/l)
 		end
 		# Y update
@@ -123,7 +124,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 				g += X[e:e,:]'*gradL[e,f](XY[e,f])
 			end
 			# take a proximal gradient step
-			l = length(glrm.observed_examples[f])
+			l = length(glrm.observed_examples[f]) + 1
 			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha/l*g,alpha/l)
 		end
 		obj = objective(glrm,X,Y)
@@ -138,6 +139,7 @@ function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=Convergen
 			# if the objective went up, reduce the step size, and undo the step
 			alpha = alpha*.8
 			X[:], Y[:] = glrm.X, glrm.Y
+			steps_in_a_row = min(0, steps_in_a_row-1)
 		end
 		# check stopping criterion
 		if i>10 && length(ch.objective)>1 && ch.objective[end-1] - obj < tol

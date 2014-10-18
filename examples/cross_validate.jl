@@ -25,9 +25,11 @@ end
 if do_reg_path
 	println("Computing regularization path")
 	train_error, test_error, train_time, reg_params = 
-		regularization_path(glrm, params=Params(1,20,.0001,.01), reg_params=logspace(1,-3,1))
+	regularization_path(glrm, params=Params(1,50,.00001,.01), reg_params=logspace(1,-3,8))
 	df = DataFrame(train_error = train_error, test_error = test_error,
 		           train_time = train_time, reg_param = reg_params)
 end
 
 println(df)
+
+println(round(glrm.X*glrm.Y))

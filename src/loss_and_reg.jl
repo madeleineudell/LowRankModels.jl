@@ -50,10 +50,10 @@ function grad(l::l1)
 end
 
 function grad(l::hinge)
-    return (u,a) -> hinge_grad(u,a)
+    return (u,a) -> hinge_grad(l.scale,u,a)
 end
-hinge_grad(u,a::Number) = a*u>=1 ? 0 : -a*l.scale
-hinge_grad(u,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*l.scale
+hinge_grad(scale,u,a::Number) = a*u>=1 ? 0 : -a*scale
+hinge_grad(scale,u,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
 
 function grad(l::ordinal_hinge)
     function(u,a)
@@ -87,7 +87,7 @@ function evaluate(l::l1,u::Number,a::Number)
     l.scale*abs(u-a)
 end
 function evaluate(l::hinge,u::Number,a::Number)
-    l.scale*max(-a*u,0)
+    l.scale*max(1-a*u,0)
 end
 function evaluate(l::ordinal_hinge,u::Number,a::Number)
     if a == l.min 
