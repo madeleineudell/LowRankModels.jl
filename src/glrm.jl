@@ -109,6 +109,7 @@ function fit!(glrm::GLRM, params::Params=Params(),
     t = time()
     steps_in_a_row = 0
     for i=1:params.max_iter
+    	println("alpha: ", alpha)
         # X update
         XY = X*Y
         for e=1:m
@@ -134,15 +135,18 @@ function fit!(glrm::GLRM, params::Params=Params(),
             Y[:,f] = prox(glrm.ry,Y[:,f:f]-alpha/l*g,alpha/l)
         end
         obj = objective(glrm,X,Y)
+        println("obj: ", obj)
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
             update!(ch, t, obj)
             glrm.X[:], glrm.Y[:] = X, Y
             alpha = alpha*1.05
+            steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
+            println("obj went up :( prev was", ch.objective[end])
             alpha = alpha*.8
             X[:], Y[:] = glrm.X, glrm.Y
             steps_in_a_row = min(0, steps_in_a_row-1)
@@ -153,7 +157,7 @@ function fit!(glrm::GLRM, params::Params=Params(),
                 break
             else
                 # perhaps we should reduce the stepsize more aggresively
-                if steps_in_a_row < 5
+                if steps_in_a_row < -2
                 	alpha = alpha/2
                 # or perhaps our progess is so poor because our steps are too small
                 elseif steps_in_a_row > 10
