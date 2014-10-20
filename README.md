@@ -1,6 +1,6 @@
 # LowRankModels.jl
 
-[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)
+<!--[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)-->
 
 LowRankModels.jl is a julia package for modeling and fitting generalized low rank models (GLRMs).
 GLRMs model a data array by a low rank matrix, and
@@ -41,7 +41,7 @@ The data is modeled as `XY`, where `X` is a `m`x`k` matrix and `Y` is a `k`x`n` 
 `X` and `Y` are found by solving the optimization problem
 <!--``\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) + \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)``-->
 
-	minimize sum_{(i,j) in obs} losses[j](x[i,:] y[:,j], A[i,j]) + sum_i rx(x[i,:]) + sum_j ry(y[:,j])
+    minimize sum_{(i,j) in obs} losses[j](x[i,:] y[:,j], A[i,j]) + sum_i rx(x[i,:]) + sum_j ry(y[:,j])
 
 The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
@@ -72,18 +72,18 @@ see `loss_and_reg.jl` for more details.
 
 For example, the following code forms a k-means model with `k=5` on the `100`x`100` matrix `A`:
 
-	using LowRankModels
-	m,n,k = 100,100,5
-	losses = fill(quadratic(),n)
-	rx = onesparse() # each row is assigned to exactly one cluster
-	ry = zeroreg() # no regularization on the cluster centroids
-	glrm = GLRM(A,losses,rt,r,k)
+    using LowRankModels
+    m,n,k = 100,100,5
+    losses = fill(quadratic(),n)
+    rx = onesparse() # each row is assigned to exactly one cluster
+    ry = zeroreg() # no regularization on the cluster centroids
+    glrm = GLRM(A,losses,rt,r,k)
 
 For more examples, see `examples/simple_glrms.jl`.
 
 To fit the model, call
 
-	X,Y,ch = fit(glrm)
+    X,Y,ch = fit(glrm)
 
 which runs an alternating directions proximal gradient method on `glrm` to find the 
 `X` and `Y` minimizing the objective function.
@@ -97,12 +97,12 @@ If not all entries are present in your data table, just tell the GLRM
 which observations to fit the model to by listing their indices in `obs`.
 Then initialize the model using
 
-	GLRM(A,obs,losses,rt,r,k)
+    GLRM(A,obs,losses,rt,r,k)
 
 If `A` is a DataFrame and you just want the model to ignore 
 any entry that is of type `NA`, you can use
 
-	obs = observations(A)
+    obs = observations(A)
 
 # Scaling and offsets
 
@@ -114,7 +114,7 @@ Starting with loss functions `losses` and regularizers `r` and `rt`:
 * Add an offset to the model (by applying no regularization to the last row 
   of the matrix `Y`) using
 
-	  r, rt = add_offset(r, rt)
+      r, rt = add_offset(r, rt)
 
 * Scale the loss functions `losses` by calling
 
@@ -128,13 +128,13 @@ Perhaps all this sounds like too much work. Perhaps you happen to have a
 [DataFrame](https://github.com/JuliaStats/DataFrames.jl) `df` lying around 
 that you'd like a low rank (eg, `k=2`) model for. For example,
 
-	using RDatasets
-	df = RDatasets.dataset("psych", "msq")
+    using RDatasets
+    df = RDatasets.dataset("psych", "msq")
 
 Never fear! Just call
 
-	glrm, labels = GLRM(df,2)
-	X, Y, ch = fit(glrm)
+    glrm, labels = GLRM(df,2)
+    X, Y, ch = fit(glrm)
 
 This will fit a GLRM to your data, using a quadratic loss for real valued columns,
 hinge loss for boolean columns, and ordinal hinge loss for integer columns.
@@ -187,7 +187,7 @@ is less than `convergence_tol*length(obs)`,
 
 By default, the parameters are set to use a step size of 1, a maximum of 100 iterations, and a convergence tolerance of .001:
 
-	Params(1,100,.001)
+    Params(1,100,.001)
 
 ### Convergence
 `ch` gives the convergence history so that the success of the optimization can be monitored;
