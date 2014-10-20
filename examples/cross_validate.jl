@@ -5,10 +5,10 @@ do_cv_by_iter = false
 do_reg_path = true
 
 m,n,k = 100,100,3
-A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.01)
+A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
 losses = fill(huber(),n)
 r = quadreg(.1)
-glrm = GLRM(A,losses,r,r,k)
+glrm = GLRM(A,losses,r,r,k+2)
 
 if do_cv
     println("Computing cross validation error for each fold")

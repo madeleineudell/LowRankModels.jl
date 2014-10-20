@@ -19,6 +19,7 @@ function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=true)
         train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = folds[ifold]
 	    ntrain = sum(map(length, train_observed_features))
     	ntest = sum(map(length, test_observed_features))
+	    if verbose println("training model on $ntrain samples and testing on $ntest") end
         # form glrm on training dataset 
         train_glrms[ifold] = GLRM(glrm.A, train_observed_features, train_observed_examples, 
                               glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
