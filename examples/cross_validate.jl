@@ -25,7 +25,7 @@ end
 if do_reg_path
     println("Computing regularization path")
     train_error, test_error, train_time, reg_params = 
-    regularization_path(glrm, params=Params(1,50,.00001,.01), reg_params=logspace(2,-2,9))
+    regularization_path(glrm, params=Params(1,50,.00001,.01), reg_params=logspace(2,-2,20))
     df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, reg_param = reg_params)
 end
