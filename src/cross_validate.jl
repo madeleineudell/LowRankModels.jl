@@ -162,6 +162,7 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
     ntest = sum(map(length, test_glrm.observed_features))
     println("training model on $ntrain samples and testing on $ntest")
     train_time = Array(Float64, length(reg_params))
+    model_onenorm = Array(Float64, length(reg_params))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train and test error
@@ -172,11 +173,12 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
         #train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm, params, ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
+        model_onenorm[iparam] = sum(abs(X)) + sum(abs(Y))
         if verbose println("computing mean train and test error for reg_param $reg_param:") end
         train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[iparam])") end
         test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntest
         if verbose println("\ttest error:  $(test_error[iparam])") end
     end
-    return train_error, test_error, train_time, reg_params
+    return train_error, test_error, train_time, model_onenorm, reg_params
 end

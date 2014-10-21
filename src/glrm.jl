@@ -134,33 +134,26 @@ function fit!(glrm::GLRM, params::Params=Params(),
             Y[:,f] = prox(glrm.ry,Y[:,f:f]-alpha/l*g,alpha/l)
         end
         obj = objective(glrm,X,Y)
-    	# println("alpha: ", alpha)
-        # println("obj: ", obj)
+    	 println("alpha: ", alpha)
+         println("obj: ", obj)
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
             update!(ch, t, obj)
             glrm.X[:], glrm.Y[:] = X, Y
-            alpha = alpha*1.05
+            alpha = alpha * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            # println("obj went up :( prev was ", ch.objective[end])
-            alpha = alpha*.7
+             println("obj went up :( prev was ", ch.objective[end])
+            alpha = alpha / max(1.5, -steps_in_a_row)
             X[:], Y[:] = glrm.X, glrm.Y
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
-        if i>10 && length(ch.objective)>1 && ch.objective[end-1] - obj < tol
-            if alpha <= params.min_stepsize || steps_in_a_row > 10
-                break
-            else
-                # perhaps we should reduce the stepsize more aggresively
-                if steps_in_a_row < -2
-                	alpha = alpha/2
-                end
-            end
+        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
+            break
         end
         if verbose && i%10==0 
             println("Iteration $i: objective value = $(ch.objective[end])") 
