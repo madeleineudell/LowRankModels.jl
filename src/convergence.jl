@@ -16,8 +16,8 @@ function update!(ch::ConvergenceHistory, dt,
     push!(ch.primal_residual,pr)
     push!(ch.dual_residual,dr)
     if isempty(ch.times)
-    	push!(ch.times,dt)
+        push!(ch.times,dt)
     else
-    	push!(ch.times,ch.times[end]+dt)
+        push!(ch.times,ch.times[end]+dt)
     end
 end

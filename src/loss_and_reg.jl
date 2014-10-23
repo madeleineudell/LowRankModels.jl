@@ -8,7 +8,7 @@
 export Loss, Regularizer, # abstract types
        quadratic, hinge, ordinal_hinge, l1, huber, # concrete losses
        grad, evaluate, avgerror, # methods on losses
-       quadreg, zeroreg, nonnegative, onesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
+       quadreg, onereg, zeroreg, nonnegative, onesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
        add_offset, equilibrate_variance! # utilities
 
@@ -50,10 +50,10 @@ function grad(l::l1)
 end
 
 function grad(l::hinge)
-    return (u,a) -> hinge_grad(u,a)
+    return (u,a) -> hinge_grad(l.scale,u,a)
 end
-hinge_grad(u,a::Number) = a*u>=1 ? 0 : -a*l.scale
-hinge_grad(u,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*l.scale
+hinge_grad(scale,u,a::Number) = a*u>=1 ? 0 : -a*scale
+hinge_grad(scale,u,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
 
 function grad(l::ordinal_hinge)
     function(u,a)
@@ -87,7 +87,7 @@ function evaluate(l::l1,u::Number,a::Number)
     l.scale*abs(u-a)
 end
 function evaluate(l::hinge,u::Number,a::Number)
-    l.scale*max(-a*u,0)
+    l.scale*max(1-a*u,0)
 end
 function evaluate(l::ordinal_hinge,u::Number,a::Number)
     if a == l.min 
@@ -140,57 +140,45 @@ type quadreg<:Regularizer
     scale
 end
 quadreg() = quadreg(1)
-function prox(r::quadreg)
-    return (u,alpha) -> 1/(1+alpha*r.scale/2)*u
+prox(r::quadreg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+evaluate(r::quadreg,a::AbstractArray) = r.scale*sum(a.^2)
+
+## one norm regularization
+type onereg<:Regularizer
+    scale
 end
-function evaluate(r::quadreg,a)
-    return r.scale*sum(a.^2)
-end
+onereg() = onereg(1)
+prox(r::onereg,u::AbstractArray,alpha::Number) = error("Not Implemented")
+evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## no regularization
 type zeroreg<:Regularizer
 end
-function prox(r::zeroreg)
-    return (u,alpha) -> u
-end
-function evaluate(r::zeroreg,a)
-    return 0
-end
+prox(r::zeroreg,u::AbstractArray,alpha::Number) = u
+evaluate(r::zeroreg,a::AbstractArray) = 0
 
 ## indicator of the nonnegative orthant 
 ## (enforces nonnegativity, eg for nonnegative matrix factorization)
 type nonnegative<:Regularizer
 end
-function prox(r::nonnegative)
-    return (u,alpha) -> broadcast(max,u,0)
-end
-function evaluate(r::nonnegative,a)
-    return any(map(x->x<0,a)) ? Inf : 0
-end
+prox(r::nonnegative,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
+evaluate(r::nonnegative,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : 0
 
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
 type lastentry1<:Regularizer
     r::Regularizer
 end
-function prox(r::lastentry1)
-    return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), 1]
-end
-function evaluate(r::lastentry1,a)
-    return a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf
-end
+prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r)(u[1:end-1],alpha), 1]
+evaluate(r::lastentry1,a::AbstractArray) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 
 ## makes the last entry unpenalized
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry1)
 type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
-function prox(r::lastentry_unpenalized)
-    return (u,alpha) -> [prox(r.r)(u[1:end-1],alpha), u[end]]
-end
-function evaluate(r::lastentry_unpenalized,a)
-    return evaluate(r.r,a[1:end-1])
-end
+prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r)(u[1:end-1],alpha), u[end]]
+evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
 
 ## adds an offset to the model by modifying the regularizers
 function add_offset(r::Regularizer,rt::Regularizer)
@@ -201,12 +189,8 @@ end
 ## (enforces that only 1 entry is nonzero, eg for kmeans)
 type onesparse<:Regularizer
 end
-function prox(r::onesparse)
-    return (u,alpha) -> (maxu = maximum(u); [int(ui==maxu) for ui in u])
-end
-function evaluate(r::onesparse,a)
-    return sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
-end
+prox(r::onesparse,u::AbstractArray,alpha::Number) = (maxu = maximum(u); [int(ui==maxu) for ui in u])
+evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 
 # scalings
 function equilibrate_variance!(losses::Array{Loss}, A)
