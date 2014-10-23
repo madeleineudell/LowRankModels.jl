@@ -84,7 +84,7 @@ function sort_observations(obs,m,n; check_empty=false)
     return observed_features, observed_examples
 end
 
-function fit(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"); verbose=true)
+function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"); verbose=true)
 	
 	### initialization
 	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)

@@ -11,16 +11,16 @@ losses = fill(huber(),n)
 r = quadreg(.1)
 glrm = GLRM(A,losses,r,r,k+2)
 
-function plot(df, x::Symbol, y::Array{Symbol}, scale = :linear, filename=None)
+function plot(df, x::Symbol, y::Array{Symbol}, scale = :linear, filename=None, height=3, width=6)
     dflong = vcat(map(l->stack(df,l,x),y)...)
     if scale ==:log
         p = plot(dflong,x=:times,y=:value,color=:variable,Geom.line,Scale.y_log10)
     else
         p = plot(dflong,x=:times,y=:value,color=:variable,Geom.line)
     end 	
-	if filename: 
+	if filename
 		println("saving figure in $filename")
-		draw(PDF(filename, 6inch, 3inch), p) 
+		draw(PDF(filename, width*inch, height*inch), p) 
 	end
 	return p
 end
@@ -43,7 +43,9 @@ if do_reg_path
     regularization_path(glrm, params=Params(1,50,.00001,.01), reg_params=logspace(2,-2,15))
     df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, model_onenorm=model_onenorm, reg_param = reg_params)
-	if do_plot: p = plot(df, :reg_param, [:train_error, :test_error], scale = :log, "reg_path.pdf")
+	if do_plot 
+		p = plot(df, :reg_param, [:train_error, :test_error], scale = :log, "reg_path.pdf")
+	end
 end
 
 println(df)
