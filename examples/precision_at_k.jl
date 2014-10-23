@@ -47,8 +47,8 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm, params, ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
-        if verbose println("computing train and test error for reg_param $reg_param:") end
-        train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false)
+        if verbose println("computing train error and precision at k for reg_param $reg_param:") end
+        train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[iparam])") end
         # precision at k
         XY = X*Y
@@ -59,7 +59,7 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
                 if XY[i,j] >= q
                     if j in test_observed_features[i]
                         true_pos += 1
-                    else
+                    elseif !(j in train_observed_features[i])
                         false_pos += 1
                     end
                 end
@@ -75,7 +75,7 @@ end
 
 train_error, prec_at_k, train_time, reg_params, solution = 
     precision_at_k(train_glrm, test_observed_features, params=Params(1,200,.00001,.01), 
-                                 reg_params=logspace(4,-2,7))   
+                                 reg_params=logspace(2,-2,9))   
 df = DataFrame(train_error = train_error, prec_at_k = prec_at_k,
                    train_time = train_time, reg_param = reg_params, solution_1norm = [s[2] for s in solution])
 println(df)
