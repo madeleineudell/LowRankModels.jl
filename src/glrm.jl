@@ -84,76 +84,85 @@ function sort_observations(obs,m,n; check_empty=false)
     return observed_features, observed_examples
 end
 
-function fit!(glrm::GLRM,params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"); verbose=true)
-	
-	### initialization
-	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
-	m,n = size(gradL)
-	# at any time, glrm.X and glrm.Y will be the best model yet found, while
-	# X and Y will be the working variables
-	X, Y = copy(glrm.X), copy(glrm.Y)
-	k = glrm.k
+function fit!(glrm::GLRM, params::Params=Params(), 
+                          ch::ConvergenceHistory=ConvergenceHistory("glrm");
+                          verbose=true)
+    
+    # initialization
+    gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
+    m,n = size(gradL)
+    X, Y = copy(glrm.X), copy(glrm.Y)
+    k = glrm.k
+    # check that we didn't initialize to zero (otherwise we will never move)
+    if norm(Y) == 0 
+    	Y = .1*randn(k,n) 
+    end
 
-	### optimization parameters
-	# step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
-	alpha = params.stepsize
-	# stopping criterion: stop when decrease in objective < tol
-	tol = params.convergence_tol * sum(map(length,glrm.observed_features))
+    # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
+    alpha = params.stepsize
+    ##stopping criterion: stop when decrease in objective < tol
+    tol = params.convergence_tol * sum(map(length,glrm.observed_features))
 
-	### alternating updates of X and Y
-	if verbose println("Fitting GLRM") end
-	update!(ch, 0, objective(glrm))
-	t = time()
-	for i=1:params.max_iter
-		# X update
-		XY = X*Y
-		for e=1:m
-			# compute a gradient of L wrt e
-			g = zeros(1,k)
-			for f in glrm.observed_features[e]
-				g += gradL[e,f](XY[e,f])*Y[:,f:f]'
-			end
-			# take a proximal gradient step
-			l = length(glrm.observed_features[e])
-			X[e,:] = prox(glrm.rx)(X[e:e,:]-alpha/l*g,alpha/l)
-		end
-		# Y update
-		XY = X*Y
-		for f=1:n
-			# compute a gradient of L wrt f
-			g = zeros(k,1)
-			for e in glrm.observed_examples[f]
-				g += X[e:e,:]'*gradL[e,f](XY[e,f])
-			end
-			# take a proximal gradient step
-			l = length(glrm.observed_examples[f])
-			Y[:,f] = prox(glrm.ry)(Y[:,f:f]-alpha/l*g,alpha/l)
-		end
-		obj = objective(glrm,X,Y)
-		# if the objective went down, record the best X and Y yet found, and try a larger stepsize
-		if obj < ch.objective[end]
-			t = time() - t
-			update!(ch, t, obj)
-			glrm.X[:], glrm.Y[:] = X, Y
-			alpha = alpha*1.05
-			t = time()
-		else
-			# if the objective went up, reduce the step size, and undo the step
-			alpha = alpha*.8
-			X[:], Y[:] = glrm.X, glrm.Y
-		end
-		# check stopping criterion
-		if i>10 && length(ch.objective)>1 && ch.objective[end-1] - obj < tol
-			if alpha <= params.min_stepsize
-				break
-			else
-				alpha = alpha/2
-			end
-		end
-		if verbose && i%10==0 
-			println("Iteration $i: objective value = $(ch.objective[end])") 
-		end
-	end
+    # alternating updates of X and Y
+    if verbose println("Fitting GLRM") end
+    update!(ch, 0, objective(glrm))
+    t = time()
+    steps_in_a_row = 0
+    for i=1:params.max_iter
+        # X update
+        XY = X*Y
+        for e=1:m
+            # a gradient of L wrt e
+            g = zeros(1,k)
+            for f in glrm.observed_features[e]
+                g += gradL[e,f](XY[e,f])*Y[:,f:f]'
+            end
+            # take a proximal gradient step
+            l = length(glrm.observed_features[e]) + 1
+            X[e,:] = prox(glrm.rx,X[e:e,:]-alpha/l*g,alpha/l)
+        end
+        # Y update
+        XY = X*Y
+        for f=1:n
+            # a gradient of L wrt f
+            g = zeros(k,1)
+            for e in glrm.observed_examples[f]
+                g += X[e:e,:]'*gradL[e,f](XY[e,f])
+            end
+            # take a proximal gradient step
+            l = length(glrm.observed_examples[f]) + 1
+            Y[:,f] = prox(glrm.ry,Y[:,f:f]-alpha/l*g,alpha/l)
+        end
+        obj = objective(glrm,X,Y)
+    	if verbose
+    		println("alpha: ", alpha)
+        	println("obj: ", obj)
+        end
+        # record the best X and Y yet found
+        if obj < ch.objective[end]
+            t = time() - t
+            update!(ch, t, obj)
+            glrm.X[:], glrm.Y[:] = X, Y
+            alpha = alpha * 1.05
+            steps_in_a_row = max(1, steps_in_a_row+1)
+            t = time()
+        else
+            # if the objective went up, reduce the step size, and undo the step
+            if verbose println("obj went up :( prev was ", ch.objective[end]) end
+            alpha = alpha / max(1.5, -steps_in_a_row)
+            X[:], Y[:] = glrm.X, glrm.Y
+            steps_in_a_row = min(0, steps_in_a_row-1)
+        end
+        # check stopping criterion
+        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
+            break
+        end
+        if verbose && i%10==0 
+            println("Iteration $i: objective value = $(ch.objective[end])") 
+        end
+    end
+    t = time() - t
+    update!(ch, t, ch.objective[end])
 
     return glrm.X,glrm.Y,ch
 end
