@@ -21,13 +21,13 @@ GLRM(A,obs,losses,rx,ry,k,X,Y) =
 GLRM(A,obs,losses,rx,ry,k) = 
     GLRM(A,obs,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,losses,rx,ry,k) = 
-    GLRM(A,[(i,j) for i=1:size(A,1),j=1:size(A,2)][:],losses,rx,ry,k)    
+    GLRM(A,reshape((Int64,Int64)[(i,j) for i=1:size(A,1),j=1:size(A,2)], prod(size(A))),losses,rx,ry,k)    
 function objective(glrm::GLRM,X,Y; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     # compute value of loss function
     Z = X * Y
-    for i=1:n
+    for i=1:m
         for j in glrm.observed_features[i]
             err += evaluate(glrm.losses[j], Z[i,j], glrm.A[i,j])
         end
@@ -134,10 +134,6 @@ function fit!(glrm::GLRM, params::Params=Params(),
             Y[:,f] = prox(glrm.ry,Y[:,f:f]-alpha/l*g,alpha/l)
         end
         obj = objective(glrm,X,Y)
-    	if verbose
-    		println("alpha: ", alpha)
-        	println("obj: ", obj)
-        end
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
@@ -148,7 +144,6 @@ function fit!(glrm::GLRM, params::Params=Params(),
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            if verbose println("obj went up :( prev was ", ch.objective[end]) end
             alpha = alpha / max(1.5, -steps_in_a_row)
             X[:], Y[:] = glrm.X, glrm.Y
             steps_in_a_row = min(0, steps_in_a_row-1)
