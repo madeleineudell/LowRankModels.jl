@@ -11,7 +11,7 @@ losses = fill(huber(),n)
 r = quadreg(.1)
 glrm = GLRM(A,losses,r,r,k+2)
 
-function plot(df, x::Symbol, y::Array{Symbol}, scale = :linear, filename=None, height=3, width=6)
+function plot(df, x::Symbol, y::Array{Symbol}; scale = :linear, filename=None, height=3, width=6)
     dflong = vcat(map(l->stack(df,l,x),y)...)
     if scale ==:log
         p = plot(dflong,x=:times,y=:value,color=:variable,Geom.line,Scale.y_log10)
@@ -44,7 +44,7 @@ if do_reg_path
     df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, model_onenorm=model_onenorm, reg_param = reg_params)
 	if do_plot 
-		p = plot(df, :reg_param, [:train_error, :test_error], scale = :log, "reg_path.pdf")
+		p = plot(df, :reg_param, [:train_error, :test_error]; scale = :log, filename = "reg_path.pdf")
 	end
 end
 
