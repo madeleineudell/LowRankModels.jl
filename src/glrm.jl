@@ -84,6 +84,15 @@ function sort_observations(obs,m,n; check_empty=false)
     return observed_features, observed_examples
 end
 
+function copy!(pointer, newvalue)
+	@inbounds begin
+		for idx in length(pointer)
+			pointer[idx] = newvalue[idx]
+		end
+	end
+	nothing
+end
+
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
@@ -91,7 +100,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	m,n = size(gradL)
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
-	X, Y = copy(glrm.X), copy(glrm.Y)
+	X = Array(Float64, size(glrm.X))
+    Y = Array(Float64, size(glrm.Y))
+	copy!(X, glrm.X); copy!(Y, glrm.Y)
 	k = glrm.k
 
     # check that we didn't initialize to zero (otherwise we will never move)
@@ -139,14 +150,14 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         if obj < ch.objective[end]
             t = time() - t
             update!(ch, t, obj)
-            glrm.X[:], glrm.Y[:] = X, Y
+            copy!(glrm.X, X); copy!(glrm.Y, Y)
             alpha = alpha * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
             alpha = alpha / max(1.5, -steps_in_a_row)
-            X[:], Y[:] = glrm.X, glrm.Y
+            copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
@@ -164,8 +175,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 end
 
 function fit(glrm::GLRM, args...; kwargs...)
-    X0, Y0 = copy(glrm.X), copy(glrm.Y)
+    X0 = Array(Float64, size(glrm.X))
+    Y0 = Array(Float64, size(glrm.Y))
+    copy!(X0, glrm.X); copy!(Y0, glrm.Y)
     X,Y,ch = fit!(glrm, args...; kwargs...)
-    glrm.X, glrm.Y = X0, Y0
+    copy!(glrm.X, X0); copy!(glrm.Y, Y0)
     return X,Y,ch
 end
