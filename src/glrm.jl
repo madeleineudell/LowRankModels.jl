@@ -71,8 +71,8 @@ display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
 size(fa::ColumnFunctionArray) = size(fa.arr)
 
 function sort_observations(obs,m,n; check_empty=false)
-    observed_features = [Int32[] for i=1:m]
-    observed_examples = [Int32[] for j=1:n]
+    observed_features = Array{Int32,1}[Int32[] for i=1:m]
+    observed_examples = Array{Int32,1}[Int32[] for j=1:n]
     for (i,j) in obs
         push!(observed_features[i],j)
         push!(observed_examples[j],i)
