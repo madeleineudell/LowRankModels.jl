@@ -1,4 +1,5 @@
 import Base.size
+import ArrayViews.view
 
 export GLRM, objective, Params, FunctionArray, getindex, display, size, fit, fit!
 
@@ -22,11 +23,11 @@ GLRM(A,obs,losses,rx,ry,k) =
     GLRM(A,obs,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,losses,rx,ry,k) = 
     GLRM(A,reshape((Int64,Int64)[(i,j) for i=1:size(A,1),j=1:size(A,2)], prod(size(A))),losses,rx,ry,k)    
-function objective(glrm::GLRM,X,Y; include_regularization=true)
+function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     # compute value of loss function
-    Z = X * Y
+    if Z==nothing Z = X*Y end
     for i=1:m
         for j in glrm.observed_features[i]
             err += evaluate(glrm.losses[j], Z[i,j], glrm.A[i,j])
@@ -35,10 +36,10 @@ function objective(glrm::GLRM,X,Y; include_regularization=true)
     # add regularization penalty
     if include_regularization
         for i=1:m
-            err += evaluate(glrm.rx,X[i,:])
+            err += evaluate(glrm.rx,view(X,i,:))
         end
         for j=1:n
-            err += evaluate(glrm.ry,Y[:,j])
+            err += evaluate(glrm.ry,view(Y,:,j))
         end
     end
     return err
@@ -87,13 +88,14 @@ end
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
-	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
-	m,n = size(gradL)
+	A = glrm.A
+	m,n = size(A)
+	losses = glrm.losses
+	rx = glrm.rx
+	ry = glrm.ry
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
-	X = Array(Float64, size(glrm.X))
-    Y = Array(Float64, size(glrm.Y))
-	copy!(X, glrm.X); copy!(Y, glrm.Y)
+	X = copy(glrm.X); Y = copy(glrm.Y)
 	k = glrm.k
 
     # check that we didn't initialize to zero (otherwise we will never move)
@@ -116,25 +118,25 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         XY = X*Y
         for e=1:m
             # a gradient of L wrt e
-            g = zeros(1,k)
+            g = zeros(k)
             for f in glrm.observed_features[e]
-                g += gradL[e,f](XY[e,f])*Y[:,f:f]'
+                g += grad(losses[f],XY[e,f],A[e,f])*view(Y,:,f)
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
-            X[e,:] = prox(glrm.rx,X[e:e,:]-alpha/l*g,alpha/l)
+            X[e,:] = prox(rx,view(X,e,:)-alpha/l*g',alpha/l)
         end
         # Y update
         XY = X*Y
         for f=1:n
             # a gradient of L wrt f
-            g = zeros(k,1)
+            g = zeros(1,k)
             for e in glrm.observed_examples[f]
-                g += X[e:e,:]'*gradL[e,f](XY[e,f])
+                g += grad(losses[f],XY[e,f],A[e,f])*view(X,e,:)
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            Y[:,f] = prox(glrm.ry,Y[:,f:f]-alpha/l*g,alpha/l)
+            Y[:,f] = prox(ry,view(Y,:,f)-alpha/l*g',alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found
