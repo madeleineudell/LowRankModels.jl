@@ -84,15 +84,6 @@ function sort_observations(obs,m,n; check_empty=false)
     return observed_features, observed_examples
 end
 
-function copy!(pointer, newvalue)
-	@inbounds begin
-		for idx in length(pointer)
-			pointer[idx] = newvalue[idx]
-		end
-	end
-	nothing
-end
-
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
