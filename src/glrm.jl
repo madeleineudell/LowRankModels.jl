@@ -84,8 +84,6 @@ function sort_observations(obs,m,n; check_empty=false)
     return observed_features, observed_examples
 end
 
-<<<<<<< HEAD
-
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization

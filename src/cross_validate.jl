@@ -1,4 +1,4 @@
-export cross_validate, cv_by_iter, regularization_path, get_train_and_test
+export cross_validate, cv_by_iter, regularization_path, get_train_and_test, precision_at_k
 
 # To do:
 #     * implement cv_by_iter
@@ -28,7 +28,7 @@ function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=true)
                               glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
         # evaluate train and test error
         if verbose println("fitting train GLRM for fold $ifold") end
-        X, Y, ch = fit!(train_glrms[ifold], params, verbose=false)
+        X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=false)
         if verbose println("computing train and test error for fold $ifold:") end
         train_error[ifold] = objective(train_glrms[ifold], X, Y, include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[ifold])") end
@@ -119,7 +119,7 @@ function cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01
     for iter=1:niters
         # evaluate train and test error
         if verbose println("fitting train GLRM") end
-        X, Y, ch = fit!(train_glrm, params, verbose=false)
+        X, Y, ch = fit!(train_glrm, params=params, verbose=false)
         if verbose println("computing train and test error for iter $iter:") end
         train_error[iter] = objective(train_glrm, X, Y, include_regularization=false)
         if verbose println("\ttrain error: $(train_error[iter])") end
@@ -171,7 +171,7 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
         # restart glrm X and Y in case they went to zero at the higher regularization
         # so sad that initializing from prev solution is worse than useless
         #train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
-        X, Y, ch = fit!(train_glrm, params, ch, verbose=verbose)
+        X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         model_onenorm[iparam] = sum(abs(X)) + sum(abs(Y))
         if verbose println("computing mean train and test error for reg_param $reg_param:") end
@@ -181,4 +181,52 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
         if verbose println("\ttest error:  $(test_error[iparam])") end
     end
     return train_error, test_error, train_time, model_onenorm, reg_params
+end
+
+
+function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(), reg_params=logspace(2,-2,5), 
+                        holdout_proportion=.1, verbose=true,
+                        ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
+    m,n = size(train_glrm.A)
+    println(map(length, train_glrm.observed_features))
+    println(map(length, test_observed_features))
+    ntrain = sum(map(length, train_glrm.observed_features))
+    ntest = sum(map(length, test_observed_features))
+    println(ntest+ntrain)
+    train_error = Array(Float64, length(reg_params))
+    prec_at_k = Array(Float64, length(reg_params))
+    solution = Array((Float64,Float64), length(reg_params))
+    train_time = Array(Float64, length(reg_params))
+    for iparam=1:length(reg_params)
+        reg_param = reg_params[iparam]
+        # evaluate train error
+        if verbose println("fitting train GLRM for reg_param $reg_param") end
+        train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
+        train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
+        X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
+        train_time[iparam] = ch.times[end]
+        if verbose println("computing train error and precision at k for reg_param $reg_param:") end
+        train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
+        if verbose println("\ttrain error: $(train_error[iparam])") end
+        # precision at k
+        XY = X*Y
+        q = sort(XY[:],rev=true)[ntest+ntrain] # the ntest+ntrain largest value in the model XY
+        true_pos = 0; false_pos = 0
+        for i=1:m
+            for j=1:n
+                if XY[i,j] >= q
+                    if j in test_observed_features[i]
+                        true_pos += 1
+                    elseif !(j in train_observed_features[i])
+                        false_pos += 1
+                    end
+                end
+            end
+        end
+        prec_at_k[iparam] = true_pos / (true_pos + false_pos)
+        if verbose println("\prec_at_k:  $(prec_at_k[iparam])") end
+        solution[iparam] = (sum(X)+sum(Y), sum(abs(X))+sum(abs(Y)))
+        if verbose println("\tsum of solution, one norm of solution:  $(solution[iparam])") end
+    end
+    return train_error, prec_at_k, train_time, reg_params, solution
 end
