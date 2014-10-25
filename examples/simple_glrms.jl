@@ -1,5 +1,7 @@
 using LowRankModels
 
+println("simple glrm examples")
+
 function fit_pca(m,n,k)
 	# matrix to encode
 	A = randn(m,k)*randn(k,n)

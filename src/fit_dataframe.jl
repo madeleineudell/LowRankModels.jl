@@ -1,4 +1,6 @@
-using DataFrames
+module FitDataFrame
+
+import DataFrames: DataFrame
 
 export GLRM, observations
 
@@ -98,4 +100,6 @@ function GLRM(df::DataFrame, k::Integer;
 
     # form model
     return GLRM(A, obs, losses, rx, ry, k), labels
+end
+
 end

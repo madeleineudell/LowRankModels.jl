@@ -1,11 +1,13 @@
 using LowRankModels, DataFrames, Gadfly
 
-do_cv = false
-do_cv_by_iter = false
+println("cross validation example")
+
+do_cv = true
+do_cv_by_iter = true
 do_reg_path = true
 do_plot = true
 
-m,n,k = 200,200,3
+m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
 losses = fill(huber(),n)
 r = quadreg(.1)
@@ -44,7 +46,7 @@ if do_reg_path
     df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, model_onenorm=model_onenorm, reg_param = reg_params)
 	if do_plot 
-		p = plot(df, :reg_param, [:train_error, :test_error]; scale = :log, filename = "reg_path.pdf")
+		p = plot(df, :reg_param, [:train_error, :test_error]; scale = :log, filename = None)
 	end
 end
 

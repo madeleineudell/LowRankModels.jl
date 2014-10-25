@@ -1,11 +1,11 @@
 using LowRankModels, DataFrames
 
+println("censored data example")
 # boolean example with only entries greater than threshold t observed
 # ie, censored data
 # example with only entries greater than threshold t observed
-m,n,k,ktrue = 500,500,1,1
+m,n,k,ktrue = 100,100,1,1
 A = rand(m,ktrue)*rand(ktrue,n)
-println("max value of A is ",maximum(maximum(A))," which is less than $ktrue")
 B = int(ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
 losses = fill(quadratic(),n)
 r = quadreg(.1)
@@ -28,6 +28,8 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
                                          holdout_proportion=.1, verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     m,n = size(train_glrm.A)
+    ntrain = sum(map(length, train_glrm.observed_features))
+    ntest = sum(map(length, test_glrm.observed_features))
     train_error = Array(Float64, length(reg_params))
     test_error = Array(Float64, length(reg_params))
     solution = Array((Float64,Float64), length(reg_params))
@@ -38,12 +40,12 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
         if verbose println("fitting train GLRM for reg_param $reg_param") end
         train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
         train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
-        X, Y, ch = fit!(train_glrm, params, ch, verbose=verbose)
+        X, Y, ch = fit!(train_glrm; params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         if verbose println("computing train and test error for reg_param $reg_param:") end
-        train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false)
+        train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[iparam])") end
-        test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false)
+        test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntest
         if verbose println("\ttest error:  $(test_error[iparam])") end
         solution[iparam] = (sum(X)+sum(Y), sum(abs(X))+sum(abs(Y)))
         if verbose println("\tsum of solution, one norm of solution:  $(solution[iparam])") end
@@ -52,8 +54,8 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
 end
 
 train_error, test_error, train_time, reg_params, solution = 
-    censored_regularization_path(train_glrm, test_glrm, params=Params(1,200,.00001,.01), 
-                                 reg_params=logspace(4,-2,7))    
+    censored_regularization_path(train_glrm, test_glrm, params=Params(1,50,.001,.1), 
+                                 reg_params=logspace(2,-2,3))    
 df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, reg_param = reg_params, solution_1norm = [s[2] for s in solution])
 println(df)
