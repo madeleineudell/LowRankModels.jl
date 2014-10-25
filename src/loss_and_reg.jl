@@ -41,54 +41,39 @@ huber(scale) = huber(scale,1)
 huber() = huber(1)
 
 ## gradients of loss functions
-function grad(l::quadratic)
-    return (u,a) -> (u-a)*l.scale
-end
+grad(l::quadratic,u::Number,a::Number) = (u-a)*l.scale
 
-function grad(l::l1)
-    return (u,a) -> sign(u-a)*l.scale
-end
+grad(l::l1,u::Number,a::Number) = sign(u-a)*l.scale
 
-function grad(l::hinge)
-    return (u,a) -> hinge_grad(l.scale,u,a)
-end
+grad(l::hinge,u::Number,a::Number) = hinge_grad(l.scale,u,a)
 hinge_grad(scale,u,a::Number) = a*u>=1 ? 0 : -a*scale
 hinge_grad(scale,u,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
 
-function grad(l::ordinal_hinge)
-    function(u,a)
-        if a == l.min 
-            if u>a
-                return l.scale
-            else 
-                return 0
-            end
-        elseif a == l.max
-            if u<a
-                return -l.scale
-            else
-                return 0
-            end
-        else
-            return sign(u-a) * l.scale
+function grad(l::ordinal_hinge,u::Number,a::Number)
+    if a == l.min 
+        if u>a
+            return l.scale
+        else 
+            return 0
         end
+    elseif a == l.max
+        if u<a
+            return -l.scale
+        else
+            return 0
+        end
+    else
+        return sign(u-a) * l.scale
     end
 end
 
-function grad(l::huber)
-    return (u,a) -> abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
-end
+grad(l::huber,u::Number,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
 
 ## evaluating loss functions
-function evaluate(l::quadratic,u::Number,a::Number)
-    l.scale*(u-a)^2
-end
-function evaluate(l::l1,u::Number,a::Number)
-    l.scale*abs(u-a)
-end
-function evaluate(l::hinge,u::Number,a::Number)
-    l.scale*max(1-a*u,0)
-end
+evaluate(l::quadratic,u::Number,a::Number) = l.scale*(u-a)^2
+evaluate(l::l1,u::Number,a::Number) = l.scale*abs(u-a)
+evaluate(l::hinge,u::Number,a::Number) = l.scale*max(1-a*u,0)
+
 function evaluate(l::ordinal_hinge,u::Number,a::Number)
     if a == l.min 
         return l.scale*max(u-a,0)

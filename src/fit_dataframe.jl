@@ -1,4 +1,4 @@
-module FitDataFrame
+#module FitDataFrame
 
 import DataFrames: DataFrame
 
@@ -102,4 +102,4 @@ function GLRM(df::DataFrame, k::Integer;
     return GLRM(A, obs, losses, rx, ry, k), labels
 end
 
-end
+#end
