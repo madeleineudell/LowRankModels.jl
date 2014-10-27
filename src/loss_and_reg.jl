@@ -121,7 +121,7 @@ end
 abstract Regularizer
 
 # default inplace prox operator (slower than if inplace prox is implemented)
-prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (u = prox(r,u,alpha))
+prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); for i=1:length(u) u[i]=v[i] end; u)
 
 ## quadratic regularization
 type quadreg<:Regularizer
