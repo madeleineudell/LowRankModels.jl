@@ -1,4 +1,5 @@
 import Base: size, axpy!
+import Base.LinAlg.scale!
 import ArrayViews.view
 
 export GLRM, objective, Params, FunctionArray, getindex, display, size, fit, fit!
@@ -122,11 +123,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             scale!(g, 0)
             for f in glrm.observed_features[e]
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), view(Y,:,f), g)
-                #g += grad(losses[f],XY[e,f],A[e,f])*view(Y,:,f)
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
-            X[e,:] = prox(rx,view(X,e,:)-alpha/l*g',alpha/l)
+            scale!(g, -alpha/l)
+            axpy!(1,view(X,e,:),g)
+            X[e,:] = prox(rx,g,alpha/l)'
         end
         # Y update
         XY = X*Y
@@ -135,11 +137,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             scale!(g, 0)
             for e in glrm.observed_examples[f]
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), view(X,e,:), g)
-                # g += grad(losses[f],XY[e,f],A[e,f])*view(X,e,:)
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            Y[:,f] = prox(ry,view(Y,:,f)-alpha/l*g,alpha/l)
+            scale!(g, -alpha/l)
+            axpy!(1,view(Y,:,f),g)
+            Y[:,f] = prox(ry,g,alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found
