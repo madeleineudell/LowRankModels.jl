@@ -2,7 +2,7 @@ import Base: size, axpy!
 import Base.LinAlg.scale!
 import ArrayViews.view
 
-export GLRM, objective, Params, FunctionArray, getindex, display, size, fit, fit!
+export GLRM, objective, Params, getindex, display, size, fit, fit!
 
 type GLRM
     A
@@ -55,22 +55,6 @@ type Params
 end
 Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
 Params() = Params(1,100,.00001,.01)
-
-type FunctionArray<:AbstractArray
-    f::Function
-    arr::Array
-end
-getindex(fa::FunctionArray,idx::Integer...) = x->fa.f(x,fa.arr[idx...])
-display(fa::FunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
-size(fa::FunctionArray) = size(fa.arr)
-
-type ColumnFunctionArray<:AbstractArray
-    f::Array{Function,1}
-    arr::AbstractArray
-end
-getindex(fa::ColumnFunctionArray,idx::Integer...) = x->fa.f[idx[2]](x,fa.arr[idx...])
-display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
-size(fa::ColumnFunctionArray) = size(fa.arr)
 
 function sort_observations(obs,m,n; check_empty=false)
     observed_features = Array{Int32,1}[Int32[] for i=1:m]
