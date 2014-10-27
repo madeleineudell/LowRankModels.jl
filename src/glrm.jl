@@ -109,10 +109,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), view(Y,:,f), g)
             end
             # take a proximal gradient step
+            ## gradient step: g = X[e,:] - alpha/l*g
             l = length(glrm.observed_features[e]) + 1
             scale!(g, -alpha/l)
-            axpy!(1,view(X,e,:),g)
-            X[e,:] = prox(rx,g,alpha/l)'
+            xe = view(X,e,:)
+            axpy!(1,g,xe)
+            ## prox step: X[e,:] = prox(g)
+            prox!(rx,xe,alpha/l)
         end
         # Y update
         XY = X*Y
@@ -123,10 +126,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), view(X,e,:), g)
             end
             # take a proximal gradient step
+            ## gradient step: g = Y[:,f] - alpha/l*g
             l = length(glrm.observed_examples[f]) + 1
             scale!(g, -alpha/l)
-            axpy!(1,view(Y,:,f),g)
-            Y[:,f] = prox(ry,g,alpha/l)
+            yf = view(Y,:,f)
+            axpy!(1,g,yf) 
+            ## prox step: X[e,:] = prox(g)
+            prox!(ry,yf,alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found

@@ -126,6 +126,7 @@ type quadreg<:Regularizer
 end
 quadreg() = quadreg(1)
 prox(r::quadreg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox!(r::quadreg,u::AbstractArray,alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
 evaluate(r::quadreg,a::AbstractArray) = r.scale*sum(a.^2)
 
 ## one norm regularization
