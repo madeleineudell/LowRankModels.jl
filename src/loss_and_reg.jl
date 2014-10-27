@@ -120,6 +120,9 @@ end
 
 abstract Regularizer
 
+# default inplace prox operator (slower than if inplace prox is implemented)
+prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (u = prox(r,u,alpha))
+
 ## quadratic regularization
 type quadreg<:Regularizer
     scale
@@ -141,6 +144,7 @@ evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 type zeroreg<:Regularizer
 end
 prox(r::zeroreg,u::AbstractArray,alpha::Number) = u
+prox!(r::zeroreg,u::AbstractArray,alpha::Number) = u
 evaluate(r::zeroreg,a::AbstractArray) = 0
 
 ## indicator of the nonnegative orthant 
@@ -156,6 +160,7 @@ type lastentry1<:Regularizer
     r::Regularizer
 end
 prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r)(u[1:end-1],alpha), 1]
+prox!(r::lastentry1,u::AbstractArray,alpha::Number) = (prox!(r.r)(u[1:end-1],alpha); u[end]=1; u)
 evaluate(r::lastentry1,a::AbstractArray) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 
 ## makes the last entry unpenalized
@@ -164,6 +169,7 @@ type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
 prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r)(u[1:end-1],alpha), u[end]]
+prox!(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = (prox!(r.r)(u[1:end-1],alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
 
 ## adds an offset to the model by modifying the regularizers
@@ -175,7 +181,8 @@ end
 ## (enforces that only 1 entry is nonzero, eg for kmeans)
 type onesparse<:Regularizer
 end
-prox(r::onesparse,u::AbstractArray,alpha::Number) = (maxu = maximum(u); [int(ui==maxu) for ui in u])
+prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1)
+prox!(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 
 # scalings
