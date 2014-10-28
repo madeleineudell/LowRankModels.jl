@@ -6,6 +6,6 @@ include("convergence.jl")
 include("glrm.jl")
 include("cross_validate.jl")
 include("fit_dataframe.jl")
-include("plot.jl")
+# include("plot.jl")
 
 end # module
