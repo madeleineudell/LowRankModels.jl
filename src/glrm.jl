@@ -1,6 +1,6 @@
 import Base: size, axpy!
 import Base.LinAlg.scale!
-import ArrayViews.view
+import ArrayViews: view, StridedView, ContiguousView
 
 export GLRM, objective, Params, getindex, display, size, fit, fit!
 
@@ -91,7 +91,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
     # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * sum(map(length,glrm.observed_features))
+    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
@@ -99,6 +99,11 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     t = time()
     steps_in_a_row = 0
     g = zeros(k)
+
+    # cache views
+    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,e,:) for e=1:m]
+    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
+
     for i=1:params.max_iter
         # X update
         XY = X*Y
@@ -106,16 +111,15 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # a gradient of L wrt e
             scale!(g, 0)
             for f in glrm.observed_features[e]
-            	axpy!(grad(losses[f],XY[e,f],A[e,f]), view(Y,:,f), g)
+            	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
             ## gradient step: g = X[e,:] - alpha/l*g
             l = length(glrm.observed_features[e]) + 1
             scale!(g, -alpha/l)
-            xe = view(X,e,:)
-            axpy!(1,g,xe)
+            axpy!(1,g,ve[e])
             ## prox step: X[e,:] = prox(g)
-            prox!(rx,xe,alpha/l)
+            prox!(rx,ve[e],alpha/l)
         end
         # Y update
         XY = X*Y
@@ -123,16 +127,15 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # a gradient of L wrt f
             scale!(g, 0)
             for e in glrm.observed_examples[f]
-            	axpy!(grad(losses[f],XY[e,f],A[e,f]), view(X,e,:), g)
+            	axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
             end
             # take a proximal gradient step
             ## gradient step: g = Y[:,f] - alpha/l*g
             l = length(glrm.observed_examples[f]) + 1
             scale!(g, -alpha/l)
-            yf = view(Y,:,f)
-            axpy!(1,g,yf) 
+            axpy!(1,g,vf[f]) 
             ## prox step: X[e,:] = prox(g)
-            prox!(ry,yf,alpha/l)
+            prox!(ry,vf[f],alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found
