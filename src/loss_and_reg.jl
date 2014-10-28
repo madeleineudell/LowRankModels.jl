@@ -121,7 +121,7 @@ end
 abstract Regularizer
 
 # default inplace prox operator (slower than if inplace prox is implemented)
-prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); for i=1:length(u) u[i]=v[i] end; u)
+prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
 
 ## quadratic regularization
 type quadreg<:Regularizer
@@ -152,6 +152,7 @@ evaluate(r::zeroreg,a::AbstractArray) = 0
 type nonnegative<:Regularizer
 end
 prox(r::nonnegative,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
+prox!(r::nonnegative,u::Array{Float64},alpha::Number) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
 evaluate(r::nonnegative,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : 0
 
 ## indicator of the last entry being equal to 1
@@ -181,8 +182,8 @@ end
 ## (enforces that only 1 entry is nonzero, eg for kmeans)
 type onesparse<:Regularizer
 end
-prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1)
-prox!(r::onesparse,u::Array{Float64},alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1)
+prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 
 # scalings
