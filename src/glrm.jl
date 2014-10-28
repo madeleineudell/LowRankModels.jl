@@ -1,6 +1,8 @@
-import Base.size
+import Base: size, axpy!
+import Base.LinAlg.scale!
+import ArrayViews: view, StridedView, ContiguousView
 
-export GLRM, objective, Params, FunctionArray, getindex, display, size, fit, fit!
+export GLRM, objective, Params, getindex, display, size, fit, fit!
 
 type GLRM
     A
@@ -22,11 +24,11 @@ GLRM(A,obs,losses,rx,ry,k) =
     GLRM(A,obs,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,losses,rx,ry,k) = 
     GLRM(A,reshape((Int64,Int64)[(i,j) for i=1:size(A,1),j=1:size(A,2)], prod(size(A))),losses,rx,ry,k)    
-function objective(glrm::GLRM,X,Y; include_regularization=true)
+function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     # compute value of loss function
-    Z = X * Y
+    if Z==nothing Z = X*Y end
     for i=1:m
         for j in glrm.observed_features[i]
             err += evaluate(glrm.losses[j], Z[i,j], glrm.A[i,j])
@@ -35,10 +37,10 @@ function objective(glrm::GLRM,X,Y; include_regularization=true)
     # add regularization penalty
     if include_regularization
         for i=1:m
-            err += evaluate(glrm.rx,X[i,:])
+            err += evaluate(glrm.rx,view(X,i,:))
         end
         for j=1:n
-            err += evaluate(glrm.ry,Y[:,j])
+            err += evaluate(glrm.ry,view(Y,:,j))
         end
     end
     return err
@@ -53,22 +55,6 @@ type Params
 end
 Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
 Params() = Params(1,100,.00001,.01)
-
-type FunctionArray<:AbstractArray
-    f::Function
-    arr::Array
-end
-getindex(fa::FunctionArray,idx::Integer...) = x->fa.f(x,fa.arr[idx...])
-display(fa::FunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
-size(fa::FunctionArray) = size(fa.arr)
-
-type ColumnFunctionArray<:AbstractArray
-    f::Array{Function,1}
-    arr::AbstractArray
-end
-getindex(fa::ColumnFunctionArray,idx::Integer...) = x->fa.f[idx[2]](x,fa.arr[idx...])
-display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
-size(fa::ColumnFunctionArray) = size(fa.arr)
 
 function sort_observations(obs,m,n; check_empty=false)
     observed_features = Array{Int32,1}[Int32[] for i=1:m]
@@ -87,11 +73,14 @@ end
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
-	gradL = ColumnFunctionArray(map(grad,glrm.losses),glrm.A)
-	m,n = size(gradL)
+	A = glrm.A
+	m,n = size(A)
+	losses = glrm.losses
+	rx = glrm.rx
+	ry = glrm.ry
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
-	X, Y = copy(glrm.X), copy(glrm.Y)
+	X = copy(glrm.X); Y = copy(glrm.Y)
 	k = glrm.k
 
     # check that we didn't initialize to zero (otherwise we will never move)
@@ -102,51 +91,65 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
     # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * sum(map(length,glrm.observed_features))
+    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
     update!(ch, 0, objective(glrm))
     t = time()
     steps_in_a_row = 0
+    g = zeros(k)
+
+    # cache views
+    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,e,:) for e=1:m]
+    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
+
     for i=1:params.max_iter
         # X update
         XY = X*Y
         for e=1:m
             # a gradient of L wrt e
-            g = zeros(1,k)
+            scale!(g, 0)
             for f in glrm.observed_features[e]
-                g += gradL[e,f](XY[e,f])*Y[:,f:f]'
+            	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
+            ## gradient step: g = X[e,:] - alpha/l*g
             l = length(glrm.observed_features[e]) + 1
-            X[e,:] = prox(glrm.rx,X[e:e,:]-alpha/l*g,alpha/l)
+            scale!(g, -alpha/l)
+            axpy!(1,g,ve[e])
+            ## prox step: X[e,:] = prox(g)
+            prox!(rx,ve[e],alpha/l)
         end
         # Y update
         XY = X*Y
         for f=1:n
             # a gradient of L wrt f
-            g = zeros(k,1)
+            scale!(g, 0)
             for e in glrm.observed_examples[f]
-                g += X[e:e,:]'*gradL[e,f](XY[e,f])
+            	axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
             end
             # take a proximal gradient step
+            ## gradient step: g = Y[:,f] - alpha/l*g
             l = length(glrm.observed_examples[f]) + 1
-            Y[:,f] = prox(glrm.ry,Y[:,f:f]-alpha/l*g,alpha/l)
+            scale!(g, -alpha/l)
+            axpy!(1,g,vf[f]) 
+            ## prox step: X[e,:] = prox(g)
+            prox!(ry,vf[f],alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
             update!(ch, t, obj)
-            glrm.X[:], glrm.Y[:] = X, Y
+            copy!(glrm.X, X); copy!(glrm.Y, Y)
             alpha = alpha * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
             alpha = alpha / max(1.5, -steps_in_a_row)
-            X[:], Y[:] = glrm.X, glrm.Y
+            copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
@@ -164,8 +167,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 end
 
 function fit(glrm::GLRM, args...; kwargs...)
-    X0, Y0 = copy(glrm.X), copy(glrm.Y)
+    X0 = Array(Float64, size(glrm.X))
+    Y0 = Array(Float64, size(glrm.Y))
+    copy!(X0, glrm.X); copy!(Y0, glrm.Y)
     X,Y,ch = fit!(glrm, args...; kwargs...)
-    glrm.X, glrm.Y = X0, Y0
+    copy!(glrm.X, X0); copy!(glrm.Y, Y0)
     return X,Y,ch
 end

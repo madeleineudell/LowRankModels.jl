@@ -14,7 +14,7 @@ function df2array(df::DataFrame,z::Number)
     return A
 end
 function observations(df::DataFrame)
-    obs = {}
+    obs = (Int32, Int32)[]
     m,n = size(df)
     for i=1:m
         for j=1:n
