@@ -16,40 +16,40 @@ abstract Loss
 
 # loss functions
 type quadratic<:Loss
-    scale
+    scale::Float64
 end
 quadratic() = quadratic(1)
 type l1<:Loss
-    scale
+    scale::Float64
 end
 l1() = l1(1)
 type hinge<:Loss
-    scale
+    scale::Float64
 end
 hinge() = hinge(1)
 type ordinal_hinge<:Loss
     min::Integer
     max::Integer
-    scale
+    scale::Float64
 end
 ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
 type huber<:Loss
-    scale
-    crossover # where quadratic loss ends and linear loss begins; =1 for standard huber
+    scale::Float64
+    crossover::Float64 # where quadratic loss ends and linear loss begins; =1 for standard huber
 end
 huber(scale) = huber(scale,1)
 huber() = huber(1)
 
 ## gradients of loss functions
-grad(l::quadratic,u::Number,a::Number) = (u-a)*l.scale
+grad(l::quadratic,u::Float64,a::Number) = (u-a)*l.scale
 
-grad(l::l1,u::Number,a::Number) = sign(u-a)*l.scale
+grad(l::l1,u::Float64,a::Number) = sign(u-a)*l.scale
 
-grad(l::hinge,u::Number,a::Number) = hinge_grad(l.scale,u,a)
-hinge_grad(scale,u,a::Number) = a*u>=1 ? 0 : -a*scale
-hinge_grad(scale,u,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
+grad(l::hinge,u::Float64,a::Number) = hinge_grad(l.scale,u,a)
+hinge_grad(scale,u::Float64,a::Number) = a*u>=1 ? 0 : -a*scale
+hinge_grad(scale,u::Float64,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
 
-function grad(l::ordinal_hinge,u::Number,a::Number)
+function grad(l::ordinal_hinge,u::Float64,a::Number)
     if a == l.min 
         if u>a
             return l.scale
@@ -67,14 +67,14 @@ function grad(l::ordinal_hinge,u::Number,a::Number)
     end
 end
 
-grad(l::huber,u::Number,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
+grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
 
 ## evaluating loss functions
-evaluate(l::quadratic,u::Number,a::Number) = l.scale*(u-a)^2
-evaluate(l::l1,u::Number,a::Number) = l.scale*abs(u-a)
-evaluate(l::hinge,u::Number,a::Number) = l.scale*max(1-a*u,0)
+evaluate(l::quadratic,u::Float64,a::Number) = l.scale*(u-a)^2
+evaluate(l::l1,u::Float64,a::Number) = l.scale*abs(u-a)
+evaluate(l::hinge,u::Float64,a::Number) = l.scale*max(1-a*u,0)
 
-function evaluate(l::ordinal_hinge,u::Number,a::Number)
+function evaluate(l::ordinal_hinge,u::Float64,a::Number)
     if a == l.min 
         return l.scale*max(u-a,0)
     elseif a == l.max
@@ -83,7 +83,7 @@ function evaluate(l::ordinal_hinge,u::Number,a::Number)
         return l.scale*abs(u-a)
     end    
 end
-function evaluate(l::huber,u::Number,a::Number)
+function evaluate(l::huber,u::Float64,a::Number)
     abs(u-a) > l.crossover ? (abs(u-a) - l.crossover + l.crossover^2)*l.scale : (u-a)^2*l.scale
 end
 
@@ -120,17 +120,21 @@ end
 
 abstract Regularizer
 
+# default inplace prox operator (slower than if inplace prox is implemented)
+prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
+
 ## quadratic regularization
 type quadreg<:Regularizer
-    scale
+    scale::Float64
 end
 quadreg() = quadreg(1)
 prox(r::quadreg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox!(r::quadreg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
 evaluate(r::quadreg,a::AbstractArray) = r.scale*sum(a.^2)
 
 ## one norm regularization
 type onereg<:Regularizer
-    scale
+    scale::Float64
 end
 onereg() = onereg(1)
 prox(r::onereg,u::AbstractArray,alpha::Number) = error("Not Implemented")
@@ -140,6 +144,7 @@ evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 type zeroreg<:Regularizer
 end
 prox(r::zeroreg,u::AbstractArray,alpha::Number) = u
+prox!(r::zeroreg,u::Array{Float64},alpha::Number) = u
 evaluate(r::zeroreg,a::AbstractArray) = 0
 
 ## indicator of the nonnegative orthant 
@@ -147,6 +152,7 @@ evaluate(r::zeroreg,a::AbstractArray) = 0
 type nonnegative<:Regularizer
 end
 prox(r::nonnegative,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
+prox!(r::nonnegative,u::Array{Float64},alpha::Number) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
 evaluate(r::nonnegative,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : 0
 
 ## indicator of the last entry being equal to 1
@@ -155,6 +161,7 @@ type lastentry1<:Regularizer
     r::Regularizer
 end
 prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r)(u[1:end-1],alpha), 1]
+prox!(r::lastentry1,u::Array{Float64},alpha::Number) = (prox!(r.r)(u[1:end-1],alpha); u[end]=1; u)
 evaluate(r::lastentry1,a::AbstractArray) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 
 ## makes the last entry unpenalized
@@ -163,6 +170,7 @@ type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
 prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r)(u[1:end-1],alpha), u[end]]
+prox!(r::lastentry_unpenalized,u::Array{Float64},alpha::Number) = (prox!(r.r)(u[1:end-1],alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
 
 ## adds an offset to the model by modifying the regularizers
@@ -174,7 +182,8 @@ end
 ## (enforces that only 1 entry is nonzero, eg for kmeans)
 type onesparse<:Regularizer
 end
-prox(r::onesparse,u::AbstractArray,alpha::Number) = (maxu = maximum(u); [int(ui==maxu) for ui in u])
+prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 
 # scalings

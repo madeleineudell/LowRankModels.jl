@@ -1,7 +1,8 @@
-import Base.size
-import ArrayViews.view
+import Base: size, axpy!
+import Base.LinAlg.scale!
+import ArrayViews: view, StridedView, ContiguousView
 
-export GLRM, objective, Params, FunctionArray, getindex, display, size, fit, fit!
+export GLRM, objective, Params, getindex, display, size, fit, fit!
 
 type GLRM
     A
@@ -55,22 +56,6 @@ end
 Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
 Params() = Params(1,100,.00001,.01)
 
-type FunctionArray<:AbstractArray
-    f::Function
-    arr::Array
-end
-getindex(fa::FunctionArray,idx::Integer...) = x->fa.f(x,fa.arr[idx...])
-display(fa::FunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
-size(fa::FunctionArray) = size(fa.arr)
-
-type ColumnFunctionArray<:AbstractArray
-    f::Array{Function,1}
-    arr::AbstractArray
-end
-getindex(fa::ColumnFunctionArray,idx::Integer...) = x->fa.f[idx[2]](x,fa.arr[idx...])
-display(fa::ColumnFunctionArray) = println("FunctionArray($(fa.f),$(fa.arr))")
-size(fa::ColumnFunctionArray) = size(fa.arr)
-
 function sort_observations(obs,m,n; check_empty=false)
     observed_features = Array{Int32,1}[Int32[] for i=1:m]
     observed_examples = Array{Int32,1}[Int32[] for j=1:n]
@@ -106,37 +91,51 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
     # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * sum(map(length,glrm.observed_features))
+    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
     update!(ch, 0, objective(glrm))
     t = time()
     steps_in_a_row = 0
+    g = zeros(k)
+
+    # cache views
+    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,e,:) for e=1:m]
+    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
+
     for i=1:params.max_iter
         # X update
         XY = X*Y
         for e=1:m
             # a gradient of L wrt e
-            g = zeros(k)
+            scale!(g, 0)
             for f in glrm.observed_features[e]
-                g += grad(losses[f],XY[e,f],A[e,f])*view(Y,:,f)
+            	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
+            ## gradient step: g = X[e,:] - alpha/l*g
             l = length(glrm.observed_features[e]) + 1
-            X[e,:] = prox(rx,view(X,e,:)-alpha/l*g',alpha/l)
+            scale!(g, -alpha/l)
+            axpy!(1,g,ve[e])
+            ## prox step: X[e,:] = prox(g)
+            prox!(rx,ve[e],alpha/l)
         end
         # Y update
         XY = X*Y
         for f=1:n
             # a gradient of L wrt f
-            g = zeros(1,k)
+            scale!(g, 0)
             for e in glrm.observed_examples[f]
-                g += grad(losses[f],XY[e,f],A[e,f])*view(X,e,:)
+            	axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
             end
             # take a proximal gradient step
+            ## gradient step: g = Y[:,f] - alpha/l*g
             l = length(glrm.observed_examples[f]) + 1
-            Y[:,f] = prox(ry,view(Y,:,f)-alpha/l*g',alpha/l)
+            scale!(g, -alpha/l)
+            axpy!(1,g,vf[f]) 
+            ## prox step: X[e,:] = prox(g)
+            prox!(ry,vf[f],alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found
