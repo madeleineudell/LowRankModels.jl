@@ -192,9 +192,13 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
     ntest = sum(map(length, test_observed_features))
     train_observed_features = train_glrm.observed_features
     train_error = Array(Float64, length(reg_params))
+    test_error = Array(Float64, length(reg_params))
     prec_at_k = Array(Float64, length(reg_params))
     solution = Array((Float64,Float64), length(reg_params))
     train_time = Array(Float64, length(reg_params))
+    test_glrm = GLRM(train_glrm.A, test_observed_features, [], 
+                     train_glrm.losses, train_glrm.rx, train_glrm.ry, 
+                     train_glrm.k, copy(train_glrm.X), copy(train_glrm.Y))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train error
@@ -206,6 +210,8 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         if verbose println("computing train error and precision at k for reg_param $reg_param:") end
         train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[iparam])") end
+        test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntrain
+        if verbose println("\ttest error: $(test_error[iparam])") end
         # precision at k
         XY = X*Y
         q = sort(XY[:],rev=true)[ntrain] # the ntest+ntrain largest value in the model XY
@@ -237,5 +243,5 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         solution[iparam] = (sum(X)+sum(Y), sum(abs(X))+sum(abs(Y)))
         if verbose println("\tsum of solution, one norm of solution:  $(solution[iparam])") end
     end
-    return train_error, prec_at_k, train_time, reg_params, solution
+    return train_error, test_error, prec_at_k, train_time, reg_params, solution
 end
