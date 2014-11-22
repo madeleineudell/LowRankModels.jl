@@ -81,12 +81,11 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	
 	### initialization
     mA = convert(SharedArray,glrm.A)
-    mAT = convert(SharedArray,glrm.A')
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(glrm.Y) == 0 
-        glrm.Y = .1*randn(k,n) 
+        glrm.Y = .1*randn(size(glrm.Y)...) 
     end
 	mX = convert(SharedArray,glrm.X); mY = convert(SharedArray,glrm.Y)
 	k = glrm.k
@@ -108,7 +107,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     end
 
     # make data accessible from master as well
-    A,AT,X,Y,losses,rx,ry,of,oe,alpha = mA,mAT,mX,mY,glrm.losses,glrm.rx,glrm.ry,glrm.observed_features,glrm.observed_examples,malpha
+    A,X,Y,losses,rx,ry,of,oe,alpha = mA,mX,mY,glrm.losses,glrm.rx,glrm.ry,glrm.observed_features,glrm.observed_examples,malpha
 
     # stopping criterion: stop when decrease in objective < tol
     tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
