@@ -1,26 +1,19 @@
-@everywhere begin
-global X
-global Y
-global f
-global g
-end
-
 function doparallelstuff(m = 10, n = 20)
     # initialize variables
-    localX = Base.shmem_rand(m)
-    localY = Base.shmem_rand(n)
+    localX = Base.shmem_rand(m; pids=procs())
+    localY = Base.shmem_rand(n; pids=procs())
     localf = [x->i+sum(x) for i=1:m]
     localg = [x->i+sum(x) for i=1:n]
 
     # broadcast variables to all worker processes
-    @parallel for i=workers()
-        global X = localX
-        global Y = localY
-        global f = localf
-        global g = localg
+    @sync begin
+        for i in procs(localX)
+            remotecall(i, x->(global X; X=x; nothing), localX)
+            remotecall(i, x->(global Y; Y=x; nothing), localY)
+            remotecall(i, x->(global f; f=x; nothing), localf)
+            remotecall(i, x->(global g; g=x; nothing), localg)
+        end
     end
-    # give variables same name on master
-    X,Y,f,g = localX,localY,localf,localg
 
     # compute
     for iteration=1:1
