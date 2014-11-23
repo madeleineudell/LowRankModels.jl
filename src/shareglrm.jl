@@ -1,8 +1,10 @@
 import Base: size, axpy!
 import Base.LinAlg.scale!
 import ArrayViews: view, StridedView, ContiguousView
-import Base: shmem_rand, shmem_randn
-export GLRM, objective, Params, getindex, display, size, fit, fit!
+import Base: shmem_rand, shmem_randn#, acontrank
+export GLRM, objective, Params, getindex, display, size, fit, fit!#, acontrank
+
+# functions for shared arrays
 
 function localcols(Y::SharedArray)
     idxs=localindexes(Y)
@@ -10,6 +12,7 @@ function localcols(Y::SharedArray)
     m,n=size(Y)
     return ((s-1)/m+1):(t/m)
 end
+# acontrank(s::SharedArray,i::Any,c::Any) = acontrank(s.s,i,c)
 
 type GLRM
     A
@@ -31,7 +34,7 @@ GLRM(A,obs,losses,rx,ry,k) =
     GLRM(A,obs,losses,rx,ry,k,shmem_randn(k,size(A,1)),shmem_randn(k,size(A,2)))
 GLRM(A,losses,rx,ry,k) = 
     GLRM(A,reshape((Int64,Int64)[(i,j) for i=1:size(A,1),j=1:size(A,2)], prod(size(A))),losses,rx,ry,k)    
-function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
+function objective(glrm::GLRM,X::Array,Y::Array,Z=nothing; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     # compute value of loss function
@@ -44,7 +47,7 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     # add regularization penalty
     if include_regularization
         for i=1:m
-            err += evaluate(glrm.rx,view(X,i,:))
+            err += evaluate(glrm.rx,view(X,:,i))
         end
         for j=1:n
             err += evaluate(glrm.ry,view(Y,:,j))
@@ -53,6 +56,7 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     return err
 end
 objective(glrm::GLRM) = objective(glrm,glrm.X,glrm.Y)
+objective(glrm::GLRM,X::SharedArray,Y::SharedArray,args...;kwargs...) = objective(glrm,X.s,Y.s,args...;kwargs...)
 
 type Params
     stepsize # stepsize
@@ -80,7 +84,7 @@ end
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
-    mA = convert(SharedArray,glrm.A)
+    global mA = convert(SharedArray,glrm.A)
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
@@ -92,22 +96,33 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     malpha = Base.shmem_fill(params.stepsize,(1,1))
 
+    if verbose println("sending data") end
     # send all the data
-    @parallel for i in workers()
-        global A=mA
-        global AT=mAT
-        global X=mX
-        global Y=mY
-        global losses=glrm.losses
-        global rx=glrm.rx
-        global ry=glrm.ry
-        global of=glrm.observed_features
-        global oe=glrm.observed_examples
-        global alpha=malpha
+    @parallel for i=workers()
+        global A 
+        A = mA
+        # global X=mX
+        # global Y=mY
+        # global losses=glrm.losses
+        # global rx=glrm.rx
+        # global ry=glrm.ry
+        # global of=glrm.observed_features
+        # global oe=glrm.observed_examples
+        # global alpha=malpha
     end
-
+    if verbose println("sent data") end
     # make data accessible from master as well
-    A,X,Y,losses,rx,ry,of,oe,alpha = mA,mX,mY,glrm.losses,glrm.rx,glrm.ry,glrm.observed_features,glrm.observed_examples,malpha
+    A=mA
+    X=mX
+    Y=mY
+    losses=glrm.losses
+    rx=glrm.rx
+    ry=glrm.ry
+    of=glrm.observed_features
+    oe=glrm.observed_examples
+    alpha=malpha
+    #A,X,Y,losses,rx,ry,of,oe,alpha = mA,mX,mY,glrm.losses,glrm.rx,glrm.ry,glrm.observed_features,glrm.observed_examples,malpha
+    if verbose println("now data on master exists") end
 
     # stopping criterion: stop when decrease in objective < tol
     tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
@@ -120,10 +135,11 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     g = zeros(k)
 
     # cache views
+    if verbose println("caching views") end
     @everywhere begin
         m,n = size(A)
-        ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
-        vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
+        ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X.s,:,e) for e=1:m]
+        vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y.s,:,f) for f=1:n]
         g = zeros(k)
     end
     for i=1:params.max_iter
