@@ -167,8 +167,8 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
         reg_param = reg_params[iparam]
         # evaluate train and test error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
-        # restart glrm X and Y in case they went to zero at the higher regularization
+        scale!(train_glrm.rx, reg_param)
+        scale!(train_glrm.ry, reg_param)        # restart glrm X and Y in case they went to zero at the higher regularization
         # so sad that initializing from prev solution is worse than useless
         #train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
@@ -203,7 +203,8 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         reg_param = reg_params[iparam]
         # evaluate train error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
+        scale!(train_glrm.rx, reg_param)
+        scale!(train_glrm.ry, reg_param)
         train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
