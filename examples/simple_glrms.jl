@@ -1,5 +1,5 @@
 using LowRankModels
-import StatsBase.sample
+import StatsBase: sample
 
 println("simple glrm examples")
 

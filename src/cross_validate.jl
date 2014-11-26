@@ -167,8 +167,8 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
         reg_param = reg_params[iparam]
         # evaluate train and test error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
-        # restart glrm X and Y in case they went to zero at the higher regularization
+        scale!(train_glrm.rx, reg_param)
+        scale!(train_glrm.ry, reg_param)        # restart glrm X and Y in case they went to zero at the higher regularization
         # so sad that initializing from prev solution is worse than useless
         #train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
@@ -186,39 +186,55 @@ end
 
 function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(), reg_params=logspace(2,-2,5), 
                         holdout_proportion=.1, verbose=true,
-                        ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
+                        ch::ConvergenceHistory=ConvergenceHistory("reg_path"), kprec=10)
     m,n = size(train_glrm.A)
-    println(map(length, train_glrm.observed_features))
-    println(map(length, test_observed_features))
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_observed_features))
-    println(ntest+ntrain)
+    train_observed_features = train_glrm.observed_features
     train_error = Array(Float64, length(reg_params))
+    test_error = Array(Float64, length(reg_params))
     prec_at_k = Array(Float64, length(reg_params))
     solution = Array((Float64,Float64), length(reg_params))
     train_time = Array(Float64, length(reg_params))
+    test_glrm = GLRM(train_glrm.A, test_observed_features, [], 
+                     train_glrm.losses, train_glrm.rx, train_glrm.ry, 
+                     train_glrm.k, copy(train_glrm.X), copy(train_glrm.Y))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        train_glrm.rx.scale, train_glrm.ry.scale = reg_param, reg_param
+        scale!(train_glrm.rx, reg_param)
+        scale!(train_glrm.ry, reg_param)
         train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         if verbose println("computing train error and precision at k for reg_param $reg_param:") end
         train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[iparam])") end
+        test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntrain
+        if verbose println("\ttest error: $(test_error[iparam])") end
         # precision at k
         XY = X*Y
-        q = sort(XY[:],rev=true)[ntest+ntrain] # the ntest+ntrain largest value in the model XY
+        q = sort(XY[:],rev=true)[ntrain] # the ntest+ntrain largest value in the model XY
         true_pos = 0; false_pos = 0
+        kfound = 0
         for i=1:m
+            if kfound >= kprec
+                break
+            end
             for j=1:n
+                if kfound >= kprec 
+                    break
+                end        
                 if XY[i,j] >= q
+                    # i predict 1 and (i,j) was in my test set and i observed 1
                     if j in test_observed_features[i]
                         true_pos += 1
+                        kfound += 1
+                    # i predict 1 and i did not observe a 1 (in either my test *or* train set)
                     elseif !(j in train_observed_features[i])
                         false_pos += 1
+                        kfound += 1
                     end
                 end
             end
@@ -228,5 +244,5 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         solution[iparam] = (sum(X)+sum(Y), sum(abs(X))+sum(abs(Y)))
         if verbose println("\tsum of solution, one norm of solution:  $(solution[iparam])") end
     end
-    return train_error, prec_at_k, train_time, reg_params, solution
+    return train_error, test_error, prec_at_k, train_time, reg_params, solution
 end

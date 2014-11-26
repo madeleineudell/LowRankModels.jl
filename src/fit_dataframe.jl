@@ -1,6 +1,6 @@
-module FitDataFrame
+#module FitDataFrame
 
-import DataFrames: DataFrame
+import DataFrames: DataFrame, DataArray, isna, dropna, array
 
 export GLRM, observations
 
@@ -14,7 +14,7 @@ function df2array(df::DataFrame,z::Number)
     return A
 end
 function observations(df::DataFrame)
-    obs = {}
+    obs = (Int32, Int32)[]
     m,n = size(df)
     for i=1:m
         for j=1:n
@@ -28,7 +28,8 @@ end
 GLRM(df::DataFrame,args...) = GLRM(df2array(df,0),args...)
 
 function get_reals(df::DataFrame)
-    reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:ncol(df)]
+    m,n = size(df)
+    reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -38,7 +39,8 @@ function get_reals(df::DataFrame)
 end
 
 function get_bools(df::DataFrame)
-    bools = [typeof(df[i])<:DataArray{Bool,1} for i in 1:ncol(df)]
+    m,n = size(df)
+    bools = [typeof(df[i])<:DataArray{Bool,1} for i in 1:n]
     n1 = sum(bools)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -48,7 +50,8 @@ function get_bools(df::DataFrame)
 end
 
 function get_ordinals(df::DataFrame)
-    ordinals = [typeof(df[i])<:DataArray{Int32,1} for i in 1:ncol(df)]
+    m,n = size(df)
+    ordinals = [typeof(df[i])<:DataArray{Int32,1} for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]
     maxs = zeros(nord,1)
@@ -102,4 +105,4 @@ function GLRM(df::DataFrame, k::Integer;
     return GLRM(A, obs, losses, rx, ry, k), labels
 end
 
-end
+#end
