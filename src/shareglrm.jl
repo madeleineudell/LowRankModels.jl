@@ -5,7 +5,6 @@ import Base: shmem_rand, shmem_randn#, acontrank
 export GLRM, objective, Params, getindex, display, size, fit, fit!, localcols#, acontrank
 
 # functions for shared arrays
-include("send.jl")
 function localcols(Y::SharedArray)
     idxs=localindexes(Y)
     s,t=localindexes(Y)[1],localindexes(Y)[end]
