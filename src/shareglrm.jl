@@ -9,7 +9,7 @@ function localcols(Y::SharedArray)
     idxs=localindexes(Y)
     s,t=localindexes(Y)[1],localindexes(Y)[end]
     m,n=size(Y)
-    return ((s-1)/m+1):(t/m)
+    return round(ceil((s-1)/m+1)):round(floor(t/m))
 end
 # acontrank(s::SharedArray,i::Any,c::Any) = acontrank(s.s,i,c)
 
