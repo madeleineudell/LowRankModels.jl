@@ -2,10 +2,10 @@ import Base: size, axpy!
 import Base.LinAlg.scale!
 import ArrayViews: view, StridedView, ContiguousView
 import Base: shmem_rand, shmem_randn#, acontrank
-export GLRM, objective, Params, getindex, display, size, fit, fit!#, acontrank
+export GLRM, objective, Params, getindex, display, size, fit, fit!, localcols#, acontrank
 
 # functions for shared arrays
-
+include("send.jl")
 function localcols(Y::SharedArray)
     idxs=localindexes(Y)
     s,t=localindexes(Y)[1],localindexes(Y)[end]
@@ -84,74 +84,83 @@ end
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
-    global mA = convert(SharedArray,glrm.A)
+    A = convert(SharedArray,glrm.A)
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(glrm.Y) == 0 
         glrm.Y = .1*randn(size(glrm.Y)...) 
     end
-	mX = convert(SharedArray,glrm.X); mY = convert(SharedArray,glrm.Y)
-	k = glrm.k
+	X = convert(SharedArray,glrm.X); Y = convert(SharedArray,glrm.Y)
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
-    malpha = Base.shmem_fill(params.stepsize,(1,1))
+    alpha = Base.shmem_fill(params.stepsize,(1,1))
+    obj = Base.shmem_fill(0.0,(1,1))
 
-    if verbose println("sending data") end
-    # send all the data
-    @parallel for i=workers()
-        global A 
-        A = mA
-        # global X=mX
-        # global Y=mY
-        # global losses=glrm.losses
-        # global rx=glrm.rx
-        # global ry=glrm.ry
-        # global of=glrm.observed_features
-        # global oe=glrm.observed_examples
-        # global alpha=malpha
-    end
-    if verbose println("sent data") end
-    # make data accessible from master as well
-    A=mA
-    X=mX
-    Y=mY
     losses=glrm.losses
     rx=glrm.rx
     ry=glrm.ry
     of=glrm.observed_features
     oe=glrm.observed_examples
-    alpha=malpha
-    #A,X,Y,losses,rx,ry,of,oe,alpha = mA,mX,mY,glrm.losses,glrm.rx,glrm.ry,glrm.observed_features,glrm.observed_examples,malpha
-    if verbose println("now data on master exists") end
 
-    # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
-
-    # alternating updates of X and Y
-    if verbose println("Fitting GLRM") end
-    update!(ch, 0, objective(glrm))
-    t = time()
-    steps_in_a_row = 0
-    g = zeros(k)
+    if verbose println("sending data") end
+    @sync begin
+        for i in procs(A)
+            remotecall(i, x->(global const A=x; nothing), A)
+            remotecall(i, x->(global const X=x; nothing), X)
+            remotecall(i, x->(global const Y=x; nothing), Y)
+            remotecall(i, x->(global const glrm=x; nothing), glrm)
+            remotecall(i, x->(global const alpha=x; nothing), alpha)
+            remotecall(i, x->(global const obj=x; nothing), obj)
+        end
+    end
+    @everywhere begin
+        A = LowRankModels.A
+        X = LowRankModels.X
+        Y = LowRankModels.Y
+        k = LowRankModels.glrm.k
+        losses = LowRankModels.glrm.losses
+        rx = LowRankModels.glrm.rx
+        ry = LowRankModels.glrm.ry
+        of = LowRankModels.glrm.observed_features
+        oe = LowRankModels.glrm.observed_examples
+        alpha = LowRankModels.alpha
+        obj = LowRankModels.obj
+        axpy! = LowRankModels.axpy!
+        localcols = LowRankModels.localcols
+        prox! = LowRankModels.prox!
+        grad = LowRankModels.grad
+    end
+    if verbose println("sent data") end
 
     # cache views
     if verbose println("caching views") end
     @everywhere begin
         m,n = size(A)
-        ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X.s,:,e) for e=1:m]
-        vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y.s,:,f) for f=1:n]
+        ve = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(X.s,:,e) for e=1:m]
+        vf = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(Y.s,:,f) for f=1:n]
         g = zeros(k)
+        xlcols = localcols(X)
+        ylcols = localcols(Y)
     end
+
+    # stopping criterion: stop when decrease in objective < tol
+    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
+
+    # alternating updates of X and Y
+    if verbose println("fitting GLRM") end
+    update!(ch, 0, objective(glrm,X,Y))
+    t = time()
+    steps_in_a_row = 0
+
     for i=1:params.max_iter
         # X update
         @everywhere begin
-            lcols = localcols(X)
-            XY = X[:,lcols]'*Y
-            for e=lcols
+            XY = X[:,xlcols]'*Y
+            for e=xlcols
                 # a gradient of L wrt e
                 scale!(g, 0)
                 for f in of[e]
-                	axpy!(grad(losses[f],XY[e-lcols[1]+1,f],A[e,f]), vf[f], g)
+                	axpy!(grad(losses[f],XY[e-xlcols[1]+1,f],A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
                 ## gradient step: g = X[e,:] - alpha/l*g
@@ -164,13 +173,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         end
         # Y update
         @everywhere begin
-            lcols = localcols(Y)
-            XY = X'*Y[:,lcols]
-            for f=lcols
+            XY = X'*Y[:,ylcols]
+            for f=ylcols
                 # a gradient of L wrt e
                 scale!(g, 0)
-                for f in of[e]
-                    axpy!(grad(losses[f],XY[e,f-lcols[1]+1],A[e,f]), vf[f], g)
+                for e in oe[f]
+                    axpy!(grad(losses[f],XY[e,f-ylcols[1]+1],A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
                 ## gradient step: g = X[e,:] - alpha/l*g
@@ -181,23 +189,43 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 prox!(ry,vf[f],alpha[1]/l)
             end
         end
-        obj = objective(glrm,X,Y)
+        # evaluate objective 
+        obj[1] *= 0
+        @everywhere begin
+            XY = X[:,xlcols]'*Y
+            err = 0
+            for e=xlcols
+                for f in of[e]
+                    err += evaluate(losses[f], XY[e-xlcols[1]+1,f], A[e,f])
+                end
+            end
+            # add regularization penalty
+            for e=xlcols
+                err += evaluate(rx,ve[e])
+            end
+            for f=ylcols
+                err += evaluate(ry,vf[f])
+            end
+            obj[1] += err
+        end
+        # make sure parallel obj eval is the same as local (it is)
+        # println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
         # record the best X and Y yet found
-        if obj < ch.objective[end]
+        if obj[1] < ch.objective[end]
             t = time() - t
-            update!(ch, t, obj)
+            update!(ch, t, obj[1])
             copy!(glrm.X, X); copy!(glrm.Y, Y)
             alpha = alpha * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            alpha = alpha / max(1.5, -steps_in_a_row)
+            alpha = alpha * (1 / max(1.5, -steps_in_a_row))
             copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
-        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
+        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj[1] < tol) || alpha[1] <= params.min_stepsize
             break
         end
         if verbose && i%10==0 
