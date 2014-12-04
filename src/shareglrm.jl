@@ -31,8 +31,10 @@ GLRM(A,obs,losses,rx,ry,k,X,Y) =
     GLRM(A,sort_observations(obs,size(A)...)...,losses,rx,ry,k,X,Y)
 GLRM(A,obs,losses,rx,ry,k) = 
     GLRM(A,obs,losses,rx,ry,k,shmem_randn(k,size(A,1)),shmem_randn(k,size(A,2)))
-GLRM(A,losses,rx,ry,k) = 
-    GLRM(A,reshape((Int64,Int64)[(i,j) for i=1:size(A,1),j=1:size(A,2)], prod(size(A))),losses,rx,ry,k)    
+function GLRM(A,losses,rx,ry,k)
+    m,n = size(A)
+    return GLRM(A,fill(1:n, m),fill(1:m, n),losses,rx,ry,k)
+end    
 function objective(glrm::GLRM,X::Array,Y::Array,Z=nothing; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
