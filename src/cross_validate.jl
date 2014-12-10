@@ -5,7 +5,8 @@ export cross_validate, cv_by_iter, regularization_path, get_train_and_test, prec
 #     * implement regularization_path
 #     * robustify to cv splits that empty a given row or column (eg check and try again)
 
-function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=true)
+function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)
+    if use_folds==None use_folds = nfolds end
     if verbose println("flattening observations") end
     obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
     if verbose println("computing CV folds") end
@@ -14,7 +15,7 @@ function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=true)
     test_glrms = Array(GLRM, nfolds)
     train_error = Array(Float64, nfolds)
     test_error = Array(Float64, nfolds)
-    for ifold=1:nfolds
+    for ifold=1:use_folds
         if verbose println("\nforming train and test GLRM for fold $ifold") end
         train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = folds[ifold]
 	    ntrain = sum(map(length, train_observed_features))
@@ -148,19 +149,21 @@ function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,
                           glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
 
     return regularization_path(train_glrm, test_glrm; params=params, reg_params=reg_params, 
-                                         holdout_proportion=holdout_proportion, verbose=verbose,
+                                         verbose=verbose,
                                          ch=ch)
 end
 
-
+# For each value of the regularization parameter,
+# compute the training error, ie, average error (sum over (i,j) in train_glrm.obs of L_j(A_ij, x_i y_j))
+# and the test error, ie, average error (sum over (i,j) in test_glrm.obs of L_j(A_ij, x_i y_j))
 function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
-                                         holdout_proportion=.1, verbose=true,
+                                         verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     train_error = Array(Float64, length(reg_params))
     test_error = Array(Float64, length(reg_params))
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
-    println("training model on $ntrain samples and testing on $ntest")
+    if verbose println("training model on $ntrain samples and testing on $ntest") end
     train_time = Array(Float64, length(reg_params))
     model_onenorm = Array(Float64, length(reg_params))
     for iparam=1:length(reg_params)
@@ -168,9 +171,9 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
         # evaluate train and test error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
         scale!(train_glrm.rx, reg_param)
-        scale!(train_glrm.ry, reg_param)        # restart glrm X and Y in case they went to zero at the higher regularization
-        # so sad that initializing from prev solution is worse than useless
-        #train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
+        scale!(train_glrm.ry, reg_param)        
+        # no need to restart glrm X and Y even if they went to zero at the higher regularization
+        # b/c fit! does that automatically
         X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         model_onenorm[iparam] = sum(abs(X)) + sum(abs(Y))
