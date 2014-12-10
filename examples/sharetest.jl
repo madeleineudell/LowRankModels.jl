@@ -16,4 +16,4 @@ function fit_pca(m,n,k)
 end
 
 @everywhere srand(1)
-fit_pca(10000,10000,10)
+fit_pca(300,300,10)

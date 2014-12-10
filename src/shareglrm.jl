@@ -92,8 +92,16 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     if norm(glrm.Y) == 0 
         glrm.Y = .1*shmem_randn(size(glrm.Y)...) 
     end
-    isa(glrm.X, SharedArray) ? X = glrm.X : X = convert(SharedArray,glrm.X)
-    isa(glrm.Y, SharedArray) ? Y = glrm.Y : Y = convert(SharedArray,glrm.Y)
+    if isa(glrm.X, SharedArray)
+        X, glrm.X = glrm.X, copy(glrm.X)
+    else
+        X, glrm.X = convert(SharedArray,glrm.X), copy(glrm.X)
+    end
+    if isa(glrm.Y, SharedArray)
+        Y, glrm.Y = glrm.Y, copy(glrm.Y)
+    else
+        Y, glrm.Y = convert(SharedArray,glrm.Y), copy(glrm.Y)
+    end
 
     ## a few scalars that need to be shared among all processes
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
