@@ -23,7 +23,7 @@ end
 
 train_glrm = GLRM(B,train_observed_features, train_observed_examples,losses,r,r,k)
 
-train_error, prec_at_k, train_time, reg_params, solution = 
+train_error, test_error, prec_at_k, train_time, reg_params, solution =
     precision_at_k(train_glrm, test_observed_features, params=Params(1,200,.00001,.01), 
                                  reg_params=logspace(2,-2,9))   
 df = DataFrame(train_error = train_error, prec_at_k = prec_at_k,
