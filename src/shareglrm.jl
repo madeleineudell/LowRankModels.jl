@@ -84,26 +84,23 @@ end
 
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
-	### initialization
-    A = convert(SharedArray,glrm.A)
+	### initialization (mostly name shortening)
+    isa(glrm.A, SharedArray) ? A = glrm.A : A = convert(SharedArray,glrm.A)
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(glrm.Y) == 0 
-        glrm.Y = .1*randn(size(glrm.Y)...) 
+        glrm.Y = .1*shmem_randn(size(glrm.Y)...) 
     end
-	X = convert(SharedArray,glrm.X); Y = convert(SharedArray,glrm.Y)
+    isa(glrm.X, SharedArray) ? X = glrm.X : X = convert(SharedArray,glrm.X)
+    isa(glrm.Y, SharedArray) ? Y = glrm.Y : Y = convert(SharedArray,glrm.Y)
+
+    ## a few scalars that need to be shared among all processes
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = Base.shmem_fill(params.stepsize,(1,1))
     obj = Base.shmem_fill(0.0,(1,1))
 
-    losses=glrm.losses
-    rx=glrm.rx
-    ry=glrm.ry
-    of=glrm.observed_features
-    oe=glrm.observed_examples
-
-    if verbose println("sending data") end
+    if verbose println("sending data and caching views") end
     @sync begin
         for i in procs(A)
             remotecall(i, x->(global const A=x; nothing), A)
@@ -115,6 +112,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         end
     end
     @everywhere begin
+        # rename data to be easier to access on local proc
         A = LowRankModels.A
         X = LowRankModels.X
         Y = LowRankModels.Y
@@ -127,21 +125,21 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         alpha = LowRankModels.alpha
         obj = LowRankModels.obj
         axpy! = LowRankModels.axpy!
-        localcols = LowRankModels.localcols
         prox! = LowRankModels.prox!
-        grad = LowRankModels.grad
-    end
-    if verbose println("sent data") end
+        
+        # I'm not sure why I need to import the above functions but not these two...
+        #localcols = LowRankModels.localcols
+        #grad = LowRankModels.grad
 
-    # cache views
-    if verbose println("caching views") end
-    @everywhere begin
+        # cache views and local columns
         m,n = size(A)
         ve = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(X.s,:,e) for e=1:m]
         vf = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(Y.s,:,f) for f=1:n]
-        g = zeros(k)
         xlcols = localcols(X)
         ylcols = localcols(Y)
+
+        # initialize gradient
+        g = zeros(k)
     end
 
     # stopping criterion: stop when decrease in objective < tol
@@ -154,8 +152,8 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     steps_in_a_row = 0
 
     for i=1:params.max_iter
-        # X update
         @everywhere begin
+            # X update
             XY = X[:,xlcols]'*Y
             for e=xlcols
                 # a gradient of L wrt e
@@ -171,9 +169,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 ## prox step: X[e,:] = prox(g)
                 prox!(rx,ve[e],alpha[1]/l)
             end
-        end
-        # Y update
-        @everywhere begin
+            # Y update
             XY = X'*Y[:,ylcols]
             for f=ylcols
                 # a gradient of L wrt e
