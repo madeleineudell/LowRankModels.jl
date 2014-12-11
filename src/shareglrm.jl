@@ -96,12 +96,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     if isa(glrm.X, SharedArray)
         X, glrm.X = glrm.X, copy(glrm.X)
     else
-        X, glrm.X = convert(SharedArray,glrm.X), copy(glrm.X)
+        X, glrm.X = convert(SharedArray,glrm.X), convert(SharedArray,glrm.X)
     end
     if isa(glrm.Y, SharedArray)
         Y, glrm.Y = glrm.Y, copy(glrm.Y)
     else
-        Y, glrm.Y = convert(SharedArray,glrm.Y), copy(glrm.Y)
+        Y, glrm.Y = convert(SharedArray,glrm.Y), convert(SharedArray,glrm.Y)
     end
 
     ## a few scalars that need to be shared among all processes
@@ -125,6 +125,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         A = LowRankModels.A
         X = LowRankModels.X
         Y = LowRankModels.Y
+        glrm = LowRankModels.glrm
         k = LowRankModels.glrm.k
         losses = LowRankModels.glrm.losses
         rx = LowRankModels.glrm.rx
@@ -227,14 +228,29 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         if obj[1] < ch.objective[end]
             t = time() - t
             update!(ch, t, obj[1])
-            copy!(glrm.X, X); copy!(glrm.Y, Y)
+            #copy!(glrm.X, X); copy!(glrm.Y, Y)
+            @everywhere begin
+                @inbounds for i in localindexes(X)
+                    glrm.X[i] = X[i]
+                end
+                @inbounds for i in localindexes(Y)
+                    glrm.Y[i] = Y[i]
+                end
+            end
             alpha[1] = alpha[1] * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
             alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row))
-            copy!(X, glrm.X); copy!(Y, glrm.Y)
+            @everywhere begin
+                @inbounds for i in localindexes(X)
+                    X[i] = glrm.X[i]
+                end
+                @inbounds for i in localindexes(Y)
+                    Y[i] = glrm.Y[i]
+                end
+            end
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
