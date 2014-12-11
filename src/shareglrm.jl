@@ -1,5 +1,6 @@
 import Base: size, axpy!
-import Base.LinAlg.scale!
+import Base.LinAlg: scale!
+import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 import Base: shmem_rand, shmem_randn#, acontrank
 export GLRM, objective, Params, getindex, display, size, fit, fit!, localcols#, acontrank
@@ -9,7 +10,7 @@ function localcols(Y::SharedArray)
     idxs=localindexes(Y)
     s,t=localindexes(Y)[1],localindexes(Y)[end]
     m,n=size(Y)
-    return round(ceil((s-1)/m+1)):round(floor(t/m))
+    return round(floor((s-1)/m+1)):round(floor(t/m))
 end
 # acontrank(s::SharedArray,i::Any,c::Any) = acontrank(s.s,i,c)
 
@@ -105,7 +106,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 
     ## a few scalars that need to be shared among all processes
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
-    alpha = Base.shmem_fill(params.stepsize,(1,1))
+    alpha = Base.shmem_fill(float(params.stepsize),(1,1))
     obj = Base.shmem_fill(0.0,(1,1))
 
     if verbose println("sending data and caching views") end
@@ -132,7 +133,8 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         oe = LowRankModels.glrm.observed_examples
         alpha = LowRankModels.alpha
         obj = LowRankModels.obj
-        axpy! = LowRankModels.axpy!
+        axpy! = Base.BLAS.axpy!
+        gemm! = Base.BLAS.gemm!
         prox! = LowRankModels.prox!
         
         # I'm not sure why I need to import the above functions but not these two...
@@ -145,6 +147,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         vf = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(Y.s,:,f) for f=1:n]
         xlcols = localcols(X)
         ylcols = localcols(Y)
+        println([i for i in xlcols])
+        println([i for i in ylcols])
+        XYX = Array(Float64,(length(xlcols), n))
+        XYY = Array(Float64,(m, length(ylcols)))
 
         # initialize gradient
         g = zeros(k)
@@ -160,14 +166,16 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     steps_in_a_row = 0
 
     for i=1:params.max_iter
+        println("X=$X")
+        println("Y=$Y")
         @everywhere begin
             # X update
-            XY = X[:,xlcols]'*Y
+            gemm!('T','N',1.0,X[:,xlcols],Y.s,0.0,XYX)
             for e=xlcols
                 # a gradient of L wrt e
                 scale!(g, 0)
                 for f in of[e]
-                	axpy!(grad(losses[f],XY[e-xlcols[1]+1,f],A[e,f]), vf[f], g)
+                	axpy!(grad(losses[f],XYX[e-xlcols[1]+1,f],A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
                 ## gradient step: g = X[e,:] - alpha/l*g
@@ -177,13 +185,17 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 ## prox step: X[e,:] = prox(g)
                 prox!(rx,ve[e],alpha[1]/l)
             end
+        end
+        println("After update X=$X")
+        @everywhere begin
             # Y update
-            XY = X'*Y[:,ylcols]
+            # XYY = X'*Y[:,ylcols]
+            gemm!('T','N',1.0,X.s,Y[:,ylcols],0.0,XYY)
             for f=ylcols
                 # a gradient of L wrt e
                 scale!(g, 0)
                 for e in oe[f]
-                    axpy!(grad(losses[f],XY[e,f-ylcols[1]+1],A[e,f]), vf[f], g)
+                    axpy!(grad(losses[f],XYY[e,f-ylcols[1]+1],A[e,f]), ve[e], g)
                 end
                 # take a proximal gradient step
                 ## gradient step: g = X[e,:] - alpha/l*g
@@ -194,8 +206,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 prox!(ry,vf[f],alpha[1]/l)
             end
         end
+        println("After update Y=$Y")
         # evaluate objective 
-        obj[1] *= 0
+        obj[1] = 0
         @everywhere begin
             XY = X[:,xlcols]'*Y
             err = 0
@@ -211,21 +224,25 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             for f=ylcols
                 err += evaluate(ry,vf[f])
             end
-            obj[1] += err
+            obj[1] = obj[1] + err
         end
+        println("obj = ",obj[1])
+        #obj[1] = objective(glrm,X,Y)
         # make sure parallel obj eval is the same as local (it is)
         # println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
         # record the best X and Y yet found
         if obj[1] < ch.objective[end]
+            if verbose println("obj went down") end
             t = time() - t
             update!(ch, t, obj[1])
             copy!(glrm.X, X); copy!(glrm.Y, Y)
-            alpha = alpha * 1.05
+            alpha[1] = alpha[1] * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            alpha = alpha * (1 / max(1.5, -steps_in_a_row))
+            if verbose println("obj went up; reducing alpha from $alpha to ",alpha * (1 / max(1.5, -steps_in_a_row))) end
+            alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row))
             copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
