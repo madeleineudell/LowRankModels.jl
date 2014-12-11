@@ -147,8 +147,6 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         vf = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(Y.s,:,f) for f=1:n]
         xlcols = localcols(X)
         ylcols = localcols(Y)
-        println([i for i in xlcols])
-        println([i for i in ylcols])
         XYX = Array(Float64,(length(xlcols), n))
         XYY = Array(Float64,(m, length(ylcols)))
 
@@ -166,8 +164,6 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     steps_in_a_row = 0
 
     for i=1:params.max_iter
-        println("X=$X")
-        println("Y=$Y")
         @everywhere begin
             # X update
             gemm!('T','N',1.0,X[:,xlcols],Y.s,0.0,XYX)
@@ -186,7 +182,6 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 prox!(rx,ve[e],alpha[1]/l)
             end
         end
-        println("After update X=$X")
         @everywhere begin
             # Y update
             # XYY = X'*Y[:,ylcols]
@@ -206,7 +201,6 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 prox!(ry,vf[f],alpha[1]/l)
             end
         end
-        println("After update Y=$Y")
         # evaluate objective 
         obj[1] = 0
         @everywhere begin
@@ -226,13 +220,11 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             end
             obj[1] = obj[1] + err
         end
-        println("obj = ",obj[1])
         #obj[1] = objective(glrm,X,Y)
         # make sure parallel obj eval is the same as local (it is)
         # println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
         # record the best X and Y yet found
         if obj[1] < ch.objective[end]
-            if verbose println("obj went down") end
             t = time() - t
             update!(ch, t, obj[1])
             copy!(glrm.X, X); copy!(glrm.Y, Y)
@@ -241,7 +233,6 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            if verbose println("obj went up; reducing alpha from $alpha to ",alpha * (1 / max(1.5, -steps_in_a_row))) end
             alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row))
             copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
