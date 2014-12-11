@@ -13,10 +13,10 @@ function fit_pca(m,n,k)
 	glrm.Y=Y
 	nprocs()==1 ? glrm.X=X' : glrm.X=X
 	p = Params()
-	p.max_iter = 12
+	p.max_iter = 10
 	X,Y,ch = fit!(glrm)
 	println("Convergence history:",ch.objective)
-	println("Time/iter:",ch.times[end]/length(ch.times))
+	println("Time/iter:",ch.times[end]/10)
 	return A,X,Y,ch
 end
 
