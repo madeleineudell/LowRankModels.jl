@@ -125,7 +125,7 @@ abstract Regularizer
 # default inplace prox operator (slower than if inplace prox is implemented)
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
 scale(r::Regularizer) = r.scale
-scale!(r::Regularizer, newscale::Number) = (r.scale = newscale)
+scale!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
 
 ## quadratic regularization
 type quadreg<:Regularizer
@@ -190,8 +190,8 @@ function add_offset(rx::Regularizer,ry::Regularizer)
     return lastentry1(rx), lastentry_unpenalized(ry)
 end
 
-## indicator of 1-sparse vectors
-## (enforces that only 1 entry is nonzero, eg for kmeans)
+## indicator of 1-sparse unit vectors
+## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
 type onesparse<:Regularizer
 end
 prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
@@ -199,7 +199,7 @@ prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[id
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 
 # scalings
-function equilibrate_variance!(losses::Array{Loss}, A)
+function equilibrate_variance!(losses::Array, A)
     for i=1:size(A,2)
         vari = avgerror(dropna(A[:,i]), losses[i])
         if vari > 0

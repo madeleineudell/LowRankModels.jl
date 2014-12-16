@@ -94,7 +94,7 @@ function GLRM(df::DataFrame, k::Integer;
 
     # scale losses so they all have equal variance
     if scale
-        equilibrate_variance!(losses, A)
+        @show equilibrate_variance!(losses, A)
     end
     # don't penalize the offset of the columns
     if offset
@@ -105,4 +105,5 @@ function GLRM(df::DataFrame, k::Integer;
     return GLRM(A, obs, losses, rx, ry, k), labels
 end
 
+equilibrate_variance!(glrm::GLRM) = (equilibrate_variance!(glrm.losses, glrm.A); glrm)
 #end
