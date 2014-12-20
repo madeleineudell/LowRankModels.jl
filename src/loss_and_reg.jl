@@ -17,40 +17,60 @@ export Loss, Regularizer, # abstract types
 abstract Loss
 
 # loss functions
+
+## quadratic
 type quadratic<:Loss
     scale::Float64
 end
 quadratic() = quadratic(1)
+evaluate(l::quadratic,u::Float64,a::Number) = l.scale*(u-a)^2
+grad(l::quadratic,u::Float64,a::Number) = (u-a)*l.scale
+
+## l1
 type l1<:Loss
     scale::Float64
 end
 l1() = l1(1)
-type hinge<:Loss
-    scale::Float64
-end
-hinge() = hinge(1)
-type ordinal_hinge<:Loss
-    min::Integer
-    max::Integer
-    scale::Float64
-end
-ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
+evaluate(l::l1,u::Float64,a::Number) = l.scale*abs(u-a)
+grad(l::l1,u::Float64,a::Number) = sign(u-a)*l.scale
+
+## huber
 type huber<:Loss
     scale::Float64
     crossover::Float64 # where quadratic loss ends and linear loss begins; =1 for standard huber
 end
 huber(scale) = huber(scale,1)
 huber() = huber(1)
+function evaluate(l::huber,u::Float64,a::Number)
+    abs(u-a) > l.crossover ? (abs(u-a) - l.crossover + l.crossover^2)*l.scale : (u-a)^2*l.scale
+end
+grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
 
-## gradients of loss functions
-grad(l::quadratic,u::Float64,a::Number) = (u-a)*l.scale
+## poisson
+type poisson<:Loss
+    scale::Float64
+end
+poisson() = poisson(1)
+evauate(l::poisson,u::Float64,a::Number) = exp(u) - a*u + a*log(a) - a
+grad(l::poisson,u::Float64,a::Number) = exp(u) - a*u + a*log(a) - a
 
-grad(l::l1,u::Float64,a::Number) = sign(u-a)*l.scale
-
+## hinge
+type hinge<:Loss
+    scale::Float64
+end
+hinge() = hinge(1)
+evaluate(l::hinge,u::Float64,a::Number) = l.scale*max(1-a*u,0)
 grad(l::hinge,u::Float64,a::Number) = hinge_grad(l.scale,u,a)
 hinge_grad(scale,u::Float64,a::Number) = a*u>=1 ? 0 : -a*scale
 hinge_grad(scale,u::Float64,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
 
+## ordinal hinge
+type ordinal_hinge<:Loss
+    min::Integer
+    max::Integer
+    scale::Float64
+end
+ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
 function grad(l::ordinal_hinge,u::Float64,a::Number)
     if a == l.min 
         if u>a
@@ -68,14 +88,6 @@ function grad(l::ordinal_hinge,u::Float64,a::Number)
         return sign(u-a) * l.scale
     end
 end
-
-grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
-
-## evaluating loss functions
-evaluate(l::quadratic,u::Float64,a::Number) = l.scale*(u-a)^2
-evaluate(l::l1,u::Float64,a::Number) = l.scale*abs(u-a)
-evaluate(l::hinge,u::Float64,a::Number) = l.scale*max(1-a*u,0)
-
 function evaluate(l::ordinal_hinge,u::Float64,a::Number)
     if a == l.min 
         return l.scale*max(u-a,0)
@@ -85,10 +97,8 @@ function evaluate(l::ordinal_hinge,u::Float64,a::Number)
         return l.scale*abs(u-a)
     end    
 end
-function evaluate(l::huber,u::Float64,a::Number)
-    abs(u-a) > l.crossover ? (abs(u-a) - l.crossover + l.crossover^2)*l.scale : (u-a)^2*l.scale
-end
 
+# Useful functions for computing scalings
 ## minimum_offset (average error of l (a, offset))
 function avgerror(a::AbstractArray, l::quadratic)
     m = mean(a)
@@ -119,7 +129,6 @@ end
 # regularizers
 # regularizers r should have the method `prox` defined such that 
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
-
 abstract Regularizer
 
 # default inplace prox operator (slower than if inplace prox is implemented)
@@ -141,7 +150,7 @@ type onereg<:Regularizer
     scale::Float64
 end
 onereg() = onereg(1)
-prox(r::onereg,u::AbstractArray,alpha::Number) = error("Not Implemented")
+prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-as,0) + min(u+as,0)
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## no regularization
@@ -191,12 +200,20 @@ function add_offset(rx::Regularizer,ry::Regularizer)
 end
 
 ## indicator of 1-sparse unit vectors
-## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
+## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
 type onesparse<:Regularizer
 end
-prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
-prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
+prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
+
+## indicator of 1-sparse unit vectors
+## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
+type unitonesparse<:Regularizer
+end
+prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+evaluate(r::unitonesparse,a::AbstractArray) = (sum(map(x->x>0,a)) <= 1 && sum(x)=1) ? 0 : Inf 
 
 # scalings
 function equilibrate_variance!(losses::Array, A)

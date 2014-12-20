@@ -45,7 +45,7 @@ function fit_kmeans(m,n,k)
 	end
 	losses = fill(quadratic(),n)
 	ry = zeroreg()
-	rx = onesparse() 
+	rx = unitonesparse() 
 	glrm = GLRM(A,losses,rx,ry,k+4)
 	X,Y,ch = fit!(glrm)	
 	println("Convergence history:",ch.objective)

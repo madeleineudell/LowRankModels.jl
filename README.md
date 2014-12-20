@@ -65,7 +65,8 @@ and may be chosen from a list of supported losses and regularizers, which includ
 * quadratic regularization `quadreg`
 * no regularization `zeroreg`
 * nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
-* 1-sparse constraint `onesparse` (eg, for k-means)
+* 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)
+* unit 1-sparse constraint `unitonesparse` (eg, for k-means)
 
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
@@ -75,7 +76,7 @@ For example, the following code forms a k-means model with `k=5` on the `100`x`1
     using LowRankModels
     m,n,k = 100,100,5
     losses = fill(quadratic(),n)
-    rx = onesparse() # each row is assigned to exactly one cluster
+    rx = unitonesparse() # each row is assigned to exactly one cluster
     ry = zeroreg() # no regularization on the cluster centroids
     glrm = GLRM(A,losses,rt,r,k)
 
@@ -172,6 +173,14 @@ You can even start with an easy-to-optimize loss function, run `fit!`,
 change the loss function (`glrm.losses = newlosses`), 
 and keep going from your warm start by calling `fit!` again to fit 
 the new loss functions.
+
+### Initialization
+
+If you don't have a good guess at a warm start for your model, you might try
+one of the initializations provided in `LowRankModels`.
+
+* `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems, see, eg [Keshavan2010]() or [Chattergee2014](http://arxiv.org/pdf/1212.1247v6.pdf).
+* init_kmeanspp! initializes the model using the [kmeans++](wikipedia) algorithm. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
 
 ### Parameters
 

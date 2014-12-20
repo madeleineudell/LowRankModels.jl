@@ -11,6 +11,7 @@ else
 	include("glrm.jl")
 end
 # fancy fun on top of low rank models
+include("initialize.jl")
 include("cross_validate.jl")
 include("fit_dataframe.jl")
 #include("plot.jl")

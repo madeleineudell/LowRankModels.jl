@@ -1,3 +1,4 @@
+import StatsBase.sample
 export init_kmeanspp!, init_svd!
 
 # kmeans++ initialization, but with missing data
@@ -36,9 +37,11 @@ function init_svd!(glrm::GLRM)
 	B = zeros(m,n)
 	for i=1:m
 		for j in glrm.observed_features[i]
-			B[i,j] = A[i,j]
+			B[i,j] = glrm.A[i,j]
 		end
 	end
+	# scale B so its mean is the same as the mean of the observations
+	B *= m*n/sum(map(length, glrm.observed_features))
 	u,s,v = svd(B)
 	glrm.X = u[:,1:k]*diagm(sqrt(s[1:k]))
 	glrm.Y = diagm(sqrt(s[1:k]))*v[:,1:k]'
