@@ -73,17 +73,9 @@ end
 ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
 function grad(l::ordinal_hinge,u::Float64,a::Number)
     if a == l.min 
-        if u>a
-            return l.scale
-        else 
-            return 0
-        end
+        return max(sign(u-a), 0) * l.scale
     elseif a == l.max
-        if u<a
-            return -l.scale
-        else
-            return 0
-        end
+        return min(sign(u-a), 0) * l.scale
     else
         return sign(u-a) * l.scale
     end
