@@ -6,7 +6,7 @@ df = RDatasets.dataset("psych", "msq")
 
 # fit it!
 glrm, labels = GLRM(df,2)
-X, Y, ch = fit(glrm)
+X, Y, ch = fit!(glrm)
 
 # print results
 println(ch)
