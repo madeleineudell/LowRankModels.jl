@@ -205,7 +205,7 @@ type unitonesparse<:Regularizer
 end
 prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
-evaluate(r::unitonesparse,a::AbstractArray) = (sum(map(x->x>0,a)) <= 1 && sum(x)=1) ? 0 : Inf 
+evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(x)==1) ? 0 : Inf )
 
 # scalings
 function equilibrate_variance!(losses::Array, A)

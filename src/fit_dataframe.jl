@@ -2,7 +2,7 @@
 
 import DataFrames: DataFrame, DataArray, isna, dropna, array
 
-export GLRM, observations
+export GLRM, observations, expand_categoricals
 
 max_ordinal_levels = 9
 
@@ -51,7 +51,7 @@ end
 
 function get_ordinals(df::DataFrame)
     m,n = size(df)
-    ordinals = [typeof(df[i])<:DataArray{Int32,1} for i in 1:n]
+    ordinals = [typeof(df[i])<:DataArray{Int,1} for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]
     maxs = zeros(nord,1)
@@ -70,6 +70,22 @@ function get_ordinals(df::DataFrame)
         losses[i] = ordinal_hinge(mins[i],maxs[i])
     end
     return ordinals, losses
+end
+
+function expand_categoricals(df::DataFrame,categoricals::Array)
+    categoricalidxs = map(y->df.colindex[y], categoricals)
+    # create one boolean column for each level of categorical column
+    for col in categoricals
+        levels = unique(df[:,col])
+        for level in levels
+            if !isna(level)
+                colname = symbol(string(col)*"="*string(level))
+                df[colname] = (df[:,col] .== level)
+            end
+        end
+    end
+    # remove the original categorical columns
+    return df[:, filter(x->(!(x in categoricals)), names(df))]
 end
 
 function GLRM(df::DataFrame, k::Integer; 
