@@ -87,6 +87,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	
 	### initialization (mostly name shortening)
     isa(glrm.A, SharedArray) ? A = glrm.A : A = convert(SharedArray,glrm.A)
+    # make sure that we've oriented the factors as shareglrm expects
+    if size(glrm.Y,1)!==size(glrm.X,1)
+        glrm.X = glrm.X'
+    end
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
