@@ -47,7 +47,7 @@ function init_svd!(glrm::GLRM; offset=false)
     B = zeros(m,n)
     for i=1:m
         for j in glrm.observed_features[i]
-            B[i,j] = glrm.A[i,j]
+            B[i,j] = A[i,j]
         end
     end
     # scale B so its mean is the same as the mean of the observations
