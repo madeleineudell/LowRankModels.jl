@@ -84,15 +84,15 @@ function sort_observations(obs,m,n; check_empty=false)
 end
 
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
-	
-	### initialization (mostly name shortening)
+    
+    ### initialization (mostly name shortening)
     isa(glrm.A, SharedArray) ? A = glrm.A : A = convert(SharedArray,glrm.A)
     # make sure that we've oriented the factors as shareglrm expects
     if size(glrm.Y,1)!==size(glrm.X,1)
         glrm.X = glrm.X'
     end
-	# at any time, glrm.X and glrm.Y will be the best model yet found, while
-	# X and Y will be the working variables
+    # at any time, glrm.X and glrm.Y will be the best model yet found, while
+    # X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(glrm.Y) == 0 
         glrm.Y = .1*shmem_randn(size(glrm.Y)...) 
@@ -176,7 +176,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 # a gradient of L wrt e
                 scale!(g, 0)
                 for f in of[e]
-                	axpy!(grad(losses[f],XYX[e-xlcols[1]+1,f],A[e,f]), vf[f], g)
+                    axpy!(grad(losses[f],XYX[e-xlcols[1]+1,f],A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
                 ## gradient step: g = X[e,:] - alpha/l*g

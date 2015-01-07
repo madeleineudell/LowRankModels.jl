@@ -84,7 +84,7 @@ For more examples, see `examples/simple_glrms.jl`.
 
 To fit the model, call
 
-	X,Y,ch = fit!(glrm)
+    X,Y,ch = fit!(glrm)
 
 which runs an alternating directions proximal gradient method on `glrm` to find the 
 `X` and `Y` minimizing the objective function.
@@ -134,8 +134,8 @@ that you'd like a low rank (eg, `k=2`) model for. For example,
 
 Never fear! Just call
 
-	glrm, labels = GLRM(df,2)
-	X, Y, ch = fit!(glrm)
+    glrm, labels = GLRM(df,2)
+    X, Y, ch = fit!(glrm)
 
 This will fit a GLRM to your data, using a quadratic loss for real valued columns,
 hinge loss for boolean columns, and ordinal hinge loss for integer columns.

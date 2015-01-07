@@ -47,7 +47,8 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     end
     return err
 end
-objective(glrm::GLRM) = objective(glrm,glrm.X,glrm.Y)
+objective(glrm::GLRM, args...; kwargs...) = 
+    objective(glrm, glrm.X, glrm.Y, args...; kwargs...)
 
 type Params
     stepsize # stepsize
@@ -73,21 +74,21 @@ function sort_observations(obs,m,n; check_empty=false)
 end
 
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
-	
-	### initialization
-	A = glrm.A
-	m,n = size(A)
-	losses = glrm.losses
-	rx = glrm.rx
-	ry = glrm.ry
-	# at any time, glrm.X and glrm.Y will be the best model yet found, while
-	# X and Y will be the working variables
-	X = copy(glrm.X); Y = copy(glrm.Y)
-	k = glrm.k
+    
+    ### initialization
+    A = glrm.A
+    m,n = size(A)
+    losses = glrm.losses
+    rx = glrm.rx
+    ry = glrm.ry
+    # at any time, glrm.X and glrm.Y will be the best model yet found, while
+    # X and Y will be the working variables
+    X = copy(glrm.X); Y = copy(glrm.Y)
+    k = glrm.k
 
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(Y) == 0 
-    	Y = .1*randn(k,n) 
+        Y = .1*randn(k,n) 
     end
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
@@ -117,7 +118,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # a gradient of L wrt e
             scale!(g, 0)
             for f in glrm.observed_features[e]
-            	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
+                axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
             ## gradient step: g = X[e,:] - alpha/l*g
@@ -135,13 +136,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             end
             err += evaluate(rx,ve[e])
             if i>1 && err > objbyrow[e]
-                # println("row $e worsened")
+                #println("row $e worsened")
                 alpharow[e] *= .7
                 X[e,:] = glrm.X[e,:]
                 # scale!(ve[e],0)
                 # axpy!(1,glrm.X[e,:],ve[e])
             else
-                alpharow[e] *= 1.1
+                alpharow[e] *= 1.05
                 glrm.X[e,:] = X[e,:]
                 # scale!(glrm.X[e,:],0)
                 # axpy!(1,ve[e],glrm.X[e,:])
@@ -154,7 +155,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # a gradient of L wrt f
             scale!(g, 0)
             for e in glrm.observed_examples[f]
-            	axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
+                axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
             end
             # take a proximal gradient step
             ## gradient step: g = Y[:,f] - alpha/l*g
@@ -172,13 +173,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             end
             err += evaluate(ry,vf[f])
             if i>1 && err > objbycol[f]
-                # println("col $f worsened")
+                #println("col $f worsened")
                 alphacol[f] *= .7
                 Y[:,f] = glrm.Y[:,f]
                 # scale!(vf[f],0)
                 # axpy!(1,glrm.Y[:,f],vf[f])
             else
-                alphacol[f] *= 1.1
+                alphacol[f] *= 1.05
                 glrm.Y[:,f] = Y[:,f]
                 # scale!(glrm.Y[:,f],0)
                 # axpy!(1,vf[f],glrm.Y[:,f])

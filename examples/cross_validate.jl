@@ -31,9 +31,9 @@ if do_reg_path
     regularization_path(glrm, params=Params(1,50,.00001,.01), reg_params=logspace(2,-2,15))
     df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, model_onenorm=model_onenorm, reg_param = reg_params)
-	if do_plot 
-		p = plot(df, :reg_param, [:train_error, :test_error]; scale = :log, filename = None)
-	end
+    if do_plot 
+        p = plot(df, :reg_param, [:train_error, :test_error]; scale = :log, filename = None)
+    end
 end
 
 println(df)
