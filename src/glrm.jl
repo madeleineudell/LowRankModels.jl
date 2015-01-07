@@ -92,6 +92,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
+    alpharow = fill(float(params.stepsize),m)
+    alphacol = fill(float(params.stepsize),n)
+    objbyrow = zeros(m)
+    objbycol = zeros(n)
     # stopping criterion: stop when decrease in objective < tol
     tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
 
@@ -118,10 +122,31 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # take a proximal gradient step
             ## gradient step: g = X[e,:] - alpha/l*g
             l = length(glrm.observed_features[e]) + 1
-            scale!(g, -alpha/l)
+            scale!(g, -alpharow[e]/l)
             axpy!(1,g,ve[e])
             ## prox step: X[e,:] = prox(g)
-            prox!(rx,ve[e],alpha/l)
+            prox!(rx,ve[e],alpharow[e]/l)
+            
+            # see if solution improved
+            err = 0
+            xy = ve[e]*Y
+            for f in glrm.observed_features[e]
+                err += evaluate(losses[f], xy[f], A[e,f])
+            end
+            err += evaluate(rx,ve[e])
+            if i>1 && err > objbyrow[e]
+                # println("row $e worsened")
+                alpharow[e] *= .7
+                X[e,:] = glrm.X[e,:]
+                # scale!(ve[e],0)
+                # axpy!(1,glrm.X[e,:],ve[e])
+            else
+                alpharow[e] *= 1.1
+                glrm.X[e,:] = X[e,:]
+                # scale!(glrm.X[e,:],0)
+                # axpy!(1,ve[e],glrm.X[e,:])
+            end   
+            objbyrow[e] = err
         end
         # Y update
         XY = X*Y
@@ -134,28 +159,49 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # take a proximal gradient step
             ## gradient step: g = Y[:,f] - alpha/l*g
             l = length(glrm.observed_examples[f]) + 1
-            scale!(g, -alpha/l)
+            scale!(g, -alphacol[f]/l)
             axpy!(1,g,vf[f]) 
             ## prox step: X[e,:] = prox(g)
-            prox!(ry,vf[f],alpha/l)
+            prox!(ry,vf[f],alphacol[f]/l)
+
+            # see if solution improved
+            err = 0
+            xy = X*vf[f]
+            for e in glrm.observed_features[f]
+                err += evaluate(losses[f], xy[e], A[e,f])
+            end
+            err += evaluate(ry,vf[f])
+            if i>1 && err > objbycol[f]
+                # println("col $f worsened")
+                alphacol[f] *= .7
+                Y[:,f] = glrm.Y[:,f]
+                # scale!(vf[f],0)
+                # axpy!(1,glrm.Y[:,f],vf[f])
+            else
+                alphacol[f] *= 1.1
+                glrm.Y[:,f] = Y[:,f]
+                # scale!(glrm.Y[:,f],0)
+                # axpy!(1,vf[f],glrm.Y[:,f])
+            end   
+            objbycol[f] = err
         end
-        obj = objective(glrm,X,Y)
+        # @show obj = objective(glrm,X,Y)
+        obj = objective(glrm)
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
             update!(ch, t, obj)
-            copy!(glrm.X, X); copy!(glrm.Y, Y)
-            alpha = alpha * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            alpha = alpha / max(1.5, -steps_in_a_row)
-            copy!(X, glrm.X); copy!(Y, glrm.Y)
+            println("obj went up; why?")
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
-        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
+        if i>10 && length(ch.objective)>3 && (ch.objective[end-1] - obj < tol || 
+                    (median(alpharow) <= params.min_stepsize && 
+                        median(alphacol) <= params.min_stepsize))
             break
         end
         if verbose && i%10==0 

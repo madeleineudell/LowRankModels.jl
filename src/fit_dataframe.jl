@@ -110,7 +110,7 @@ function GLRM(df::DataFrame, k::Integer;
 
     # scale losses so they all have equal variance
     if scale
-        @show equilibrate_variance!(losses, A)
+        equilibrate_variance!(losses, A)
     end
     # don't penalize the offset of the columns
     if offset
