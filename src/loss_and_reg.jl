@@ -210,11 +210,16 @@ evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a
 # scalings
 function equilibrate_variance!(losses::Array, A)
     for i=1:size(A,2)
-        vari = avgerror(dropna(A[:,i]), losses[i])
+        nomissing = dropna(A[:,i])
+        if length(nomissing)>0
+            vari = avgerror(nomissing, losses[i])
+        else
+            vari = 1
+        end
         if vari > 0
             losses[i].scale = 1/vari
         else
-            losses[i].scale = 0
+            losses[i].scale = 1
         end
     end
     return losses

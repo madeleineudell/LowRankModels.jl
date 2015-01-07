@@ -32,30 +32,30 @@ function init_kmeanspp!(glrm::GLRM)
 end
 
 function init_svd!(glrm::GLRM; offset=false)
-	m,n = size(glrm.A)
-	if offset
-		k = glrm.k-1
-		# medians of columns
-		medians = median(glrm.A,1)
-		A = glrm.A .- medians
-		glrm.X[:,end] = 1
-		glrm.Y[end,:] = medians
-	else
-		k = glrm.k
-		A = glrm.A
-	end
-	B = zeros(m,n)
-	for i=1:m
-		for j in glrm.observed_features[i]
-			B[i,j] = glrm.A[i,j]
-		end
-	end
-	# scale B so its mean is the same as the mean of the observations
-	B *= m*n/sum(map(length, glrm.observed_features))
-	u,s,v = svd(B)
-	glrm.X[1:m,1:k] = u[:,1:k]*diagm(sqrt(s[1:k]))
-	glrm.Y[1:k,1:n] = diagm(sqrt(s[1:k]))*v[:,1:k]'
-	return glrm
+    m,n = size(glrm.A)
+    if offset
+        k = glrm.k-1
+        # medians of columns
+        medians = median(glrm.A,1)
+        A = glrm.A .- medians
+        glrm.X[:,end] = 1
+        glrm.Y[end,:] = medians
+    else
+        k = glrm.k
+        A = glrm.A
+    end
+    B = zeros(m,n)
+    for i=1:m
+        for j in glrm.observed_features[i]
+            B[i,j] = A[i,j]
+        end
+    end
+    # scale B so its mean is the same as the mean of the observations
+    B *= m*n/sum(map(length, glrm.observed_features))
+    u,s,v = svd(B)
+    glrm.X[1:m,1:k] = u[:,1:k]*diagm(sqrt(s[1:k]))
+    glrm.Y[1:k,1:n] = diagm(sqrt(s[1:k]))*v[:,1:k]'
+    return glrm
 end
 
 function init_nnmf!(glrm::GLRM)

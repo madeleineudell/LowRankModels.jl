@@ -47,7 +47,8 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     end
     return err
 end
-objective(glrm::GLRM) = objective(glrm,glrm.X,glrm.Y)
+objective(glrm::GLRM, args...; kwargs...) = 
+    objective(glrm, glrm.X, glrm.Y, args...; kwargs...)
 
 type Params
     stepsize # stepsize
@@ -151,6 +152,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         else
             # if the objective went up, reduce the step size, and undo the step
             alpha = alpha / max(1.5, -steps_in_a_row)
+            if verbose println("obj went up to $obj; reducing step size to $alpha") end
             copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
