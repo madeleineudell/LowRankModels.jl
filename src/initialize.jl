@@ -31,30 +31,44 @@ function init_kmeanspp!(glrm::GLRM)
 	return glrm
 end
 
-function init_svd!(glrm::GLRM; offset=false)
+function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     m,n = size(glrm.A)
+    # standardize A, respecting missing values XXX
+    means = zeros(n)
+    stds  = zeros(n)
+    Ademeaned = zeros(size(glrm.A))
+    for i=1:n
+        nomissing = glrm.A[glrm.observed_examples[i],i]
+        means[i] = mean(nomissing)
+        if isnan(means[i])
+            means[i] = 1
+        end
+        stds[i] = std(nomissing)
+        if stds[i] < TOL || isnan(stds[i])
+            stds[i] = 1
+        end
+        Ademeaned[glrm.observed_examples[i],i] = glrm.A[glrm.observed_examples[i],i] - means[i]
+    end
     if offset
         k = glrm.k-1
-        # medians of columns
-        medians = median(glrm.A,1)
-        A = glrm.A .- medians
         glrm.X[:,end] = 1
-        glrm.Y[end,:] = medians
+        glrm.Y[end,:] = means
+        Astd = Ademeaned*diagm(1./stds)
     else
+        # i'm not sure why you'd want to do this, unless you're sure the data was already demeaned,
+        # or possibly to cope with regularization
         k = glrm.k
-        A = glrm.A
+        Astd = A*diagm(1./stds)
     end
-    B = zeros(m,n)
-    for i=1:m
-        for j in glrm.observed_features[i]
-            B[i,j] = A[i,j]
-        end
-    end
-    # scale B so its mean is the same as the mean of the observations
-    B *= m*n/sum(map(length, glrm.observed_features))
-    u,s,v = svd(B)
+    # TODO: might also want to remove entries in columns that have many fewer missing values than others
+    # intuition: noise in a dense column is low rank
+    # scale Astd so its mean is the same as the mean of the observations
+    Astd *= m*n/sum(map(length, glrm.observed_features))
+    u,s,v = svd(Astd)
+    # initialize with the top k components of the SVD,
+    # rescaling by the variances
     glrm.X[1:m,1:k] = u[:,1:k]*diagm(sqrt(s[1:k]))
-    glrm.Y[1:k,1:n] = diagm(sqrt(s[1:k]))*v[:,1:k]'
+    glrm.Y[1:k,1:n] = diagm(sqrt(s[1:k]))*v[:,1:k]'*diagm(stds)
     return glrm
 end
 

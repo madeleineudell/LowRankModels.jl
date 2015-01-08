@@ -11,12 +11,13 @@ export Loss, Regularizer, # abstract types
        grad, evaluate, avgerror, # methods on losses
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
-       add_offset, equilibrate_variance!, # utilities
+       add_offset, # utilities
        scale, scale!
 
 abstract Loss
 
 # loss functions
+scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 
 ## quadratic
 type quadratic<:Loss
@@ -113,8 +114,8 @@ function avgerror(a::AbstractArray, l::hinge)
 end
 
 function avgerror(a::AbstractArray, l::huber)
-    # XXX this is not quite right
-    m = median(a)
+    # XXX this is not quite right --- mean is not necessarily the minimizer
+    m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
@@ -206,21 +207,3 @@ end
 prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
-
-# scalings
-function equilibrate_variance!(losses::Array, A)
-    for i=1:size(A,2)
-        nomissing = dropna(A[:,i])
-        if length(nomissing)>0
-            vari = avgerror(nomissing, losses[i])
-        else
-            vari = 1
-        end
-        if vari > 0
-            losses[i].scale = 1/vari
-        else
-            losses[i].scale = 1
-        end
-    end
-    return losses
-end

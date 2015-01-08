@@ -108,20 +108,18 @@ any entry that is of type `NA`, you can use
 # Scaling and offsets
 
 LowRankModels.jl is capable of adding offsets to your model, and of scaling the loss 
-functions so all columns have the same pull in the model.
+functions and regularizers so all columns have the same pull in the model.
 (For more about what these functions do, see the code or the paper.)
-Starting with loss functions `losses` and regularizers `r` and `rt`:
+Starting with some low rank model `glrm = GLRM(A,losses,rt,r,k)`,
 
 * Add an offset to the model (by applying no regularization to the last row 
-  of the matrix `Y`) using
+  of the matrix `Y`, and enforcing that the last column of `X` be all 1s) using
 
-      r, rt = add_offset(r, rt)
+      add_offset!(glrm)
 
-* Scale the loss functions `losses` by calling
+* Scale the loss functions and regularizers by calling
 
-      equilibrate_variance!(losses, A)
-
-Then form your scaled, offset GLRM with `glrm = GLRM(A,losses,rt,r,k)`
+      equilibrate_variance!(glrm)
 
 # Fitting DataFrames
 

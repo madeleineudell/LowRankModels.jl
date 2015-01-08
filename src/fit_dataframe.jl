@@ -2,7 +2,7 @@
 
 import DataFrames: DataFrame, DataArray, isna, dropna, array
 
-export GLRM, observations, expand_categoricals
+export GLRM, observations, expand_categoricals, add_offset!, equilibrate_variance!
 
 max_ordinal_levels = 9
 
@@ -25,7 +25,6 @@ function observations(df::DataFrame)
     end
     return obs
 end
-GLRM(df::DataFrame,args...) = GLRM(df2array(df,0),args...)
 
 function get_reals(df::DataFrame)
     m,n = size(df)
@@ -88,8 +87,32 @@ function expand_categoricals(df::DataFrame,categoricals::Array)
     return df[:, filter(x->(!(x in categoricals)), names(df))]
 end
 
-function GLRM(df::DataFrame, k::Integer; 
-              losses = None, rx = quadreg(.01), ry = quadreg(.01), 
+# scalings and offsets
+function add_offset!(glrm::GLRM)
+    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
+    return glrm
+end
+function equilibrate_variance!(glrm::GLRM)
+    for i=1:size(glrm.A,2)
+        nomissing = glrm.A[glrm.observed_examples[i],i]
+        if length(nomissing)>0
+            vari = avgerror(nomissing, glrm.losses[i])
+        else
+            vari = 1
+        end
+        if vari > 0
+            scale!(glrm.losses[i], 1/vari)
+            scale!(glrm.ry[i], 1/vari)
+        else
+            scale!(glrm.losses[i], 1)
+            scale!(glrm.ry[i], 1)
+        end
+    end
+    return glrm
+end
+
+function GLRM(df::DataFrame, k::Integer;
+              losses = None, rx = quadreg(.01), ry = quadreg(.01),
               offset = true, scale = true)
     # identify ordinal, boolean and real columns
     if losses == None
@@ -105,21 +128,23 @@ function GLRM(df::DataFrame, k::Integer;
         ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
     end
 
-    # identify which entries in data frame have been observed (ie are not N/A)
+    # identify which entries in data frame have been observed (ie are not N/A) and form model
     obs = observations(A)
-
-    # scale losses so they all have equal variance
+    glrm = GLRM(A, obs, losses, rx, ry, k)
+    
+    # scale losses (and regularizers) so they all have equal variance
     if scale
-        @show equilibrate_variance!(losses, A)
+        equilibrate_variance!(glrm)
     end
     # don't penalize the offset of the columns
     if offset
-        rx, ry = add_offset(rx, ry)
+        add_offset!(glrm)
     end
 
-    # form model
-    return GLRM(A, obs, losses, rx, ry, k), labels
+    # return model
+    return glrm, labels
 end
+# this replaces all NAs with zeros --- deprecated
+# GLRM(df::DataFrame,args...) = GLRM(df2array(df,0),args...)
 
-equilibrate_variance!(glrm::GLRM) = (equilibrate_variance!(glrm.losses, glrm.A); glrm)
 #end

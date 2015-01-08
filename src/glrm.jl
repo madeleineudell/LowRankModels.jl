@@ -10,12 +10,14 @@ type GLRM
     observed_examples
     losses::Array{Loss,1}
     rx::Regularizer
-    ry::Regularizer
+    ry::Array{Regularizer,1}
     k::Int64
     X::Array{Float64,2}
     Y::Array{Float64,2}
 end
-# default initializations for obs, X, and Y
+# default initializations for obs, X, Y, regularizing every column equally
+GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y) = 
+    GLRM(A,observed_features,observed_examples,losses,rx,Regularizer[typeof(rx)() for i=1:length(losses)],k,X,Y)
 GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
     GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,obs,losses,rx,ry,k,X,Y) = 
@@ -42,7 +44,7 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
             err += evaluate(glrm.rx,view(X,i,:))
         end
         for j=1:n
-            err += evaluate(glrm.ry,view(Y,:,j))
+            err += evaluate(glrm.ry[j],view(Y,:,j))
         end
     end
     return err
@@ -138,7 +140,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             scale!(g, -alpha/l)
             axpy!(1,g,vf[f]) 
             ## prox step: X[e,:] = prox(g)
-            prox!(ry,vf[f],alpha/l)
+            prox!(ry[f],vf[f],alpha/l)
         end
         obj = objective(glrm,X,Y)
         # record the best X and Y yet found
