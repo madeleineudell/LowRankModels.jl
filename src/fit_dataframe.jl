@@ -101,11 +101,9 @@ function equilibrate_variance!(glrm::GLRM)
             vari = 1
         end
         if vari > 0
-            scale!(glrm.losses[i], 1/vari)
-            scale!(glrm.ry[i], 1/vari)
-        else
-            scale!(glrm.losses[i], 1)
-            scale!(glrm.ry[i], 1)
+            # rescale the losses and regularizers for each column by the inverse of the empirical variance
+            scale!(glrm.losses[i], scale(glrm.losses[i])/vari)
+            scale!(glrm.ry[i], scale(glrm.ry[i])/vari)
         end
     end
     return glrm

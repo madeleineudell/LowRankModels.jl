@@ -33,7 +33,7 @@ end
 
 function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     m,n = size(glrm.A)
-    # standardize A, respecting missing values XXX
+    # standardize A, respecting missing values
     means = zeros(n)
     stds  = zeros(n)
     Ademeaned = zeros(size(glrm.A))

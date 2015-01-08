@@ -16,8 +16,13 @@ type GLRM
     Y::Array{Float64,2}
 end
 # default initializations for obs, X, Y, regularizing every column equally
-GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y) = 
-    GLRM(A,observed_features,observed_examples,losses,rx,Regularizer[typeof(rx)() for i=1:length(losses)],k,X,Y)
+function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y)
+    rys = Regularizer[typeof(ry)() for i=1:length(losses)]
+    for iry in rys
+        scale!(iry, scale(ry))
+    end
+    return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
+end
 GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
     GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,obs,losses,rx,ry,k,X,Y) = 

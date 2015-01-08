@@ -18,6 +18,7 @@ abstract Loss
 
 # loss functions
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
+scale(l::Loss) = l.scale
 
 ## quadratic
 type quadratic<:Loss
