@@ -128,6 +128,7 @@ abstract Regularizer
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
 scale(r::Regularizer) = r.scale
 scale!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
+scale!(rs::Array{Regularizer}, newscale::Number) = (for r in rs scale!(r, newscale) end; rs)
 
 ## quadratic regularization
 type quadreg<:Regularizer
