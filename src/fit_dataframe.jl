@@ -6,13 +6,19 @@ export GLRM, observations, expand_categoricals, add_offset!, equilibrate_varianc
 
 max_ordinal_levels = 9
 
-function df2array(df::DataFrame,z::Number)
+function df2array(df::DataFrame, z::Number)
     A = zeros(size(df))
     for i=1:size(A,2)
-        A[:,i] = array(df[i],z)
+        if typeof(df[i]) == Bool
+            A[:,i] = array((2*df[i]-1),z)
+        else
+            A[:,i] = array(df[i],z)
+        end            
     end
     return A
 end
+df2array(df::DataFrame) = df2array(df, 0)
+
 function observations(df::DataFrame)
     obs = (Int32, Int32)[]
     m,n = size(df)
@@ -96,14 +102,18 @@ function equilibrate_variance!(glrm::GLRM)
     for i=1:size(glrm.A,2)
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
-            vari = avgerror(nomissing, glrm.losses[i])
+            varlossi = avgerror(nomissing, glrm.losses[i])
+            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
         else
-            vari = 1
+            varlossi = 1
+            varregi = 1
         end
-        if vari > 0
+        if varlossi > 0
             # rescale the losses and regularizers for each column by the inverse of the empirical variance
-            scale!(glrm.losses[i], scale(glrm.losses[i])/vari)
-            scale!(glrm.ry[i], scale(glrm.ry[i])/vari)
+            scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
+        end
+        if varregi > 0
+            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
         end
     end
     return glrm
@@ -128,7 +138,7 @@ function GLRM(df::DataFrame, k::Integer;
 
     # identify which entries in data frame have been observed (ie are not N/A) and form model
     obs = observations(A)
-    glrm = GLRM(A, obs, losses, rx, ry, k)
+    glrm = GLRM(df2array(A), obs, losses, rx, ry, k)
     
     # scale losses (and regularizers) so they all have equal variance
     if scale

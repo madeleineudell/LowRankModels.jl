@@ -63,7 +63,7 @@ type Params
     convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
     min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
 end
-Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
+Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,.01*stepsize)
 Params() = Params(1,100,.00001,.01)
 
 function sort_observations(obs,m,n; check_empty=false)
