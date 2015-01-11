@@ -32,7 +32,7 @@ function observations(df::DataFrame)
     return obs
 end
 
-function get_reals(df::DataFrame, loss::Loss=quadratic)
+function get_reals(df::DataFrame, loss::Type{Loss}=quadratic)
     m,n = size(df)
     reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
@@ -43,7 +43,7 @@ function get_reals(df::DataFrame, loss::Loss=quadratic)
     return reals, losses
 end
 
-function get_bools(df::DataFrame, loss::Loss=hinge)
+function get_bools(df::DataFrame, loss::Type{Loss}=hinge)
     m,n = size(df)
     bools = [(typeof(df[i])<:DataArray{Bool,1} || all([x in [-1,1] for x in unique(df[i][!isna(df[i])])])) for i in 1:n]
     n1 = sum(bools)
@@ -54,7 +54,7 @@ function get_bools(df::DataFrame, loss::Loss=hinge)
     return bools, losses
 end
 
-function get_ordinals(df::DataFrame, loss::Loss=ordinal_hinge)
+function get_ordinals(df::DataFrame, loss::Type{Loss}=ordinal_hinge)
     m,n = size(df)
     ordinals = [typeof(df[i])<:DataArray{Int,1} for i in 1:n]
     nord = sum(ordinals)
@@ -107,7 +107,7 @@ function equilibrate_variance!(glrm::GLRM)
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
             varlossi = avgerror(nomissing, glrm.losses[i])
-            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
+            varregi = var(nomissing)
         else
             varlossi = 1
             varregi = 1
@@ -123,8 +123,9 @@ function equilibrate_variance!(glrm::GLRM)
     return glrm
 end
 
+# can also use eg losses = {:real=>huber, :bool=>hinge, :ord=>ordinal_hinge}, 
 function GLRM(df::DataFrame, k::Integer;
-              losses = {:real=>huber, :bool=>hinge, :ord=>hinge}, 
+              losses = None, 
               rx = quadreg(.01), ry = quadreg(.01),
               offset = true, scale = true)
     # identify ordinal, boolean and real columns
