@@ -7,8 +7,8 @@
 
 import Base.scale!
 export Loss, Regularizer, # abstract types
-       quadratic, hinge, ordinal_hinge, l1, huber, # concrete losses
-       grad, evaluate, avgerror, # methods on losses
+       quadratic, hinge, ordinal_hinge, l1, huber, fractional, # concrete losses
+       grad, evaluate, avgerror, impute, # methods on losses
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
        add_offset, # utilities
@@ -35,6 +35,25 @@ end
 l1() = l1(1)
 evaluate(l::l1,u::Float64,a::Number) = l.scale*abs(u-a)
 grad(l::l1,u::Float64,a::Number) = sign(u-a)*l.scale
+
+## fractional: max(u/a, a/u)
+## tol prevents us from dividing by zero, and makes the loss linear for u<0
+type fractional<:Loss
+    scale::Float64
+    tol::Float64
+end
+fractional() = fractional(1,1e-2)
+evaluate(l::fractional,u::Float64,a::Number) = l.scale*(max(u/a, a/max(u,l.tol), a*(2*t-u)/t^2) - 1)
+function grad(l::fractional,u::Float64,a::Number)
+    x,y,z = u/a, a/max(u,l.tol), a*(2*t-u)/t^2
+    if u>a
+        return 1/a
+    elseif u<l.tol
+        return -a/t^2
+    else
+        return -a/u^2
+    end
+end
 
 ## huber
 type huber<:Loss
@@ -115,6 +134,12 @@ function avgerror(a::AbstractArray, l::hinge)
 end
 
 function avgerror(a::AbstractArray, l::huber)
+    # XXX this is not quite right --- mean is not necessarily the minimizer
+    m = mean(a)
+    sum(map(ai->evaluate(l,m,ai),a))/length(a)
+end
+
+function avgerror(a::AbstractArray, l::fractional)
     # XXX this is not quite right --- mean is not necessarily the minimizer
     m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)

@@ -32,7 +32,7 @@ function observations(df::DataFrame)
     return obs
 end
 
-function get_reals(df::DataFrame, loss=huber)
+function get_reals(df::DataFrame, loss::Loss=quadratic)
     m,n = size(df)
     reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
@@ -43,7 +43,7 @@ function get_reals(df::DataFrame, loss=huber)
     return reals, losses
 end
 
-function get_bools(df::DataFrame, loss=hinge)
+function get_bools(df::DataFrame, loss::Loss=hinge)
     m,n = size(df)
     bools = [(typeof(df[i])<:DataArray{Bool,1} || all([x in [-1,1] for x in unique(df[i][!isna(df[i])])])) for i in 1:n]
     n1 = sum(bools)
@@ -54,7 +54,7 @@ function get_bools(df::DataFrame, loss=hinge)
     return bools, losses
 end
 
-function get_ordinals(df::DataFrame)
+function get_ordinals(df::DataFrame, loss::Loss=ordinal_hinge)
     m,n = size(df)
     ordinals = [typeof(df[i])<:DataArray{Int,1} for i in 1:n]
     nord = sum(ordinals)
