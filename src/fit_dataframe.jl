@@ -32,9 +32,11 @@ function observations(df::DataFrame)
     return obs
 end
 
-function get_reals(df::DataFrame, loss::Type{Loss}=quadratic)
+# import LowRankModels: get_reals, get_ordinals, get_bools
+
+function get_reals(df::DataFrame, loss=quadratic)
     m,n = size(df)
-    reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
+    reals = Bool[typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -43,9 +45,9 @@ function get_reals(df::DataFrame, loss::Type{Loss}=quadratic)
     return reals, losses
 end
 
-function get_bools(df::DataFrame, loss::Type{Loss}=hinge)
+function get_bools(df::DataFrame, loss=hinge)
     m,n = size(df)
-    bools = [(typeof(df[i])<:DataArray{Bool,1} || all([x in [-1,1] for x in unique(df[i][!isna(df[i])])])) for i in 1:n]
+    bools = Bool[(typeof(df[i])<:DataArray{Bool,1} || all([x in [-1,1] for x in unique(df[i][!isna(df[i])])])) for i in 1:n]
     n1 = sum(bools)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -54,9 +56,9 @@ function get_bools(df::DataFrame, loss::Type{Loss}=hinge)
     return bools, losses
 end
 
-function get_ordinals(df::DataFrame, loss::Type{Loss}=ordinal_hinge)
+function get_ordinals(df::DataFrame, loss=ordinal_hinge; ignore::Array{Int,1}=Int[])
     m,n = size(df)
-    ordinals = [typeof(df[i])<:DataArray{Int,1} for i in 1:n]
+    ordinals = Bool[(typeof(df[i])<:DataArray{Int,1} && !(i in ignore)) for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]
     maxs = zeros(nord,1)
@@ -143,7 +145,7 @@ function GLRM(df::DataFrame, k::Integer;
     elseif isa(losses, Dict)
         reals, real_losses = get_reals(df, losses[:real])
         bools, bool_losses = get_bools(df, losses[:bool])
-        ordinals, ordinal_losses = get_ordinals(df, losses[:ord])
+        ordinals, ordinal_losses = get_ordinals(df, losses[:ord], ignore = filter(i->bools[i], 1:n))
 
         A = [df[reals] df[bools] df[ordinals]]
         labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
