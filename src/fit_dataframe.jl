@@ -32,24 +32,24 @@ function observations(df::DataFrame)
     return obs
 end
 
-function get_reals(df::DataFrame)
+function get_reals(df::DataFrame, loss=huber)
     m,n = size(df)
     reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
     losses = Array(Loss,n1)
     for i=1:n1
-        losses[i] = quadratic()
+        losses[i] = loss()
     end
     return reals, losses
 end
 
-function get_bools(df::DataFrame)
+function get_bools(df::DataFrame, loss=hinge)
     m,n = size(df)
-    bools = [typeof(df[i])<:DataArray{Bool,1} for i in 1:n]
+    bools = [(typeof(df[i])<:DataArray{Bool,1} || all([x in [-1,1] for x in unique(df[i][!isna(df[i])])])) for i in 1:n]
     n1 = sum(bools)
     losses = Array(Loss,n1)
     for i=1:n1
-        losses[i] = hinge()
+        losses[i] = loss()
     end
     return bools, losses
 end
@@ -71,8 +71,12 @@ function get_ordinals(df::DataFrame)
 
     # set losses and regularizers
     losses = Array(Loss,nord)
-    for i=1:nord
-        losses[i] = ordinal_hinge(mins[i],maxs[i])
+    if loss==ordinal_hinge
+        for i=1:nord
+            losses[i] = ordinal_hinge(mins[i],maxs[i])
+        end
+    else
+        error("get_ordinals not implemented for losses of type $loss")
     end
     return ordinals, losses
 end
@@ -120,7 +124,8 @@ function equilibrate_variance!(glrm::GLRM)
 end
 
 function GLRM(df::DataFrame, k::Integer;
-              losses = None, rx = quadreg(.01), ry = quadreg(.01),
+              losses = {:real=>huber, :bool=>hinge, :ord=>hinge}, 
+              rx = quadreg(.01), ry = quadreg(.01),
               offset = true, scale = true)
     # identify ordinal, boolean and real columns
     if losses == None
@@ -131,9 +136,17 @@ function GLRM(df::DataFrame, k::Integer;
         A = [df[reals] df[bools] df[ordinals]]
         labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
         losses = [real_losses, bool_losses, ordinal_losses]
-    else
+    elseif isa(losses, Array)
         # otherwise one loss function per column
         ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
+    elseif isa(losses, Dict)
+        reals, real_losses = get_reals(df, losses[:real])
+        bools, bool_losses = get_bools(df, losses[:bool])
+        ordinals, ordinal_losses = get_ordinals(df, losses[:ord])
+
+        A = [df[reals] df[bools] df[ordinals]]
+        labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
+        losses = [real_losses, bool_losses, ordinal_losses]
     end
 
     # identify which entries in data frame have been observed (ie are not N/A) and form model
