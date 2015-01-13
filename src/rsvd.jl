@@ -8,7 +8,6 @@ import Base.LinAlg.SVD
 #   n: Number of singular value/vector pairs to find
 #   p: Number of extra vectors to include in computation
 function rsvd(A, n, p=0)
-    m1, m2 = size(A)
     Q = rrange(A, n, p=p)
     rsvd_direct(A, Q)
 end
@@ -20,20 +19,22 @@ end
 #Here we use dense QR factorization using Householder reflectors
 #Ω may have 'cheaper' options
 #p is the oversampling parameter
-function rrange(A, l::Integer; p::Integer=0, basis=_->full(qrfact!(_)[:Q]))
+function rrange(A, l::Integer; p::Integer=0)
     p≥0 || error()
     m, n = size(A)
-    l <= m || error()
-    Ω = randn(n, min(l+p, m))
+    l <= m || error("Cannot find $l linearly independent vectors of $m x $n matrix")
+    Ω = randn(n, l+p)
     Y = A*Ω
-    Q = basis(Y)
-    p==0 ? Q : Q[:,l]
+    Q = full(qrfact!(Y)[:Q])
+    Q = p==0 ? Q : Q[:,1:l] #TODO slicing of QRCompactWYQ NOT IMPLEMENTED
+    @assert l==size(Q, 2)
+    Q
 end
 
 #Algorithm 5.1: direct SVD
 #More accurate
 function rsvd_direct(A, Q)
-    B=A'Q
+    B=Q'A
     S=svdfact!(B)
-    SVD(Q'S[:U], S[:S], S[:Vt])
+    SVD(Q*S[:U], S[:S], S[:Vt])
 end

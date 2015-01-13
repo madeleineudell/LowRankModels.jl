@@ -1,6 +1,8 @@
 import StatsBase.sample
 export init_kmeanspp!, init_svd!
 
+include("rsvd.jl")
+
 # kmeans++ initialization, but with missing data
 # we make sure never to look at "unobserved" entries in A
 # so that models can be honestly cross validated, for example
@@ -64,7 +66,8 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     # intuition: noise in a dense column is low rank
     # scale Astd so its mean is the same as the mean of the observations
     Astd *= m*n/sum(map(length, glrm.observed_features))
-    u,s,v = svd(Astd)
+    S = rsvd(Astd, k, 3)
+    u,s,v = S[:U], S[:S], S[:V]
     # initialize with the top k components of the SVD,
     # rescaling by the variances
     glrm.X[1:m,1:k] = u[:,1:k]*diagm(sqrt(s[1:k]))
