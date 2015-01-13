@@ -145,7 +145,7 @@ function GLRM(df::DataFrame, k::Integer;
     elseif isa(losses, Dict)
         reals, real_losses = get_reals(df, losses[:real])
         bools, bool_losses = get_bools(df, losses[:bool])
-        ordinals, ordinal_losses = get_ordinals(df, losses[:ord], ignore = filter(i->bools[i], 1:n))
+        ordinals, ordinal_losses = get_ordinals(df, losses[:ord], ignore = filter(i->bools[i], 1:length(reals)))
 
         A = [df[reals] df[bools] df[ordinals]]
         labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]

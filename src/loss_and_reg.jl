@@ -42,16 +42,16 @@ type fractional<:Loss
     scale::Float64
     tol::Float64
 end
-fractional() = fractional(1,1e-2)
-evaluate(l::fractional,u::Float64,a::Number) = l.scale*(max(u/a, a/max(u,l.tol), a*(2*t-u)/t^2) - 1)
+fractional() = fractional(1,1)
+evaluate(l::fractional,u::Float64,a::Number) = l.scale*(max(u/max(a,l.tol), a/max(u,l.tol), max(a,l.tol)*(2*l.tol-u)/l.tol^2) - 1)
 function grad(l::fractional,u::Float64,a::Number)
-    x,y,z = u/a, a/max(u,l.tol), a*(2*t-u)/t^2
-    if u>a
-        return 1/a
-    elseif u<l.tol
-        return -a/t^2
+    x,y,z = u/max(a,l.tol), a/max(u,l.tol), max(a,l.tol)*(2*l.tol-u)/l.tol^2
+    if x >= max(y,z)
+        return 1/max(a,l.tol)
+    elseif y > z
+        return u > l.tol ? -a/u^2 : 0
     else
-        return -a/u^2
+        return -max(a,l.tol)/l.tol^2
     end
 end
 
@@ -140,8 +140,20 @@ function avgerror(a::AbstractArray, l::huber)
 end
 
 function avgerror(a::AbstractArray, l::fractional)
-    # XXX this is not quite right --- mean is not necessarily the minimizer
-    m = mean(a)
+    # this is not exactly right, but close enough for large arrays a
+    # the minimizer m satisfies m = sqrt(sum(as[as.>m])./sum(1./as[as.<m]))
+    as = sort(a)
+    n = length(a)
+    imin = 1; imax = n;
+    while imax-imin > 1
+        i = int(round((imax+imin)/2))
+        if as[i] < sqrt(sum(as[i+1:end])./sum(1./max(as[1:i-1],l.tol)))
+            imin = i
+        else
+            imax = i
+        end
+    end
+    m = (a[imax]+a[imin])/2
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
