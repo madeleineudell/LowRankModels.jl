@@ -12,23 +12,29 @@ function rsvd(A, n, p=0)
     rsvd_direct(A, Q)
 end
 
-#Algorithm 4.1: randomized range finder (not recommended)
-#A must support size(A) and premultiply
-#basis is the algorithm to compute the orthogonal basis Q
-#They recommend Gram-Schmidt with double orthogonalization
-#Here we use dense QR factorization using Householder reflectors
-#Ω may have 'cheaper' options
+#Algorithm 4.4: randomized subspace iteration
+#A must support size(A), multiply and transpose multiply
 #p is the oversampling parameter
-function rrange(A, l::Integer; p::Integer=0)
+#q controls the accuracy of the subspace found; it is the "number of power iterations"
+#A good heuristic is that when the original scheme produces a basis whose
+#approximation error is within a factor C of the optimum, the power scheme produces
+#an approximation error within C^(1/(2q+1)) of the optimum.
+function rrange(A, l::Integer; p::Integer=5, q::Integer=3)
     p≥0 || error()
     m, n = size(A)
     l <= m || error("Cannot find $l linearly independent vectors of $m x $n matrix")
     Ω = randn(n, l+p)
-    Y = A*Ω
+    Q = q_from_qr(A*Ω)
+    for t=1:q
+        Q = q_from_qr(A'*Q)
+        Q = q_from_qr(A*Q)
+    end
+    Q = p==0 ? Q : Q[:,1:l]
+end
+
+function q_from_qr(Y, l::Integer=-1)
     Q = full(qrfact!(Y)[:Q])
-    Q = p==0 ? Q : Q[:,1:l] #TODO slicing of QRCompactWYQ NOT IMPLEMENTED
-    @assert l==size(Q, 2)
-    Q
+    Q = l<0 ? Q : Q[:,1:l]
 end
 
 #Algorithm 5.1: direct SVD

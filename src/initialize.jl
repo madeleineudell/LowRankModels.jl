@@ -78,3 +78,46 @@ end
 function init_nnmf!(glrm::GLRM)
 	return glrm
 end
+
+function init_convex(glrm::GLRM; delta = 1e-3, maxiter = 100, verbose = false)
+    # extract parameters from glrm
+    @assert all([glrm.rx.scale == glrm.ry[i].scale for i=1:length(glrm.ry)])
+    gamma = 1/glrm.rx.scale/2
+    # this should be 1/sqrt(max(m,n)) for RPCA
+    k = glrm.k
+    A = glrm.A
+    m, n = size(A)
+    
+    # recommended by Candes for robust PCA
+    mu = n^2/4/vecnorm(A, 1)
+    
+    S = A 
+    L = zeros(size(A))
+    Y = zeros(size(A))
+    normAF = vecnorm(A)
+    kmax = k*2
+    # TODO: pick initial lambda that makes the solution extremely low rank
+    for lambda = linspace(.1/sqrt(max(m,n)), gamma, 5)
+        if verbose println("lambda = $lambda") end
+        # consider whether resetting Y to 0 is mathematically necessary; it's definitely slower
+        # Y = zeros(size(A))
+        for i = 1:maxiter
+            if verbose && i%10 == 0 println("\titeration $i") end
+            # TODO: replace this with the prox on the observed entries
+            L = soft_threshold_singular_values(A - S + Y ./ mu, mu; kmax = kmax)
+            S = soft_threshold(A - L + Y ./ mu, lambda * mu)
+            Y = Y + mu * (A - L - S)
+            if vecnorm(A - L - S) <= delta*normAF
+                 break
+            end
+        end
+        if verbose println("\trank(L) is ", rank(L)) end
+        if rank(L) > k
+            if verbose println("lets go nonconvex!") end
+            break
+        end
+    end
+    u,s,v = svd(L)
+    glrm.X = u[:,1:glrm.k]*diagm(sqrt(s[1:glrm.k])); glrm.Y = diagm(sqrt(s[1:glrm.k]))*v[:,1:glrm.k]'
+    return glrm.X, glrm.Y
+end
