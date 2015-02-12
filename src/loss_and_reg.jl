@@ -16,6 +16,15 @@ export Loss, Regularizer, # abstract types
 
 abstract Loss
 
+# default inplace prox operator (slower than if inplace prox is implemented)
+function prox!(r::Loss,u::AbstractArray,alpha::Number)
+    v = prox(r,u,alpha)
+    @simd for i=1:length(u) 
+        @inbounds u[i]=v[i] 
+    end
+    u
+end
+
 # loss functions
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
@@ -27,6 +36,9 @@ end
 quadratic() = quadratic(1)
 evaluate(l::quadratic,u::Float64,a::Number) = l.scale*(u-a)^2
 grad(l::quadratic,u::Float64,a::Number) = (u-a)*l.scale
+prox(r::quadratic,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox(r::quadratic,u::Number,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox!(r::quadratic,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
 
 ## l1
 type l1<:Loss
@@ -35,6 +47,8 @@ end
 l1() = l1(1)
 evaluate(l::l1,u::Float64,a::Number) = l.scale*abs(u-a)
 grad(l::l1,u::Float64,a::Number) = sign(u-a)*l.scale
+prox(r::l1,u::Number,alpha::Number) = sign(u) .* max( abs(u) - alpha, 0 )
+prox(r::l1,u::AbstractArray,alpha::Number) = sign(u) .* max( abs(u) - alpha, 0 )
 
 ## fractional: max(u/a, a/u)
 ## tol prevents us from dividing by zero, and makes the loss linear for u<0
@@ -182,7 +196,7 @@ type onereg<:Regularizer
     scale::Float64
 end
 onereg() = onereg(1)
-prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-as,0) + min(u+as,0)
+prox(r::onereg,u::AbstractArray,alpha::Number) = sign(u) .* max( abs(u) - alpha, 0 )
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## no regularization
