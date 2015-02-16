@@ -10,12 +10,19 @@ type GLRM
     observed_examples
     losses::Array{Loss,1}
     rx::Regularizer
-    ry::Regularizer
+    ry::Array{Regularizer,1}
     k::Int64
     X::Array{Float64,2}
     Y::Array{Float64,2}
 end
-# default initializations for obs, X, and Y
+# default initializations for obs, X, Y, regularizing every column equally
+function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y)
+    rys = Regularizer[typeof(ry)() for i=1:length(losses)]
+    for iry in rys
+        scale!(iry, scale(ry))
+    end
+    return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
+end
 GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
     GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
 GLRM(A,obs,losses,rx,ry,k,X,Y) = 
@@ -42,7 +49,7 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
             err += evaluate(glrm.rx,view(X,i,:))
         end
         for j=1:n
-            err += evaluate(glrm.ry,view(Y,:,j))
+            err += evaluate(glrm.ry[j],view(Y,:,j))
         end
     end
     return err
@@ -56,7 +63,7 @@ type Params
     convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
     min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
 end
-Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
+Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,.01*stepsize)
 Params() = Params(1,100,.00001,.01)
 
 function sort_observations(obs,m,n; check_empty=false)
@@ -163,7 +170,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             scale!(g, -alphacol[f]/l)
             axpy!(1,g,vf[f]) 
             ## prox step: X[e,:] = prox(g)
-            prox!(ry,vf[f],alphacol[f]/l)
+            prox!(ry[f],vf[f],alphacol[f]/l)
 
             # see if solution improved
             err = 0
@@ -197,6 +204,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         else
             # if the objective went up, reduce the step size, and undo the step
             println("obj went up; why?")
+            alpha = alpha / max(1.5, -steps_in_a_row)
+            if verbose println("obj went up to $obj; reducing step size to $alpha") end
+            copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion

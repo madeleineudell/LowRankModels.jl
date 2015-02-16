@@ -7,16 +7,27 @@
 
 import Base.scale!
 export Loss, Regularizer, # abstract types
-       quadratic, hinge, ordinal_hinge, l1, huber, # concrete losses
-       grad, evaluate, avgerror, # methods on losses
+       quadratic, hinge, ordinal_hinge, l1, huber, fractional, # concrete losses
+       grad, evaluate, avgerror, impute, # methods on losses
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
-       add_offset, equilibrate_variance!, # utilities
+       add_offset, # utilities
        scale, scale!
 
 abstract Loss
 
+# default inplace prox operator (slower than if inplace prox is implemented)
+function prox!(r::Loss,u::AbstractArray,alpha::Number)
+    v = prox(r,u,alpha)
+    @simd for i=1:length(u) 
+        @inbounds u[i]=v[i] 
+    end
+    u
+end
+
 # loss functions
+scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
+scale(l::Loss) = l.scale
 
 ## quadratic
 type quadratic<:Loss
@@ -25,6 +36,9 @@ end
 quadratic() = quadratic(1)
 evaluate(l::quadratic,u::Float64,a::Number) = l.scale*(u-a)^2
 grad(l::quadratic,u::Float64,a::Number) = (u-a)*l.scale
+prox(r::quadratic,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox(r::quadratic,u::Number,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox!(r::quadratic,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
 
 ## l1
 type l1<:Loss
@@ -33,6 +47,27 @@ end
 l1() = l1(1)
 evaluate(l::l1,u::Float64,a::Number) = l.scale*abs(u-a)
 grad(l::l1,u::Float64,a::Number) = sign(u-a)*l.scale
+prox(r::l1,u::Number,alpha::Number) = sign(u) .* max( abs(u) - alpha, 0 )
+prox(r::l1,u::AbstractArray,alpha::Number) = sign(u) .* max( abs(u) - alpha, 0 )
+
+## fractional: max(u/a, a/u)
+## tol prevents us from dividing by zero, and makes the loss linear for u<0
+type fractional<:Loss
+    scale::Float64
+    tol::Float64
+end
+fractional() = fractional(1,1)
+evaluate(l::fractional,u::Float64,a::Number) = l.scale*(max(u/max(a,l.tol), a/max(u,l.tol), max(a,l.tol)*(2*l.tol-u)/l.tol^2) - 1)
+function grad(l::fractional,u::Float64,a::Number)
+    x,y,z = u/max(a,l.tol), a/max(u,l.tol), max(a,l.tol)*(2*l.tol-u)/l.tol^2
+    if x >= max(y,z)
+        return 1/max(a,l.tol)
+    elseif y > z
+        return u > l.tol ? -a/u^2 : 0
+    else
+        return -max(a,l.tol)/l.tol^2
+    end
+end
 
 ## huber
 type huber<:Loss
@@ -113,8 +148,26 @@ function avgerror(a::AbstractArray, l::hinge)
 end
 
 function avgerror(a::AbstractArray, l::huber)
-    # XXX this is not quite right
-    m = median(a)
+    # XXX this is not quite right --- mean is not necessarily the minimizer
+    m = mean(a)
+    sum(map(ai->evaluate(l,m,ai),a))/length(a)
+end
+
+function avgerror(a::AbstractArray, l::fractional)
+    # this is not exactly right, but close enough for large arrays a
+    # the minimizer m satisfies m = sqrt(sum(as[as.>m])./sum(1./as[as.<m]))
+    as = sort(a)
+    n = length(a)
+    imin = 1; imax = n;
+    while imax-imin > 1
+        i = int(round((imax+imin)/2))
+        if as[i] < sqrt(sum(as[i+1:end])./sum(1./max(as[1:i-1],l.tol)))
+            imin = i
+        else
+            imax = i
+        end
+    end
+    m = (a[imax]+a[imin])/2
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
@@ -127,6 +180,7 @@ abstract Regularizer
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
 scale(r::Regularizer) = r.scale
 scale!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
+scale!(rs::Array{Regularizer}, newscale::Number) = (for r in rs scale!(r, newscale) end; rs)
 
 ## quadratic regularization
 type quadreg<:Regularizer
@@ -142,7 +196,7 @@ type onereg<:Regularizer
     scale::Float64
 end
 onereg() = onereg(1)
-prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-as,0) + min(u+as,0)
+prox(r::onereg,u::AbstractArray,alpha::Number) = sign(u) .* max( abs(u) - alpha, 0 )
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## no regularization
@@ -206,21 +260,3 @@ end
 prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
-
-# scalings
-function equilibrate_variance!(losses::Array, A)
-    for i=1:size(A,2)
-        nomissing = dropna(A[:,i])
-        if length(nomissing)>0
-            vari = avgerror(nomissing, losses[i])
-        else
-            vari = 1
-        end
-        if vari > 0
-            losses[i].scale = 1/vari
-        else
-            losses[i].scale = 1
-        end
-    end
-    return losses
-end
