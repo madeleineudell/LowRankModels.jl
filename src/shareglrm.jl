@@ -151,19 +151,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         prox! = LowRankModels.prox!
         
         # I'm not sure why I need to import the above functions but not these two...
-        localcols = LowRankModels.localcols
-        grad = LowRankModels.grad
+        # localcols = LowRankModels.localcols
+        # grad = LowRankModels.grad
 
         # cache views and local columns
         m,n = size(A)
         ve = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(X.s,:,e) for e=1:m]
         vf = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(Y.s,:,f) for f=1:n]
-        # function localcols(Y::SharedArray)
-        #     idxs=localindexes(Y)
-        #     s,t=localindexes(Y)[1],localindexes(Y)[end]
-        #     m,n=size(Y)
-        #     return round(floor((s-1)/m+1)):round(floor(t/m))
-        # end
         xlcols = localcols(X)
         ylcols = localcols(Y)
         XYX = Array(Float64,(length(xlcols), n))
