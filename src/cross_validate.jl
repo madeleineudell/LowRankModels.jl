@@ -1,10 +1,5 @@
 export cross_validate, cv_by_iter, regularization_path, get_train_and_test, precision_at_k
 
-# To do:
-#     * implement cv_by_iter
-#     * implement regularization_path
-#     * robustify to cv splits that empty a given row or column (eg check and try again)
-
 function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)
     if use_folds==None use_folds = nfolds end
     if verbose println("flattening observations") end
