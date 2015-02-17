@@ -122,10 +122,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         # X update
         XY = X*Y
         for e=1:m
-            # a gradient of L wrt e
+            # calculate a gradient of L wrt e, and the objective value for this row
             scale!(g, 0)
+            objbyrow[e] = evaluate(rx,ve[e])
             for f in glrm.observed_features[e]
                 axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
+                objbyrow[e] += evaluate(losses[f], XY[e,f], A[e,f])
             end
             # take a proximal gradient step
             ## gradient step: g = X[e,:] - alpha/l*g
@@ -136,14 +138,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             prox!(rx,ve[e],alpharow[e]/l)
             
             # see if solution improved
-            err = 0
             xy = ve[e]*Y
+            err = evaluate(rx,ve[e])
             for f in glrm.observed_features[e]
                 err += evaluate(losses[f], xy[f], A[e,f])
             end
-            err += evaluate(rx,ve[e])
-            if i>1 && err > objbyrow[e]
-                #println("row $e worsened")
+            if err > objbyrow[e]
+                # println("row $e worsened; undoing step")
                 alpharow[e] *= .7
                 X[e,:] = glrm.X[e,:]
                 # scale!(ve[e],0)
@@ -154,15 +155,16 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 # scale!(glrm.X[e,:],0)
                 # axpy!(1,ve[e],glrm.X[e,:])
             end   
-            objbyrow[e] = err
         end
         # Y update
         XY = X*Y
         for f=1:n
             # a gradient of L wrt f
             scale!(g, 0)
+            objbycol[f] = evaluate(ry[f],vf[f])
             for e in glrm.observed_examples[f]
                 axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
+                objbycol[f] += evaluate(losses[f], XY[e,f], A[e,f])
             end
             # take a proximal gradient step
             ## gradient step: g = Y[:,f] - alpha/l*g
@@ -173,14 +175,13 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             prox!(ry[f],vf[f],alphacol[f]/l)
 
             # see if solution improved
-            err = 0
             xy = X*vf[f]
-            for e in glrm.observed_features[f]
+            err = evaluate(ry[f],vf[f])
+            for e in glrm.observed_examples[f]
                 err += evaluate(losses[f], xy[e], A[e,f])
             end
-            err += evaluate(ry,vf[f])
-            if i>1 && err > objbycol[f]
-                #println("col $f worsened")
+            if err > objbycol[f]
+                #println("col $f worsened; undoing step")
                 alphacol[f] *= .7
                 Y[:,f] = glrm.Y[:,f]
                 # scale!(vf[f],0)
@@ -190,30 +191,43 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 glrm.Y[:,f] = Y[:,f]
                 # scale!(glrm.Y[:,f],0)
                 # axpy!(1,vf[f],glrm.Y[:,f])
+                objbycol[f] = err
             end   
-            objbycol[f] = err
         end
+        obj = sum(objbycol)
+        t = time() - t
+        update!(ch, t, obj)
+        t = time()        
+        # check sanity
         # @show obj = objective(glrm,X,Y)
-        obj = objective(glrm)
-        # record the best X and Y yet found
-        if obj < ch.objective[end]
-            t = time() - t
-            update!(ch, t, obj)
-            steps_in_a_row = max(1, steps_in_a_row+1)
-            t = time()
-        else
-            # if the objective went up, reduce the step size, and undo the step
-            println("obj went up; why?")
-            alpha = alpha / max(1.5, -steps_in_a_row)
-            if verbose println("obj went up to $obj; reducing step size to $alpha") end
-            copy!(X, glrm.X); copy!(Y, glrm.Y)
-            steps_in_a_row = min(0, steps_in_a_row-1)
-        end
+        # obj = objective(glrm)
+        # # record the best X and Y yet found
+        # if obj < ch.objective[end]
+        #     t = time() - t
+        #     update!(ch, t, obj)
+        #     t = time()
+        # else
+        #     # the objective should never go up
+        #     warn("objective went up; why?")
+        #     copy!(X, glrm.X); copy!(Y, glrm.Y)
+        # end
         # check stopping criterion
         if i>10 && length(ch.objective)>3 && (ch.objective[end-1] - obj < tol || 
                     (median(alpharow) <= params.min_stepsize && 
                         median(alphacol) <= params.min_stepsize))
             break
+        # else
+        #     println(ch.objective[end-1] - obj," not < ", tol)
+        #     println("alpharow")
+        #     println("\t", median(alpharow))
+        #     println("\t", mean(alpharow))
+        #     println("\t", maximum(alpharow))
+        #     println("\t", minimum(alpharow))
+        #     println("alphacol")
+        #     println("\t", median(alphacol))
+        #     println("\t", mean(alphacol))
+        #     println("\t", maximum(alphacol))
+        #     println("\t", minimum(alphacol))        
         end
         if verbose && i%10==0 
             println("Iteration $i: objective value = $(ch.objective[end])") 
