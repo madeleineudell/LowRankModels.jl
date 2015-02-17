@@ -118,81 +118,93 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,e,:) for e=1:m]
     vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
 
+    nrepsx = 1
+    nrepsy = 1
+
     for i=1:params.max_iter
         # X update
         XY = X*Y
         for e=1:m
-            # calculate a gradient of L wrt e, and the objective value for this row
-            scale!(g, 0)
             objbyrow[e] = evaluate(rx,ve[e])
             for f in glrm.observed_features[e]
-                axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
                 objbyrow[e] += evaluate(losses[f], XY[e,f], A[e,f])
             end
-            # take a proximal gradient step
-            ## gradient step: g = X[e,:] - alpha/l*g
-            l = length(glrm.observed_features[e]) + 1
-            scale!(g, -alpharow[e]/l)
-            axpy!(1,g,ve[e])
-            ## prox step: X[e,:] = prox(g)
-            prox!(rx,ve[e],alpharow[e]/l)
-            
-            # see if solution improved
-            xy = ve[e]*Y
-            err = evaluate(rx,ve[e])
-            for f in glrm.observed_features[e]
-                err += evaluate(losses[f], xy[f], A[e,f])
+            for irep=1:nrepsx
+                # calculate a gradient of L wrt e, and the objective value for this row
+                scale!(g, 0)
+                for f in glrm.observed_features[e]
+                    axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
+                end
+                # take a proximal gradient step
+                ## gradient step: g = X[e,:] - alpha/l*g
+                l = length(glrm.observed_features[e]) + 1
+                scale!(g, -alpharow[e]/l)
+                axpy!(1,g,ve[e])
+                ## prox step: X[e,:] = prox(g)
+                prox!(rx,ve[e],alpharow[e]/l)
+                
+                # see if solution improved
+                xy = ve[e]*Y
+                err = evaluate(rx,ve[e])
+                for f in glrm.observed_features[e]
+                    err += evaluate(losses[f], xy[f], A[e,f])
+                end
+                if err > objbyrow[e]
+                    # println("row $e worsened; undoing step")
+                    alpharow[e] *= .7
+                    X[e,:] = glrm.X[e,:]
+                    # scale!(ve[e],0)
+                    # axpy!(1,glrm.X[e,:],ve[e])
+                else
+                    alpharow[e] *= 1.05
+                    glrm.X[e,:] = X[e,:]
+                    # scale!(glrm.X[e,:],0)
+                    # axpy!(1,ve[e],glrm.X[e,:])
+                    objbyrow[e] = err
+                end   
             end
-            if err > objbyrow[e]
-                # println("row $e worsened; undoing step")
-                alpharow[e] *= .7
-                X[e,:] = glrm.X[e,:]
-                # scale!(ve[e],0)
-                # axpy!(1,glrm.X[e,:],ve[e])
-            else
-                alpharow[e] *= 1.05
-                glrm.X[e,:] = X[e,:]
-                # scale!(glrm.X[e,:],0)
-                # axpy!(1,ve[e],glrm.X[e,:])
-            end   
         end
         # Y update
         XY = X*Y
         for f=1:n
-            # a gradient of L wrt f
-            scale!(g, 0)
             objbycol[f] = evaluate(ry[f],vf[f])
             for e in glrm.observed_examples[f]
-                axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
                 objbycol[f] += evaluate(losses[f], XY[e,f], A[e,f])
             end
-            # take a proximal gradient step
-            ## gradient step: g = Y[:,f] - alpha/l*g
-            l = length(glrm.observed_examples[f]) + 1
-            scale!(g, -alphacol[f]/l)
-            axpy!(1,g,vf[f]) 
-            ## prox step: X[e,:] = prox(g)
-            prox!(ry[f],vf[f],alphacol[f]/l)
+            for irep=1:nrepsy
+                # a gradient of L wrt f
+                scale!(g, 0)
+                for e in glrm.observed_examples[f]
+                    axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
+                end
+                # take a proximal gradient step
+                ## gradient step: g = Y[:,f] - alpha/l*g
+                l = length(glrm.observed_examples[f]) + 1
+                scale!(g, -alphacol[f]/l)
+                axpy!(1,g,vf[f]) 
+                ## prox step: X[e,:] = prox(g)
+                prox!(ry[f],vf[f],alphacol[f]/l)
 
-            # see if solution improved
-            xy = X*vf[f]
-            err = evaluate(ry[f],vf[f])
-            for e in glrm.observed_examples[f]
-                err += evaluate(losses[f], xy[e], A[e,f])
-            end
-            if err > objbycol[f]
-                #println("col $f worsened; undoing step")
-                alphacol[f] *= .7
-                Y[:,f] = glrm.Y[:,f]
-                # scale!(vf[f],0)
-                # axpy!(1,glrm.Y[:,f],vf[f])
-            else
-                alphacol[f] *= 1.05
-                glrm.Y[:,f] = Y[:,f]
-                # scale!(glrm.Y[:,f],0)
-                # axpy!(1,vf[f],glrm.Y[:,f])
-                objbycol[f] = err
-            end   
+                # see if solution improved
+                xy = X*vf[f]
+                err = evaluate(ry[f],vf[f])
+                for e in glrm.observed_examples[f]
+                    err += evaluate(losses[f], xy[e], A[e,f])
+                end
+                if err > objbycol[f]
+                    #println("col $f worsened; undoing step")
+                    alphacol[f] *= .7
+                    Y[:,f] = glrm.Y[:,f]
+                    # scale!(vf[f],0)
+                    # axpy!(1,glrm.Y[:,f],vf[f])
+                else
+                    alphacol[f] *= 1.05
+                    glrm.Y[:,f] = Y[:,f]
+                    # scale!(glrm.Y[:,f],0)
+                    # axpy!(1,vf[f],glrm.Y[:,f])
+                    objbycol[f] = err
+                end  
+            end 
         end
         obj = sum(objbycol)
         t = time() - t
