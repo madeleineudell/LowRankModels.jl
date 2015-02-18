@@ -101,7 +101,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
     alpharow = fill(float(params.stepsize),m)
-    alphacol = fill(float(params.stepsize),n)
+    alphacol = map(scale, glrm.losses) * params.stepsize
     objbyrow = zeros(m)
     objbycol = zeros(n)
     # stopping criterion: stop when decrease in objective < tol
@@ -118,6 +118,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,e,:) for e=1:m]
     vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
 
+    # i have not observed any problem on which increasing this improves convergence speed
     nrepsx = 1
     nrepsy = 1
 
@@ -224,9 +225,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         #     copy!(X, glrm.X); copy!(Y, glrm.Y)
         # end
         # check stopping criterion
-        if i>10 && length(ch.objective)>3 && (ch.objective[end-1] - obj < tol || 
-                    (median(alpharow) <= params.min_stepsize && 
-                        median(alphacol) <= params.min_stepsize))
+        if i>10 && length(ch.objective)>3 && (ch.objective[end-1] - obj < tol)
             break
         # else
         #     println(ch.objective[end-1] - obj," not < ", tol)
