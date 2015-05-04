@@ -7,7 +7,7 @@
 
 import Base.scale!
 export Loss, Regularizer, # abstract types
-       quadratic, hinge, ordinal_hinge, l1, huber, # concrete losses
+       quadratic, hinge, logistic, ordinal_hinge, l1, huber, # concrete losses
        grad, evaluate, avgerror, # methods on losses
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
@@ -65,6 +65,14 @@ evaluate(l::hinge,u::Float64,a::Number) = l.scale*max(1-a*u,0)
 grad(l::hinge,u::Float64,a::Number) = hinge_grad(l.scale,u,a)
 hinge_grad(scale,u::Float64,a::Number) = a*u>=1 ? 0 : -a*scale
 hinge_grad(scale,u::Float64,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
+
+## logistic
+type logistic<:Loss
+    scale::Float64
+end
+logistic() = logistic(1)
+evaluate(l::logistic,u::Float64,a::Number) = l.scale*log(1+exp(-a*u))
+grad(l::logistic,u::Float64,a::Number) = -l.scale/(1+exp(a*u))
 
 ## ordinal hinge
 type ordinal_hinge<:Loss

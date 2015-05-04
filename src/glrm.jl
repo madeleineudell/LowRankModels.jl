@@ -2,7 +2,7 @@ import Base: size, axpy!
 import Base.LinAlg.scale!
 import ArrayViews: view, StridedView, ContiguousView
 
-export GLRM, objective, Params, getindex, display, size, fit, fit!
+export GLRM, objective, Params, getindex, display, size, fit!, fit
 
 type GLRM
     A
