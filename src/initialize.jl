@@ -1,4 +1,4 @@
-import StatsBase.sample
+import StatsBase.sample, StatsBase.wsample
 export init_kmeanspp!, init_svd!
 
 # kmeans++ initialization, but with missing data
