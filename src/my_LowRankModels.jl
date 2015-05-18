@@ -1,4 +1,4 @@
-module LowRankModels
+module my_LowRankModels
 
 # define losses, regularizers, convergence history
 include("loss_and_reg.jl")
