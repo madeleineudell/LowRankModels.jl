@@ -127,30 +127,33 @@ grad(l::imbalanced_hinge, u::Float64, a::Bool) = grad(l, u, 2*a-1)
 
 # Useful functions for computing scalings
 ## minimum_offset (average error of l (a, offset))
+avgerror(a::DataArray, l::Loss) = avgerror(dropna(a), l)
 function avgerror(a::AbstractArray, l::quadratic)
     m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::DataArray, l::quadratic) = avgerror(dropna(a), l)
+avgerror(a::DataArray, l::Loss) = avgerror(dropna(a), l)
+
+#avgerror(a::DataArray, l::quadratic) = avgerror(dropna(a), l)
 
 function avgerror(a::AbstractArray, l::l1)
     m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::DataArray, l::l1) = avgerror(dropna(a), l)
+#avgerror(a::DataArray, l::l1) = avgerror(dropna(a), l)
 
 function avgerror(a::AbstractArray, l::ordinal_hinge)
     m = median(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::DataArray, l::ordinal_hinge) = avgerror(dropna(a), l)
+#avgerror(a::DataArray, l::ordinal_hinge) = avgerror(dropna(a), l)
 
 function avgerror(a::AbstractArray, l::huber)
     # XXX this is not quite right --- mean is not necessarily the minimizer
     m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::DataArray, l::huber) = avgerror(dropna(a), l)
+#avgerror(a::DataArray, l::huber) = avgerror(dropna(a), l)
 
 function avgerror(a::AbstractArray, l::periodic)
     m = (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2# not kidding. 
@@ -158,7 +161,7 @@ function avgerror(a::AbstractArray, l::periodic)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::DataArray, l::periodic) = avgerror(dropna(a), l)
+#avgerror(a::DataArray, l::periodic) = avgerror(dropna(a), l)
 
 function avgerror(a::AbstractArray, l::imbalanced_hinge)
     r = length(a)/length(filter(x->x>0, a)) - 1 
@@ -171,9 +174,9 @@ function avgerror(a::AbstractArray, l::imbalanced_hinge)
     end
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::DataArray, l::imbalanced_hinge) = avgerror(dropna(a), l)
+#avgerror(a::DataArray, l::imbalanced_hinge) = avgerror(dropna(a), l)
 avgerror(a::AbstractArray{Bool,1}, l::imbalanced_hinge) = avgerror(2*a-1, l)
-avgerror(a::DataArray{Bool,1}, l::imbalanced_hinge) = avgerror(dropna(a), l)
+#avgerror(a::DataArray{Bool,1}, l::imbalanced_hinge) = avgerror(dropna(a), l)
 
 # regularizers
 # regularizers r should have the method `prox` defined such that 
