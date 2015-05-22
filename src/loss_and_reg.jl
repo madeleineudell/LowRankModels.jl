@@ -127,7 +127,6 @@ grad(l::imbalanced_hinge, u::Float64, a::Bool) = grad(l, u, 2*a-1)
 
 # Useful functions for computing scalings
 ## minimum_offset (average error of l (a, offset))
-avgerror(a::DataArray, l::Loss) = avgerror(dropna(a), l)
 function avgerror(a::AbstractArray, l::quadratic)
     m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
