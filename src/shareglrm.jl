@@ -60,7 +60,7 @@ function objective(glrm::GLRM,X::Array,Y::Array,Z=nothing; include_regularizatio
             err += evaluate(glrm.rx,view(X,:,i))
         end
         for j=1:n
-            err += evaluate(glrm.ry[j],view(Y,:,j))
+            err += evaluate(glrm.ry[j], view(Y,:,j)::AbstractArray)
         end
     end
     return err
@@ -151,7 +151,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         prox! = LowRankModels.prox!
         localcols = LowRankModels.localcols
         grad = LowRankModels.grad
-	evaluate = LowRankModels.evaluate
+        evaluate = LowRankModels.evaluate
 
         # cache views and local columns
         m,n = size(A)
@@ -210,7 +210,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 scale!(g, -alpha[1]/l)
                 axpy!(1,g,vf[f])
                 ## prox step: X[e,:] = prox(g)
-                prox!(ry,vf[f],alpha[1]/l)
+                prox!(ry[f],vf[f],alpha[1]/l)
             end
         end
         # evaluate objective 
@@ -228,7 +228,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 err += evaluate(rx,ve[e])
             end
             for f=ylcols
-                err += evaluate(ry,vf[f])
+                err += evaluate(ry[f],vf[f]::AbstractArray)
             end
             obj[1] = obj[1] + err
         end
