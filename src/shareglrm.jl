@@ -60,7 +60,7 @@ function objective(glrm::GLRM,X::Array,Y::Array,Z=nothing; include_regularizatio
             err += evaluate(glrm.rx,view(X,:,i))
         end
         for j=1:n
-            err += evaluate(glrm.ry,view(Y,:,j))
+            err += evaluate(glrm.ry[j],view(Y,:,j))
         end
     end
     return err
