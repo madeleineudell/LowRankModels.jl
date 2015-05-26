@@ -1,6 +1,6 @@
 #module FitDataFrame
 
-import DataFrames: DataFrame, DataArray, isna, dropna, array
+import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert
 
 export GLRM, observations, expand_categoricals, add_offset!, equilibrate_variance!
 
@@ -10,9 +10,9 @@ function df2array(df::DataFrame, z::Number)
     A = zeros(size(df))
     for i=1:size(A,2)
         if typeof(df[i]) == Bool
-            A[:,i] = array((2*df[i]-1),z)
+            A[:,i] = convert(Array, (2*df[i]-1),z)
         else
-            A[:,i] = array(df[i],z)
+            A[:,i] = convert(Array, df[i],z)
         end            
     end
     return A
@@ -95,7 +95,8 @@ end
 
 # scalings and offsets
 function add_offset!(glrm::GLRM)
-    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
+#    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
+    glrm.rx, glrm.ry = lastentry1(glrm.rx), lastentry_unpenalized(glrm.ry)
     return glrm
 end
 function equilibrate_variance!(glrm::GLRM)
@@ -103,18 +104,18 @@ function equilibrate_variance!(glrm::GLRM)
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
             varlossi = avgerror(nomissing, glrm.losses[i])
-            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
+#            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
         else
             varlossi = 1
-            varregi = 1
+#            varregi = 1
         end
         if varlossi > 0
             # rescale the losses and regularizers for each column by the inverse of the empirical variance
             scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
         end
-        if varregi > 0
-            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
-        end
+#        if varregi > 0
+#            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
+#        end
     end
     return glrm
 end
@@ -133,6 +134,7 @@ function GLRM(df::DataFrame, k::Integer;
         losses = [real_losses, bool_losses, ordinal_losses]
     else
         # otherwise one loss function per column
+	A = df
         ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
     end
 

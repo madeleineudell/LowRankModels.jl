@@ -141,10 +141,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         axpy! = Base.BLAS.axpy!
         gemm! = Base.BLAS.gemm!
         prox! = LowRankModels.prox!
-        
-        # I'm not sure why I need to import the above functions but not these two...
-        #localcols = LowRankModels.localcols
-        #grad = LowRankModels.grad
+        localcols = LowRankModels.localcols
+        grad = LowRankModels.grad
+	evaluate = LowRankModels.evaluate
 
         # cache views and local columns
         m,n = size(A)
