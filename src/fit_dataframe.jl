@@ -95,8 +95,7 @@ end
 
 # scalings and offsets
 function add_offset!(glrm::GLRM)
-#    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
-    glrm.rx, glrm.ry = lastentry1(glrm.rx), lastentry_unpenalized(glrm.ry)
+    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
     return glrm
 end
 function equilibrate_variance!(glrm::GLRM)
@@ -104,18 +103,18 @@ function equilibrate_variance!(glrm::GLRM)
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
             varlossi = avgerror(nomissing, glrm.losses[i])
-#            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
+            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
         else
             varlossi = 1
-#            varregi = 1
+            varregi = 1
         end
         if varlossi > 0
             # rescale the losses and regularizers for each column by the inverse of the empirical variance
             scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
         end
-#        if varregi > 0
-#            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
-#        end
+        if varregi > 0
+            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
+        end
     end
     return glrm
 end

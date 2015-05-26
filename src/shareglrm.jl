@@ -20,10 +20,18 @@ type GLRM
     observed_examples
     losses::Array{Loss,1}
     rx::Regularizer
-    ry::Regularizer
+    ry::Array{Regularizer,1}
     k::Int64
     X::AbstractArray # k x n
     Y::AbstractArray # k x m
+end
+# default initializations for obs, X, Y, regularizing every column equally
+function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y)
+    rys = Regularizer[typeof(ry)() for i=1:length(losses)]
+    for iry in rys
+        scale!(iry, scale(ry))
+    end
+    return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
 end
 # default initializations for obs, X, and Y
 GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
