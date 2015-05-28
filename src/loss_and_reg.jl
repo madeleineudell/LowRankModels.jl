@@ -7,7 +7,7 @@
 
 import Base.scale! 
 export Loss, Regularizer, # abstract types
-       quadratic, imbalanced_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
+       quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
        grad, evaluate, avgerror, # methods on losses
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
@@ -91,6 +91,8 @@ function evaluate(l::ordinal_hinge,u::Float64,a::Number)
 end
 
 ## periodic
+# f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
+# this measures how far away u and a are on a circle of circumference T. 
 type periodic<:Loss
     scale::Float64
     T::Integer # the length of the period
@@ -99,29 +101,31 @@ periodic(T; scale=1) = periodic(T, scale)
 evaluate(l::periodic, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
 grad(l::periodic, u::Float64, a::Number) = l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)    
 
-## hinge
-type imbalanced_hinge<:Loss
+## weighted hinge
+# f(u,a) = {     w * max(0, u) for a = -1
+#        = { c * w * max(0,-u) for a =  1
+type weighted_hinge<:Loss
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
     scale::Float64
 end
-imbalanced_hinge(;case_weight_ratio=1, scale=1) = imbalanced_hinge(case_weight_ratio, scale)
-hinge(;scale=1) = imbalanced_hinge(scale=scale) # the standard hinge is a case of this
-function evaluate(l::imbalanced_hinge, u::Float64, a::Number)
+weighted_hinge(;case_weight_ratio=1, scale=1) = weighted_hinge(case_weight_ratio, scale)
+hinge(;scale=1) = weighted_hinge(scale=scale) # the standard hinge is a case of this
+function evaluate(l::weighted_hinge, u::Float64, a::Number)
     loss = l.scale*max(1+a*u, 0)
     if a>0 # if for whatever reason someone doesn't use properly coded variables...
         loss *= l.case_weight_ratio
     end
     return loss
 end
-evaluate(l::imbalanced_hinge, u::Float64, a::Bool) = evaluate(l, u, 2*a-1)
-function grad(l::imbalanced_hinge, u::Float64, a::Number)
+evaluate(l::weighted_hinge, u::Float64, a::Bool) = evaluate(l, u, 2*a-1)
+function grad(l::weighted_hinge, u::Float64, a::Number)
     g = (a*u>=1 ? 0 : -a*l.scale)
     if a>0
         g *= l.case_weight_ratio
     end
     return g
 end
-grad(l::imbalanced_hinge, u::Float64, a::Bool) = grad(l, u, 2*a-1)
+grad(l::weighted_hinge, u::Float64, a::Bool) = grad(l, u, 2*a-1)
 
 
 # Useful functions for computing scalings
@@ -154,7 +158,7 @@ function avgerror(a::AbstractArray, l::periodic)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
-function avgerror(a::AbstractArray, l::imbalanced_hinge)
+function avgerror(a::AbstractArray, l::weighted_hinge)
     r = length(a)/length(filter(x->x>0, a)) - 1 
     if l.case_weight_ratio > r
         m = 1.0
@@ -165,7 +169,7 @@ function avgerror(a::AbstractArray, l::imbalanced_hinge)
     end
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
-avgerror(a::AbstractArray{Bool,1}, l::imbalanced_hinge) = avgerror(2*a-1, l)
+avgerror(a::AbstractArray{Bool,1}, l::weighted_hinge) = avgerror(2*a-1, l)
 
 # regularizers
 # regularizers r should have the method `prox` defined such that 

@@ -60,8 +60,11 @@ and may be chosen from a list of supported losses and regularizers, which includ
 
 * quadratic loss `quadratic`
 * hinge loss `hinge`
+* weighted hinge loss `weighted_hinge`
 * l1 loss `l1`
 * ordinal hinge loss `ordinal_hinge`
+* periodic loss `periodic`
+
 * quadratic regularization `quadreg`
 * no regularization `zeroreg`
 * nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
