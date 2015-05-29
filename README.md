@@ -58,6 +58,8 @@ and may be omitted if all the entries in the matrix have been observed.
 Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
 and may be chosen from a list of supported losses and regularizers, which include
 
+Losses:
+
 * quadratic loss `quadratic`
 * hinge loss `hinge`
 * weighted hinge loss `weighted_hinge`
@@ -65,7 +67,10 @@ and may be chosen from a list of supported losses and regularizers, which includ
 * ordinal hinge loss `ordinal_hinge`
 * periodic loss `periodic`
 
+Regularizers:
+
 * quadratic regularization `quadreg`
+* l1 regularization `onereg`
 * no regularization `zeroreg`
 * nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
 * 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)

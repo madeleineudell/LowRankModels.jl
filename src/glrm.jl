@@ -24,11 +24,11 @@ function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,
     return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
 end
 GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
-    GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
+    GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(k,size(A,1)),randn(k,size(A,2)))
 GLRM(A,obs,losses,rx,ry,k,X,Y) = 
     GLRM(A,sort_observations(obs,size(A)...)...,losses,rx,ry,k,X,Y)
 GLRM(A,obs,losses,rx,ry,k) = 
-    GLRM(A,obs,losses,rx,ry,k,randn(size(A,1),k),randn(k,size(A,2)))
+    GLRM(A,obs,losses,rx,ry,k,randn(k,size(A,1)),randn(k,size(A,2)))
 function GLRM(A,losses,rx,ry,k)
     m,n = size(A)
     return GLRM(A,fill(1:n, m),fill(1:m, n),losses,rx,ry,k)
@@ -37,7 +37,7 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     # compute value of loss function
-    if Z==nothing Z = X*Y end
+    if Z==nothing Z = X'*Y end
     for i=1:m
         for j in glrm.observed_features[i]
             err += evaluate(glrm.losses[j], Z[i,j], glrm.A[i,j])
@@ -46,7 +46,7 @@ function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
     # add regularization penalty
     if include_regularization
         for i=1:m
-            err += evaluate(glrm.rx,view(X,i,:))
+            err += evaluate(glrm.rx,view(X,:,i))
         end
         for j=1:n
             err += evaluate(glrm.ry[j],view(Y,:,j))
@@ -93,6 +93,11 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	X = copy(glrm.X); Y = copy(glrm.Y)
 	k = glrm.k
 
+    # make sure that we've oriented X to optimize for the column-major order standard
+    if size(glrm.Y,1)!==size(glrm.X,1)
+        glrm.X = glrm.X'
+    end
+
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(Y) == 0 
     	Y = .1*randn(k,n) 
@@ -111,40 +116,46 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     g = zeros(k)
 
     # cache views
-    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,e,:) for e=1:m]
+    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,:,e) for e=1:m]
     vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
 
     for i=1:params.max_iter
         # X update
-        XY = X*Y
+        XY = X'*Y
         for e=1:m
-            # a gradient of L wrt e
-            scale!(g, 0)
+            scale!(g, 0)# reset gradient to 0
+            # compute gradient of L with respect to Xᵢ as follows:
+            # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
             for f in glrm.observed_features[e]
+                # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
+                # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is our grad() function
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
-            ## gradient step: g = X[e,:] - alpha/l*g
             l = length(glrm.observed_features[e]) + 1
             scale!(g, -alpha/l)
+            ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
             axpy!(1,g,ve[e])
-            ## prox step: X[e,:] = prox(g)
+            ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
             prox!(rx,ve[e],alpha/l)
         end
         # Y update
-        XY = X*Y
+        XY = X'*Y
         for f=1:n
-            # a gradient of L wrt f
-            scale!(g, 0)
+            scale!(g, 0) # reset gradient to 0
+            # compute gradient of L with respect to Yⱼ as follows:
+            # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ 
             for e in glrm.observed_examples[f]
+                # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
+                # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
             end
             # take a proximal gradient step
-            ## gradient step: g = Y[:,f] - alpha/l*g
             l = length(glrm.observed_examples[f]) + 1
             scale!(g, -alpha/l)
+            ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
             axpy!(1,g,vf[f]) 
-            ## prox step: X[e,:] = prox(g)
+            ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
             prox!(ry[f],vf[f],alpha/l)
         end
         obj = objective(glrm,X,Y)
@@ -174,7 +185,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     t = time() - t
     update!(ch, t, ch.objective[end])
 
-    return glrm.X,glrm.Y,ch
+    return glrm.X', glrm.Y, ch
 end
 
 function fit(glrm::GLRM, args...; kwargs...)
@@ -183,5 +194,5 @@ function fit(glrm::GLRM, args...; kwargs...)
     copy!(X0, glrm.X); copy!(Y0, glrm.Y)
     X,Y,ch = fit!(glrm, args...; kwargs...)
     copy!(glrm.X, X0); copy!(glrm.Y, Y0)
-    return X,Y,ch
+    return X',Y,ch
 end

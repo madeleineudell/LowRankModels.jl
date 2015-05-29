@@ -187,7 +187,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
                 for f in of[e]
                     # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
-                    # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is the grad() function we have
+                    # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is the our grad() function
                 	axpy!(grad(losses[f], XY_x[e-xlcols[1]+1,f], A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
@@ -209,7 +209,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ 
                 for e in oe[f]
                     # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
-                    # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is the grad() function we have
+                    # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
                     axpy!(grad(losses[f], XY_y[e,f-ylcols[1]+1], A[e,f]), ve[e], g)
                 end
                 # take a proximal gradient step
@@ -283,7 +283,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     t = time() - t
     update!(ch, t, ch.objective[end])
 
-    return glrm.X,glrm.Y,ch
+    return glrm.X', glrm.Y, ch
 end
 
 function fit(glrm::GLRM, args...; kwargs...)
@@ -292,5 +292,5 @@ function fit(glrm::GLRM, args...; kwargs...)
     copy!(X0, glrm.X); copy!(Y0, glrm.Y)
     X,Y,ch = fit!(glrm, args...; kwargs...)
     copy!(glrm.X, X0); copy!(glrm.Y, Y0)
-    return X,Y,ch
+    return X',Y,ch
 end
