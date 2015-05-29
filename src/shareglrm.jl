@@ -99,12 +99,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     if size(glrm.Y,1)!==size(glrm.X,1)
         glrm.X = glrm.X'
     end
-	# at any time, glrm.X and glrm.Y will be the best model yet found, while
-	# X and Y will be the working variables
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(glrm.Y) == 0 
         glrm.Y = .1*shmem_randn(size(glrm.Y)...) 
     end
+    # at any time, glrm.X and glrm.Y will be the best model yet found, while
+    # X and Y will be the working variables. All of these are shared arrays.
     if isa(glrm.X, SharedArray)
         X, glrm.X = glrm.X, copy(glrm.X)
     else
@@ -134,14 +134,14 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     end
     @everywhere begin
         # rename data to be easier to access on local proc
-        A = LowRankModels.A
+        A = LowRankModels.A # since these are shared arrays, this should only be passing the references to them
         X = LowRankModels.X
         Y = LowRankModels.Y
         glrm = LowRankModels.glrm
-        k = LowRankModels.glrm.k
+        k = LowRankModels.glrm.k 
         losses = LowRankModels.glrm.losses
         rx = LowRankModels.glrm.rx
-        ry = LowRankModels.glrm.ry
+        ry = LowRankModels.glrm.ry # this is a normal array that is getting copied by value to all the procs
         of = LowRankModels.glrm.observed_features
         oe = LowRankModels.glrm.observed_examples
         alpha = LowRankModels.alpha
@@ -153,14 +153,14 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         grad = LowRankModels.grad
         evaluate = LowRankModels.evaluate
 
-        # cache views and local columns
+        # cache views into X and Y and the indeces of local columns of X and Y
         m,n = size(A)
         ve = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(X.s,:,e) for e=1:m]
         vf = LowRankModels.ContiguousView{Float64,1,Array{Float64,2}}[LowRankModels.view(Y.s,:,f) for f=1:n]
         xlcols = localcols(X)
         ylcols = localcols(Y)
-        XYX = Array(Float64,(length(xlcols), n))
-        XYY = Array(Float64,(m, length(ylcols)))
+        XY_x = Array(Float64,(length(xlcols), n))
+        XY_y = Array(Float64,(m, length(ylcols)))
 
         # initialize gradient
         g = zeros(k)
@@ -178,45 +178,52 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     for i=1:params.max_iter
         @everywhere begin
             # X update
-            gemm!('T','N',1.0,X[:,xlcols],Y.s,0.0,XYX)
+            # XY_x = X[:,xcols]' * Y  (rows of the approximation matrix that this processor is in charge of)
+            gemm!('T','N', 1.0, X[:,xlcols], Y.s, 0.0, XY_x) 
             for e=xlcols
-                # a gradient of L wrt e
-                scale!(g, 0)
+                scale!(g, 0)  # reset gradient to 0
+                # compute gradient of L with respect to Xᵢ as follows:
+                # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
                 for f in of[e]
-                	axpy!(grad(losses[f],XYX[e-xlcols[1]+1,f],A[e,f]), vf[f], g)
+                    # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
+                    # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is the grad() function we have
+                	axpy!(grad(losses[f], XY_x[e-xlcols[1]+1,f], A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
-                ## gradient step: g = X[e,:] - alpha/l*g
                 l = length(of[e]) + 1
                 scale!(g, -alpha[1]/l)
-                axpy!(1,g,ve[e])
-                ## prox step: X[e,:] = prox(g)
-                prox!(rx,ve[e],alpha[1]/l)
+                ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
+                axpy!(1, g, ve[e])
+                ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
+                prox!(rx, ve[e], alpha[1]/l)
             end
         end
         @everywhere begin
             # Y update
-            # XYY = X'*Y[:,ylcols]
-            gemm!('T','N',1.0,X.s,Y[:,ylcols],0.0,XYY)
+            # XY_y = X'*Y[:,ylcols]  (columns of the approximation matrix that this processor is in charge of)
+            gemm!('T','N', 1.0, X.s, Y[:,ylcols], 0.0, XY_y)
             for f=ylcols
-                # a gradient of L wrt e
-                scale!(g, 0)
+                scale!(g, 0) # reset gradient to 0
+                # compute gradient of L with respect to Yⱼ as follows:
+                # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ 
                 for e in oe[f]
-                    axpy!(grad(losses[f],XYY[e,f-ylcols[1]+1],A[e,f]), ve[e], g)
+                    # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
+                    # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is the grad() function we have
+                    axpy!(grad(losses[f], XY_y[e,f-ylcols[1]+1], A[e,f]), ve[e], g)
                 end
                 # take a proximal gradient step
-                ## gradient step: g = X[e,:] - alpha/l*g
                 l = length(oe[f]) + 1
                 scale!(g, -alpha[1]/l)
-                axpy!(1,g,vf[f])
-                ## prox step: X[e,:] = prox(g)
-                prox!(ry[f],vf[f],alpha[1]/l)
+                ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
+                axpy!(1, g, vf[f]) 
+                ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
+                prox!(ry[f], vf[f], alpha[1]/l)
             end
         end
-        # evaluate objective 
+        # evaluate objective, splitting up among processes by columns of X
         obj[1] = 0
         @everywhere begin
-            XY = X[:,xlcols]'*Y
+            gemm!('T','N', 1.0, X[:,xlcols], Y.s, 0.0, XY_x) # XY = X[:,xlcols]'*Y
             err = 0
             for e=xlcols
                 for f in of[e]
@@ -248,12 +255,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                     glrm.Y[i] = Y[i]
                 end
             end
-            alpha[1] = alpha[1] * 1.05
+            alpha[1] = alpha[1] * 1.05 # sketchy constant...
             steps_in_a_row = max(1, steps_in_a_row+1)
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row))
+            alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row)) # another sketchy constant?
             @everywhere begin
                 @inbounds for i in localindexes(X)
                     X[i] = glrm.X[i]
