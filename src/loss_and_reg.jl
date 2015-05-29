@@ -5,9 +5,9 @@
 # while regularizers should implement `evaluate` and `prox`. 
 # For automatic scaling, losses should also implement `avgerror`.
 
-import Base.scale!
+import Base.scale! 
 export Loss, Regularizer, # abstract types
-       quadratic, hinge, logistic, ordinal_hinge, l1, huber, # concrete losses
+       quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
        grad, evaluate, avgerror, # methods on losses
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
@@ -56,16 +56,6 @@ poisson() = poisson(1)
 evauate(l::poisson,u::Float64,a::Number) = exp(u) - a*u + a*log(a) - a
 grad(l::poisson,u::Float64,a::Number) = exp(u) - a*u + a*log(a) - a
 
-## hinge
-type hinge<:Loss
-    scale::Float64
-end
-hinge() = hinge(1)
-evaluate(l::hinge,u::Float64,a::Number) = l.scale*max(1-a*u,0)
-grad(l::hinge,u::Float64,a::Number) = hinge_grad(l.scale,u,a)
-hinge_grad(scale,u::Float64,a::Number) = a*u>=1 ? 0 : -a*scale
-hinge_grad(scale,u::Float64,a::Bool) = (2*a-1)*u>=1 ? 0 : -(2*a-1)*scale
-
 ## logistic
 type logistic<:Loss
     scale::Float64
@@ -100,6 +90,44 @@ function evaluate(l::ordinal_hinge,u::Float64,a::Number)
     end    
 end
 
+## periodic
+# f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
+# this measures how far away u and a are on a circle of circumference T. 
+type periodic<:Loss
+    scale::Float64
+    T::Integer # the length of the period
+end
+periodic(T; scale=1) = periodic(T, scale)
+evaluate(l::periodic, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
+grad(l::periodic, u::Float64, a::Number) = l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)    
+
+## weighted hinge
+# f(u,a) = {     w * max(0, u) for a = -1
+#        = { c * w * max(0,-u) for a =  1
+type weighted_hinge<:Loss
+    case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
+    scale::Float64
+end
+weighted_hinge(;case_weight_ratio=1, scale=1) = weighted_hinge(case_weight_ratio, scale)
+hinge(;scale=1) = weighted_hinge(scale=scale) # the standard hinge is a case of this
+function evaluate(l::weighted_hinge, u::Float64, a::Number)
+    loss = l.scale*max(1+a*u, 0)
+    if a>0 # if for whatever reason someone doesn't use properly coded variables...
+        loss *= l.case_weight_ratio
+    end
+    return loss
+end
+evaluate(l::weighted_hinge, u::Float64, a::Bool) = evaluate(l, u, 2*a-1)
+function grad(l::weighted_hinge, u::Float64, a::Number)
+    g = (a*u>=1 ? 0 : -a*l.scale)
+    if a>0
+        g *= l.case_weight_ratio
+    end
+    return g
+end
+grad(l::weighted_hinge, u::Float64, a::Bool) = grad(l, u, 2*a-1)
+
+
 # Useful functions for computing scalings
 ## minimum_offset (average error of l (a, offset))
 function avgerror(a::AbstractArray, l::quadratic)
@@ -117,16 +145,31 @@ function avgerror(a::AbstractArray, l::ordinal_hinge)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
-function avgerror(a::AbstractArray, l::hinge)
-    m = median(a)
-    sum(map(ai->evaluate(l,m,ai),a))/length(a)
-end
-
 function avgerror(a::AbstractArray, l::huber)
     # XXX this is not quite right --- mean is not necessarily the minimizer
     m = mean(a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
+
+function avgerror(a::AbstractArray, l::periodic)
+    m = (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2# not kidding. 
+    # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
+    # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
+    sum(map(ai->evaluate(l,m,ai),a))/length(a)
+end
+
+function avgerror(a::AbstractArray, l::weighted_hinge)
+    r = length(a)/length(filter(x->x>0, a)) - 1 
+    if l.case_weight_ratio > r
+        m = 1.0
+    elseif l.case_weight_ratio == r
+        m = 0.0
+    else
+        m = -1.0
+    end
+    sum(map(ai->evaluate(l,m,ai),a))/length(a)
+end
+avgerror(a::AbstractArray{Bool,1}, l::weighted_hinge) = avgerror(2*a-1, l)
 
 # regularizers
 # regularizers r should have the method `prox` defined such that 
@@ -153,7 +196,7 @@ type onereg<:Regularizer
     scale::Float64
 end
 onereg() = onereg(1)
-prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-as,0) + min(u+as,0)
+prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## no regularization

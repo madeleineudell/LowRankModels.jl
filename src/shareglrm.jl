@@ -20,10 +20,18 @@ type GLRM
     observed_examples
     losses::Array{Loss,1}
     rx::Regularizer
-    ry::Regularizer
+    ry::Array{Regularizer,1}
     k::Int64
     X::AbstractArray # k x n
     Y::AbstractArray # k x m
+end
+# default initializations for obs, X, Y, regularizing every column equally
+function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y)
+    rys = Regularizer[typeof(ry)() for i=1:length(losses)]
+    for iry in rys
+        scale!(iry, scale(ry))
+    end
+    return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
 end
 # default initializations for obs, X, and Y
 GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
@@ -52,7 +60,7 @@ function objective(glrm::GLRM,X::Array,Y::Array,Z=nothing; include_regularizatio
             err += evaluate(glrm.rx,view(X,:,i))
         end
         for j=1:n
-            err += evaluate(glrm.ry,view(Y,:,j))
+            err += evaluate(glrm.ry[j], view(Y,:,j)::AbstractArray)
         end
     end
     return err
@@ -141,10 +149,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         axpy! = Base.BLAS.axpy!
         gemm! = Base.BLAS.gemm!
         prox! = LowRankModels.prox!
-        
-        # I'm not sure why I need to import the above functions but not these two...
-        #localcols = LowRankModels.localcols
-        #grad = LowRankModels.grad
+        localcols = LowRankModels.localcols
+        grad = LowRankModels.grad
+        evaluate = LowRankModels.evaluate
 
         # cache views and local columns
         m,n = size(A)
@@ -203,7 +210,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 scale!(g, -alpha[1]/l)
                 axpy!(1,g,vf[f])
                 ## prox step: X[e,:] = prox(g)
-                prox!(ry,vf[f],alpha[1]/l)
+                prox!(ry[f],vf[f],alpha[1]/l)
             end
         end
         # evaluate objective 
@@ -221,7 +228,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 err += evaluate(rx,ve[e])
             end
             for f=ylcols
-                err += evaluate(ry,vf[f])
+                err += evaluate(ry[f],vf[f]::AbstractArray)
             end
             obj[1] = obj[1] + err
         end
