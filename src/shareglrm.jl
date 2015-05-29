@@ -160,6 +160,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         xlcols = localcols(X)
         ylcols = localcols(Y)
         XY_x = Array(Float64,(length(xlcols), n))
+        gemm!('T','N', 1.0, X[:,xlcols], Y.s, 0.0, XY_x) # initialize this for the first iteration
         XY_y = Array(Float64,(m, length(ylcols)))
 
         # initialize gradient
@@ -179,7 +180,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         @everywhere begin
             # X update
             # XY_x = X[:,xcols]' * Y  (rows of the approximation matrix that this processor is in charge of)
-            gemm!('T','N', 1.0, X[:,xlcols], Y.s, 0.0, XY_x) 
+            # this is computed before the first iteration and subsequently in the objective evaluation
             for e=xlcols
                 scale!(g, 0)  # reset gradient to 0
                 # compute gradient of L with respect to Xᵢ as follows:
@@ -227,7 +228,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             err = 0
             for e=xlcols
                 for f in of[e]
-                    err += evaluate(losses[f], XY[e-xlcols[1]+1,f], A[e,f])
+                    err += evaluate(losses[f], XY_x[e-xlcols[1]+1,f], A[e,f])
                 end
             end
             # add regularization penalty
