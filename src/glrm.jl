@@ -116,7 +116,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     g = zeros(k)
 
     # cache views
-    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,:,e) for e=1:m]
+    ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
     vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
 
     for i=1:params.max_iter
