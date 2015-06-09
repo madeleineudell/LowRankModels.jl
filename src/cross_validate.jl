@@ -22,11 +22,13 @@ function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, us
     	ntest = sum(map(length, test_observed_features))
 	    if verbose println("training model on $ntrain samples and testing on $ntest") end
         # form glrm on training dataset 
-        train_glrms[ifold] = GLRM(glrm.A, train_observed_features, train_observed_examples, 
-                              glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
+        train_glrms[ifold] = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+                                  train_observed_features, train_observed_examples, 
+                                  copy(glrm.X), copy(glrm.Y))
         # form glrm on testing dataset
-        test_glrms[ifold] = GLRM(glrm.A, test_observed_features, test_observed_examples, 
-                              glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
+        test_glrms[ifold] = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+                                  test_observed_features, test_observed_examples, 
+                                  copy(glrm.X), copy(glrm.Y))
         # evaluate train and test error
         if verbose println("fitting train GLRM for fold $ifold") end
         X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=false)
@@ -109,11 +111,13 @@ function cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01
     
     if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
-    train_glrm = GLRM(glrm.A, train_observed_features, train_observed_examples, 
-                          glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
+    train_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+                                  train_observed_features, train_observed_examples, 
+                                  copy(glrm.X), copy(glrm.Y))
     # form glrm on testing dataset
-    test_glrm = GLRM(glrm.A, test_observed_features, test_observed_examples, 
-                          glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
+    test_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+                                  test_observed_features, test_observed_examples, 
+                                  copy(glrm.X), copy(glrm.Y))
 
     train_error = Array(Float64, niters)
     test_error = Array(Float64, niters)
@@ -142,11 +146,13 @@ function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,
     
     if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
-    train_glrm = GLRM(glrm.A, train_observed_features, train_observed_examples, 
-                          glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
+    train_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+                                  train_observed_features, train_observed_examples, 
+                                  copy(glrm.X), copy(glrm.Y))
     # form glrm on testing dataset
-    test_glrm = GLRM(glrm.A, test_observed_features, test_observed_examples, 
-                          glrm.losses, glrm.rx, glrm.ry, glrm.k, copy(glrm.X), copy(glrm.Y))
+    test_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+                                  test_observed_features, test_observed_examples, 
+                                  copy(glrm.X), copy(glrm.Y))
 
     return regularization_path(train_glrm, test_glrm; params=params, reg_params=reg_params, 
                                          verbose=verbose,

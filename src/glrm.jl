@@ -1,46 +1,117 @@
 import Base: size, axpy!
 import Base.LinAlg.scale!
+import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 
 export GLRM, objective, Params, getindex, display, size, fit!, fit
 
+### GLRM TYPE
 type GLRM
-    A
-    observed_features
-    observed_examples
+    A::Array{Float64,2} # necessary args
     losses::Array{Loss,1}
     rx::Regularizer
     ry::Array{Regularizer,1}
-    k::Int64
-    X::Array{Float64,2}
+    k::Int64 
+    observed_features::Union(Array{Array{Int32,1},1}, Array{UnitRange{Int64},1}) # extra args
+    observed_examples::Union(Array{Array{Int32,1},1}, Array{UnitRange{Int64},1})
+    X::Array{Float64,2} # transposed. i.e. A ≈ X'Y, not XY. This will confuse users, but is critical to optimization
     Y::Array{Float64,2}
 end
-# default initializations for obs, X, Y, regularizing every column equally
-function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y)
-    rys = Regularizer[typeof(ry)() for i=1:length(losses)]
-    for iry in rys
-        scale!(iry, scale(ry))
+function GLRM(A, losses, rx, ry, k; 
+			  obs = nothing, 
+			  X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
+			  offset = true, scale = true)
+	if typeof(ry)<:Regularizer
+		println("single reg given, converting")
+		ry = fill(ry, size(losses))
+	end
+	if size(X) != (k, size(A,1)) # check to make sure X is properly oriented
+		println("transposing X")
+		X = X'
+	end
+    if obs==nothing # if no specified observations, use them all
+    	println("no obs given, using all")
+    	m,n = size(A)
+    	glrm = GLRM(A,losses,rx,ry,k, fill(1:n,m),fill(1:m,n),X,Y)
+	else # otherwise unpack the tuple list into an array
+		println("unpacking obs into array")
+		glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)...,X,Y)
+	end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY
+	# scale losses (and regularizers) so they all have equal variance
+    if scale
+        equilibrate_variance!(glrm)
     end
-    return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
+    # don't penalize the offset of the columns
+    if offset
+        add_offset!(glrm)
+    end
+    return glrm
 end
-GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
-    GLRM(A,observed_features,observed_examples,losses,rx,ry,k,randn(k,size(A,1)),randn(k,size(A,2)))
-GLRM(A,obs,losses,rx,ry,k,X,Y) = 
-    GLRM(A,sort_observations(obs,size(A)...)...,losses,rx,ry,k,X,Y)
-GLRM(A,obs,losses,rx,ry,k) = 
-    GLRM(A,obs,losses,rx,ry,k,randn(k,size(A,1)),randn(k,size(A,2)))
-function GLRM(A,losses,rx,ry,k)
-    m,n = size(A)
-    return GLRM(A,fill(1:n, m),fill(1:m, n),losses,rx,ry,k)
-end 
-function objective(glrm::GLRM,X,Y,Z=nothing; include_regularization=true)
+# function GLRM(A, losses, rx, ry::Regularizer, k; 
+# 			  obs = nothing, 
+# 			  X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
+# 			  offset = true, scale = true) 
+# 	println("single reg given, converting")
+# 	rys = Regularizer[typeof(ry)() for i=1:length(losses)]
+# 	for iry in rys
+#     	scale!(iry, scale(ry))
+# 	end
+# 	return GLRM(A, losses, rx, rys, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
+# end
+
+### OBSERVATION TUPLES TO ARRAYS
+function sort_observations(obs,m,n; check_empty=false)
+    observed_features = Array{Int32,1}[Int32[] for i=1:m]
+    observed_examples = Array{Int32,1}[Int32[] for j=1:n]
+    for (i,j) in obs
+        push!(observed_features[i],j)
+        push!(observed_examples[j],i)
+    end
+    if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
+            any(map(x->length(x)==0,observed_features)))
+        error("Every row and column must contain at least one observation")
+    end
+    return observed_features, observed_examples
+end
+
+## SCALINGS AND OFFSETS ON GLRM
+function add_offset!(glrm::GLRM)
+    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
+    return glrm
+end
+function equilibrate_variance!(glrm::GLRM)
+    for i=1:size(glrm.A,2)
+        nomissing = glrm.A[glrm.observed_examples[i],i]
+        if length(nomissing)>0
+            varlossi = avgerror(nomissing, glrm.losses[i])
+            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
+        else
+            varlossi = 1
+            varregi = 1
+        end
+        if varlossi > 0
+            # rescale the losses and regularizers for each column by the inverse of the empirical variance
+            scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
+        end
+        if varregi > 0
+            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
+        end
+    end
+    return glrm
+end
+
+### OBJECTIVE FUNCTION EVALUATION
+function objective(glrm::GLRM, X, Y, XY=nothing; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     # compute value of loss function
-    if Z==nothing Z = X'*Y end
+    if XY == nothing # if the user is calling this independent of the optimization,
+    	XY = Array(Float64, (m,n))	# we need to compute XY for her
+    	gemm!('T','N',1.0,X,Y,0.0,XY) 
+    end
     for i=1:m
         for j in glrm.observed_features[i]
-            err += evaluate(glrm.losses[j], Z[i,j], glrm.A[i,j])
+            err += evaluate(glrm.losses[j], XY[i,j], glrm.A[i,j])
         end
     end
     # add regularization penalty
@@ -57,34 +128,22 @@ end
 objective(glrm::GLRM, args...; kwargs...) = 
     objective(glrm, glrm.X, glrm.Y, args...; kwargs...)
 
+### PARAMETERS TYPE
 type Params
     stepsize # stepsize
     max_iter # maximum number of iterations
     convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
     min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
 end
-Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,.01*stepsize)
-Params() = Params(1,100,.00001,.01)
-
-function sort_observations(obs,m,n; check_empty=false)
-    observed_features = Array{Int32,1}[Int32[] for i=1:m]
-    observed_examples = Array{Int32,1}[Int32[] for j=1:n]
-    for (i,j) in obs
-        push!(observed_features[i],j)
-        push!(observed_examples[j],i)
-    end
-    if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
-            any(map(x->length(x)==0,observed_features)))
-        error("Every row and column must contain at least one observation")
-    end
-    return observed_features, observed_examples
+function Params(stepsize=1; max_iter=100, convergence_tol=0.00001, min_stepsize=0.01*stepsize) 
+	return Params(stepsize, max_iter, convergence_tol, min_stepsize)
 end
 
+### FITTING
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
 	
 	### initialization
-	A = glrm.A
-	m,n = size(A)
+	A = glrm.A # rename these for easier local access
 	losses = glrm.losses
 	rx = glrm.rx
 	ry = glrm.ry
@@ -93,10 +152,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 	X = copy(glrm.X); Y = copy(glrm.Y)
 	k = glrm.k
 
-    # make sure that we've oriented X to optimize for the column-major order standard
-    if size(glrm.Y,1)!==size(glrm.X,1)
-        glrm.X = glrm.X'
-    end
+	m,n = size(A)
+	XY = Array(Float64, (m, n))
+	gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(Y) == 0 
@@ -116,12 +174,12 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     g = zeros(k)
 
     # cache views
-    ve = StridedView{Float64,2,0,Array{Float64,2}}[view(X,:,e) for e=1:m]
+    ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
     vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
 
     for i=1:params.max_iter
-        # X update
-        XY = X'*Y
+# STEP 1: X update
+        # XY = X' * Y this is computed before the first iteration and subsequently in the objective evaluation
         for e=1:m
             scale!(g, 0)# reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
@@ -139,8 +197,8 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
             prox!(rx,ve[e],alpha/l)
         end
-        # Y update
-        XY = X'*Y
+        gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new X
+# STEP 2: Y update
         for f=1:n
             scale!(g, 0) # reset gradient to 0
             # compute gradient of L with respect to Yⱼ as follows:
@@ -158,7 +216,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
             prox!(ry[f],vf[f],alpha/l)
         end
-        obj = objective(glrm,X,Y)
+        gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new Y
+# STEP 3: Check objective
+        obj = objective(glrm, X, Y, XY) 
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
@@ -173,8 +233,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             if verbose println("obj went up to $obj; reducing step size to $alpha") end
             copy!(X, glrm.X); copy!(Y, glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
+            gemm!('T','N',1.0,X,Y,0.0,XY) # Revert back to the old XY (previous best)
         end
-        # check stopping criterion
+# 	STEP 4: Check stopping criterion
         if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
             break
         end
@@ -185,7 +246,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     t = time() - t
     update!(ch, t, ch.objective[end])
 
-    return glrm.X', glrm.Y, ch
+    return glrm.X, glrm.Y, ch
 end
 
 function fit(glrm::GLRM, args...; kwargs...)

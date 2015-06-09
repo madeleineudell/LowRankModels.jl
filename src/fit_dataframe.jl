@@ -1,10 +1,31 @@
-#module FitDataFrame
-
 import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert
 
 export GLRM, observations, expand_categoricals, add_offset!, equilibrate_variance!
 
 max_ordinal_levels = 9
+
+function GLRM(df::DataFrame, k::Integer;
+              losses = None, rx = quadreg(.01), ry = quadreg(.01),
+              X = randn(k,size(A,1)), Y = randn(k,size(A,2)))
+    # identify ordinal, boolean and real columns
+    if losses == None
+        reals, real_losses = get_reals(df)
+        bools, bool_losses = get_bools(df)
+        ordinals, ordinal_losses = get_ordinals(df)
+
+        A = [df[reals] df[bools] df[ordinals]]
+        labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
+        losses = [real_losses, bool_losses, ordinal_losses]
+    else
+        # otherwise one loss function per column
+    A = df
+        ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
+    end
+    # identify which entries in data frame have been observed (ie are not N/A) and form model
+    glrm = GLRM(df2array(A), losses, rx, ry, k, obs=observations(A), X=X, Y=Y)
+    # return model
+    return glrm, labels
+end
 
 function df2array(df::DataFrame, z::Number)
     A = zeros(size(df))
@@ -92,68 +113,3 @@ function expand_categoricals(df::DataFrame,categoricals::Array)
     # remove the original categorical columns
     return df[:, filter(x->(!(x in categoricals)), names(df))]
 end
-
-# scalings and offsets
-function add_offset!(glrm::GLRM)
-    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
-    return glrm
-end
-function equilibrate_variance!(glrm::GLRM)
-    for i=1:size(glrm.A,2)
-        nomissing = glrm.A[glrm.observed_examples[i],i]
-        if length(nomissing)>0
-            varlossi = avgerror(nomissing, glrm.losses[i])
-            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
-        else
-            varlossi = 1
-            varregi = 1
-        end
-        if varlossi > 0
-            # rescale the losses and regularizers for each column by the inverse of the empirical variance
-            scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
-        end
-        if varregi > 0
-            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
-        end
-    end
-    return glrm
-end
-
-function GLRM(df::DataFrame, k::Integer;
-              losses = None, rx = quadreg(.01), ry = quadreg(.01),
-              offset = true, scale = true)
-    # identify ordinal, boolean and real columns
-    if losses == None
-        reals, real_losses = get_reals(df)
-        bools, bool_losses = get_bools(df)
-        ordinals, ordinal_losses = get_ordinals(df)
-
-        A = [df[reals] df[bools] df[ordinals]]
-        labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
-        losses = [real_losses, bool_losses, ordinal_losses]
-    else
-        # otherwise one loss function per column
-	A = df
-        ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
-    end
-
-    # identify which entries in data frame have been observed (ie are not N/A) and form model
-    obs = observations(A)
-    glrm = GLRM(df2array(A), obs, losses, rx, ry, k)
-    
-    # scale losses (and regularizers) so they all have equal variance
-    if scale
-        equilibrate_variance!(glrm)
-    end
-    # don't penalize the offset of the columns
-    if offset
-        add_offset!(glrm)
-    end
-
-    # return model
-    return glrm, labels
-end
-# this replaces all NAs with zeros --- deprecated
-# GLRM(df::DataFrame,args...) = GLRM(df2array(df,0),args...)
-
-#end

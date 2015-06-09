@@ -20,6 +20,8 @@ abstract Loss
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 
+
+#TODO: standardize the interfaces to all of these constructors and write up a guide 
 ## quadratic
 type quadratic<:Loss
     scale::Float64

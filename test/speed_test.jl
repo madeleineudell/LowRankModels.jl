@@ -11,7 +11,7 @@ function fit_pca_nucnorm_sparse_nonuniform(m,n,k,s)
 	obsx = [sample(1:int(m/4),int(s/2)), sample(int(m/4)+1:m,s-int(s/2))] 
 	obsy = sample(1:n,s)
 	obs = [(obsx[i],obsy[i]) for i=1:s]
-	glrm = GLRM(A,obs,losses,r,r,k)
+	glrm = GLRM(A,losses,r,r,k, obs=obs)
 	X,Y,ch = fit!(glrm)	
 	return A,X,Y,ch
 end
@@ -21,4 +21,3 @@ nobs = 50000
 @time A,X,Y,ch = fit_pca_nucnorm_sparse_nonuniform(n,n,5,nobs);
 println(ch.objective)
 println(length(ch.objective))
-
