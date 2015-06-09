@@ -14,7 +14,7 @@ type GLRM
     k::Int64 
     observed_features::Union(Array{Array{Int32,1},1}, Array{UnitRange{Int64},1}) # extra args
     observed_examples::Union(Array{Array{Int32,1},1}, Array{UnitRange{Int64},1})
-    X::Array{Float64,2} # transposed. i.e. A ≈ X'Y, not XY. This will confuse users, but is critical to optimization
+    X::Array{Float64,2} # transposed. i.e. A ≈ X'Y, not XY. This will confuse users, but is important for optimization
     Y::Array{Float64,2}
 end
 function GLRM(A, losses, rx, ry, k; 
@@ -36,7 +36,7 @@ function GLRM(A, losses, rx, ry, k;
 	else # otherwise unpack the tuple list into an array
 		println("unpacking obs into array")
 		glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)...,X,Y)
-	end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY
+	end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY, BUT WHY WOULD YOU DO THAT?
 	# scale losses (and regularizers) so they all have equal variance
     if scale
         equilibrate_variance!(glrm)
@@ -47,17 +47,6 @@ function GLRM(A, losses, rx, ry, k;
     end
     return glrm
 end
-# function GLRM(A, losses, rx, ry::Regularizer, k; 
-# 			  obs = nothing, 
-# 			  X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
-# 			  offset = true, scale = true) 
-# 	println("single reg given, converting")
-# 	rys = Regularizer[typeof(ry)() for i=1:length(losses)]
-# 	for iry in rys
-#     	scale!(iry, scale(ry))
-# 	end
-# 	return GLRM(A, losses, rx, rys, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
-# end
 
 ### OBSERVATION TUPLES TO ARRAYS
 function sort_observations(obs,m,n; check_empty=false)
