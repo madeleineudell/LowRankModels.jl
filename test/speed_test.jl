@@ -21,3 +21,5 @@ nobs = 50000
 @time A,X,Y,ch = fit_pca_nucnorm_sparse_nonuniform(n,n,5,nobs);
 println(ch.objective)
 println(length(ch.objective))
+
+

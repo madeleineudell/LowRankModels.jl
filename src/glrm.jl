@@ -18,25 +18,25 @@ type GLRM
     Y::Array{Float64,2}
 end
 function GLRM(A, losses, rx, ry, k; 
-			  obs = nothing, 
 			  X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
-			  offset = true, scale = true)
-	if typeof(ry)<:Regularizer
-		println("single reg given, converting")
-		ry = fill(ry, size(losses))
-	end
-	if size(X) != (k, size(A,1)) # check to make sure X is properly oriented
-		println("transposing X")
-		X = X'
-	end
+			  obs = nothing, offset = true, scale = true)
+	# if isa(ry, Regularizer)
+	# 	# println("single reg given, converting")
+	# 	ry = fill(ry, size(losses))
+	# end
     if obs==nothing # if no specified observations, use them all
-    	println("no obs given, using all")
+    	# println("no obs given, using all")
     	m,n = size(A)
     	glrm = GLRM(A,losses,rx,ry,k, fill(1:n,m),fill(1:m,n),X,Y)
 	else # otherwise unpack the tuple list into an array
-		println("unpacking obs into array")
+		# println("unpacking obs into array")
 		glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)...,X,Y)
 	end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY, BUT WHY WOULD YOU DO THAT?
+	# check to make sure X is properly oriented
+	if size(glrm.X) != (k, size(A,1)) 
+		# println("transposing X")
+		glrm.X = glrm.X'
+	end
 	# scale losses (and regularizers) so they all have equal variance
     if scale
         equilibrate_variance!(glrm)
@@ -47,6 +47,8 @@ function GLRM(A, losses, rx, ry, k;
     end
     return glrm
 end
+GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry,size(losses)), k; kwargs...)
+
 
 ### OBSERVATION TUPLES TO ARRAYS
 function sort_observations(obs,m,n; check_empty=false)
@@ -98,18 +100,18 @@ function objective(glrm::GLRM, X, Y, XY=nothing; include_regularization=true)
     	XY = Array(Float64, (m,n))	# we need to compute XY for her
     	gemm!('T','N',1.0,X,Y,0.0,XY) 
     end
-    for i=1:m
-        for j in glrm.observed_features[i]
+    for j=1:n
+        for i in glrm.observed_examples[j]
             err += evaluate(glrm.losses[j], XY[i,j], glrm.A[i,j])
         end
     end
     # add regularization penalty
     if include_regularization
         for i=1:m
-            err += evaluate(glrm.rx,view(X,:,i))
+            err += evaluate(glrm.rx, view(X,:,i))
         end
         for j=1:n
-            err += evaluate(glrm.ry[j],view(Y,:,j))
+            err += evaluate(glrm.ry[j], view(Y,:,j))
         end
     end
     return err
@@ -169,7 +171,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     for i=1:params.max_iter
 # STEP 1: X update
         # XY = X' * Y this is computed before the first iteration and subsequently in the objective evaluation
-        for e=1:m
+        for e=1:m # doing this means looping over XY in row-major order, but otherwise we couldn't parallelize over Xᵢs
             scale!(g, 0)# reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
@@ -179,7 +181,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
-            l = length(glrm.observed_features[e]) + 1
+            l = length(glrm.observed_examples[f]) + 1
             scale!(g, -alpha/l)
             ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
             axpy!(1,g,ve[e])

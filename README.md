@@ -17,7 +17,7 @@ In particular, it supports
 * using different loss functions for different columns of the data array, 
   which is useful when data types are heterogeneous 
   (eg, real, boolean, and ordinal columns);
-* fitting the model to only *some* of the entries in the talbe, which is useful for data tables with many missing (unobserved) entries; and
+* fitting the model to only *some* of the entries in the table, which is useful for data tables with many missing (unobserved) entries; and
 * adding offsets and scalings to the model without destroying sparsity,
   which is useful when the data is poorly scaled.
 
@@ -47,13 +47,18 @@ The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
 * the data `A`
-* the observed entries `obs`
 * the array of loss functions `losses`
 * the regularizers `rx` and `ry`
 * the rank `k`
 
+The user may also specify
+
+* the observed entries `obs`
+* starting matrices X₀ and Y₀
+
 `obs` is a list of tuples of the indices of the observed entries in the matrix,
-and may be omitted if all the entries in the matrix have been observed.
+and may be omitted if all the entries in the matrix have been observed. `X₀` and `Y₀` are initialization
+matrices that represent a starting guess for the optimization.
 
 Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
 and may be chosen from a list of supported losses and regularizers, which include
@@ -103,10 +108,10 @@ below for more information.)
 # Missing data
 
 If not all entries are present in your data table, just tell the GLRM
-which observations to fit the model to by listing their indices in `obs`.
+which observations to fit the model to by listing tuples of their indices in `obs`.
 Then initialize the model using
 
-    GLRM(A,obs,losses,rt,r,k)
+    GLRM(A,losses,rx,ry,k, obs=obs)
 
 If `A` is a DataFrame and you just want the model to ignore 
 any entry that is of type `NA`, you can use
@@ -115,10 +120,13 @@ any entry that is of type `NA`, you can use
 
 # Scaling and offsets
 
-LowRankModels.jl is capable of adding offsets to your model, and of scaling the loss 
+By default, LowRankModels.jl adds proper offsets to your model scales the loss 
 functions and regularizers so all columns have the same pull in the model.
 (For more about what these functions do, see the code or the paper.)
-Starting with some low rank model `glrm = GLRM(A,losses,rt,r,k)`,
+To change this behavior, you can call `glrm = GLRM(A,losses,rx,ry,k, offset=false, scale=false)`.
+
+If you change your mind after creating the GLRM, you can also add offsets and scalings 
+to previously unscaled models:
 
 * Add an offset to the model (by applying no regularization to the last row 
   of the matrix `Y`, and enforcing that the last column of `X` be all 1s) using
