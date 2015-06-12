@@ -179,7 +179,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     for i=1:params.max_iter
         @everywhere begin
             # X update
-            # XY_x = X[:,xcols]' * Y  (rows of the approximation matrix that this processor is in charge of)
+#            XY_x = X[:,xlcols]' * Y  #(rows of the approximation matrix that this processor is in charge of)
             # this is computed before the first iteration and subsequently in the objective evaluation
             for e=xlcols
                 scale!(g, 0)  # reset gradient to 0
@@ -188,7 +188,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 for f in of[e]
                     # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                     # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is the our grad() function
-                	axpy!(grad(losses[f], XY_x[e-xlcols[1]+1,f], A[e,f]), vf[f], g)
+                    axpy!(grad(losses[f], XY_x[e-xlcols[1]+1,f], A[e,f]), vf[f], g)
                 end
                 # take a proximal gradient step
                 l = length(of[e]) + 1
@@ -240,9 +240,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             end
             obj[1] = obj[1] + err
         end
-        #obj[1] = objective(glrm,X,Y)
+        # obj[1] = objective(glrm,X,Y)
         # make sure parallel obj eval is the same as local (it is)
-        # println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
+        println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
         # record the best X and Y yet found
         if obj[1] < ch.objective[end]
             t = time() - t
@@ -261,7 +261,8 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             t = time()
         else
             # if the objective went up, reduce the step size, and undo the step
-            alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row)) # another sketchy constant?
+            alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row)) # another sketchy constant
+            println("objective went up to $(obj[1]); changing step size to $(alpha[1])")
             @everywhere begin
                 @inbounds for i in localindexes(X)
                     X[i] = glrm.X[i]
@@ -270,6 +271,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                     Y[i] = glrm.Y[i]
                 end
             end
+            @everywhere begin
+                gemm!('T','N', 1.0, glrm.X[:,xlcols], glrm.Y.s, 0.0, XY_x) # reset XY to previous best
+            end
+            # X[:], Y[:] = copy(glrm.X), copy(glrm.Y)
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
