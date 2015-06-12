@@ -181,7 +181,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
-            l = length(glrm.observed_examples[f]) + 1
+            l = length(glrm.observed_features[e]) + 1
             scale!(g, -alpha/l)
             ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
             axpy!(1,g,ve[e])
@@ -226,7 +226,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             steps_in_a_row = min(0, steps_in_a_row-1)
             gemm!('T','N',1.0,X,Y,0.0,XY) # Revert back to the old XY (previous best)
         end
-# 	STEP 4: Check stopping criterion
+# STEP 4: Check stopping criterion
         if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
             break
         end
