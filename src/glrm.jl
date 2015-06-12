@@ -18,26 +18,26 @@ type GLRM
     Y::Array{Float64,2}
 end
 function GLRM(A, losses, rx, ry, k; 
-			  X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
-			  obs = nothing, offset = true, scale = true)
-	# if isa(ry, Regularizer)
-	# 	# println("single reg given, converting")
-	# 	ry = fill(ry, size(losses))
-	# end
+              X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
+              obs = nothing, offset = true, scale = true)
+    # if isa(ry, Regularizer)
+    # 	# println("single reg given, converting")
+        # 	ry = fill(ry, size(losses))
+    # end
     if obs==nothing # if no specified observations, use them all
-    	# println("no obs given, using all")
-    	m,n = size(A)
-    	glrm = GLRM(A,losses,rx,ry,k, fill(1:n,m),fill(1:m,n),X,Y)
-	else # otherwise unpack the tuple list into an array
-		# println("unpacking obs into array")
-		glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)...,X,Y)
-	end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY, BUT WHY WOULD YOU DO THAT?
-	# check to make sure X is properly oriented
-	if size(glrm.X) != (k, size(A,1)) 
-		# println("transposing X")
-		glrm.X = glrm.X'
-	end
-	# scale losses (and regularizers) so they all have equal variance
+        # println("no obs given, using all")
+        m,n = size(A)
+        glrm = GLRM(A,losses,rx,ry,k, fill(1:n,m),fill(1:m,n),X,Y)
+    else # otherwise unpack the tuple list into an array
+        # println("unpacking obs into array")
+        glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)...,X,Y)
+    end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY, BUT WHY WOULD YOU DO THAT?
+    # check to make sure X is properly oriented
+    if size(glrm.X) != (k, size(A,1)) 
+        # println("transposing X")
+        glrm.X = glrm.X'
+    end
+    # scale losses (and regularizers) so they all have equal variance
     if scale
         equilibrate_variance!(glrm)
     end
@@ -178,7 +178,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is our grad() function
-            	axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
+                axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
