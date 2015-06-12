@@ -36,10 +36,10 @@
 
 import Base.scale! 
 import Optim.optimize
-export Loss, # abstract types
+export Loss, # abstract type
        quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
-       evaluate, grad, M_estimator, error_metric, impute, avgerror # methods on losses
-       scale, scale!
+       evaluate, grad, M_estimator, error_metric, impute, # methods on losses
+       avgerror, scale, scale!
 
 abstract Loss
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)

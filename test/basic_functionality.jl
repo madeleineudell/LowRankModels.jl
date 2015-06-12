@@ -2,7 +2,6 @@ using LowRankModels
 
 function BASIC_FUNCTIONALITY_QUAD()
 # tests basic functionality of glrm.jl
-	using LowRankModels
 	srand(1);
 	m,n,k,s = 1000,1000,5,1000*1000;
 	# matrix to encode
@@ -17,3 +16,4 @@ function BASIC_FUNCTIONALITY_QUAD()
 	Ah = X'*Y;
 	p.convergence_tol > abs(vecnorm(A-Ah)^2 - ch.objective[end])
 end
+
