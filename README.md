@@ -206,6 +206,24 @@ By default, the parameters are set to use a step size of 1, a maximum of 100 ite
 `ch.objective` stores the objective values, and `ch.times` captures the times these objective values were achieved.
 Try plotting this to see if you just need to increase `max_iter` to converge to a better model.
 
+# Cross validation
+
+A number of useful functions are available to help you check whether a given low rank model overfits to the test data set. 
+These functions should help you choose adequate regularization for your model.
+
+## Cross validation
+
+* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds `use_folds` new GLRMs, each with one group of observations left out. (`use_folds` defaults to `nfolds`.) Trains each GLRM and returns the average loss.
+* `cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)`: computes the test error and train error of the GLRM as it is trained. Splits the observations into a training set (`1-holdout_proportion` of the original observations) and a test set (`holdout_proportion` of the original observations). Performs `params.maxiter` iterations of the fitting algorithm on the training set `niters` times, and returns the test and train error as a function of iteration. 
+
+## Regularization paths
+
+* `regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), holdout_proportion=.1, verbose=true, ch::ConvergenceHistory=ConvergenceHistory("reg_path"))`: computes the train and test error for GLRMs varying the scaling of the regularization through any scaling factor in the array `reg_params`.
+
+## Utilities
+
+* `get_train_and_test(obs, m, n, holdout_proportion=.1)`: splits observations `obs` into a train and test set. `m` and `n` must be at least as large as the maximal value of the first or second elements of the tuples in `observations`, respectively. Returns `observed_features` and `observed_examples` for both train and test sets.
+
 # Citing this package
 
 If you use LowRankModels for published work, 
