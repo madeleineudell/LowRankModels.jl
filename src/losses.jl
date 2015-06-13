@@ -11,7 +11,7 @@
 #   Methods:
 #     `my_loss_type(args..., scale=1::Float64; kwargs...) ::my_loss_type`
 #           Constructor for the loss type. The first few arguments are parameters for 
-#           which there isn't a rational default (a loss may not have any of these).
+#           which there isn't a rational default (a loss may not need any of these).
 #           The last positional argument should be the scale, which should default to 1.
 #           Parameters besides the scale for which there are reasonable defaults should be
 #           included as keyword arguments (there may be none).
@@ -90,7 +90,7 @@ M_estimator(l::quadratic, a::AbstractArray) = mean(a)
 type l1<:Loss
     scale::Float64
 end
-l1(scale=1.0) = l1(scale)
+l1() = l1(1)
 
 evaluate(l::l1, u::Float64, a::Number) = l.scale*abs(u-a)
 
@@ -153,7 +153,7 @@ end
 type poisson<:Loss
     scale::Float64
 end
-poisson(scale=1.0) = poisson(scale)
+poisson() = poisson(1)
 
 evaluate(l::poisson, u::Float64, a::Number) = exp(u) - a*u + a*log(a) - a
 
@@ -166,26 +166,6 @@ end
 
 error_metric(l::poisson, u::Float64, a::Number) = misclassification(impute(l,u),a)
 
-########################################## LOGISTIC ##########################################
-# f: ℜx{1,0} -> ℜ
-type logistic<:Loss
-    scale::Float64
-end
-logistic(scale=1.0) = logistic(scale)
-
-evaluate(l::logistic, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
-
-grad(l::logistic, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
-
-function M_estimator(l::logistic, a::AbstractArray)
-    d, N = sum(a), length(N)
-    log(N + d) - log(N - d) # very satisfying
-end
-
-impute(l::logistic, u::Float64) = u>=0 ? -1.0 : 1.0
-
-error_metric(l::logistic, u::Float64, a::Number) = misclassification(impute(l,u),a)
-
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
 type ordinal_hinge<:Loss
@@ -193,7 +173,7 @@ type ordinal_hinge<:Loss
     max::Integer
     scale::Float64
 end
-ordinal_hinge(m1,m2,scale=1.0) = ordinal_hinge(m1,m2,scale)
+ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
 
 function evaluate(l::ordinal_hinge, u::Float64, a::Number)
     if a == l.min 
@@ -221,8 +201,28 @@ error_metric(l::ordinal_hinge, u::Float64, a::Number) = misclassification(impute
 
 M_estimator(l::ordinal_hinge, a::AbstractArray) = median(a)
 
+########################################## LOGISTIC ##########################################
+# f: ℜx{-1,1}-> ℜ
+type logistic<:Loss
+    scale::Float64
+end
+logistic() = logistic(1)
+
+evaluate(l::logistic, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
+
+grad(l::logistic, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
+
+function M_estimator(l::logistic, a::AbstractArray)
+    d, N = sum(a), length(N)
+    log(N + d) - log(N - d) # very satisfying
+end
+
+impute(l::logistic, u::Float64) = u>=0 ? -1.0 : 1.0
+
+error_metric(l::logistic, u::Float64, a::Number) = misclassification(impute(l,u),a)
+
 ########################################## WEIGHTED HINGE ##########################################
-# f: ℜx{1,0} -> ℜ
+# f: ℜx{-1,1} -> ℜ
 # f(u,a) = {     w * max(0, u) for a = -1
 #        = { c * w * max(0,-u) for a =  1
 type weighted_hinge<:Loss
@@ -230,7 +230,7 @@ type weighted_hinge<:Loss
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
 end
 weighted_hinge(scale=1.0; case_weight_ratio=1.0) = weighted_hinge(scale, case_weight_ratio)
-hinge(scale=1.0) = weighted_hinge(scale) # the standard hinge is a case of this
+hinge(scale=1) = weighted_hinge(scale) # the standard hinge is a special case of weighted hinge
 
 function evaluate(l::weighted_hinge, u::Float64, a::Number)
     loss = l.scale*max(1-a*u, 0)

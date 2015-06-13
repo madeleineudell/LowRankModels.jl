@@ -5,44 +5,46 @@ import ArrayViews: view, StridedView, ContiguousView
 
 export GLRM, objective, Params, getindex, display, size, fit!, fit
 
+ObsArray = Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
+
 ### GLRM TYPE
 type GLRM
-    A::Array{Float64,2} # necessary args
-    losses::Array{Loss,1}
-    rx::Regularizer
-    ry::Array{Regularizer,1}
-    k::Int64 
-    observed_features::Union(Array{Array{Int32,1},1}, Array{UnitRange{Int64},1}) # extra args
-    observed_examples::Union(Array{Array{Int32,1},1}, Array{UnitRange{Int64},1})
-    X::Array{Float64,2} # transposed. i.e. A ≈ X'Y, not XY. This will confuse users, but is important for optimization
-    Y::Array{Float64,2}
+    A::Array{Float64,2}          # The data table transformed into a coded array 
+    losses::Array{Loss,1}        # array of loss functions
+    rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
+    ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
+    k::Int64                     # Desired rank 
+    observed_features::ObsArray  # for each example, an array telling which features were observed
+    observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
+    X::Array{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
+    Y::Array{Float64,2}          # Representation of features in low-rank space. A ≈ X'Y
 end
 function GLRM(A, losses, rx, ry, k; 
               X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
-              obs = nothing, offset = true, scale = true)
+              obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
+              observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
+              observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
+              offset = true, scale = true)
     # if isa(ry, Regularizer)
     # 	# println("single reg given, converting")
         # 	ry = fill(ry, size(losses))
     # end
-    if obs==nothing # if no specified observations, use them all
-        # println("no obs given, using all")
-        m,n = size(A)
-        glrm = GLRM(A,losses,rx,ry,k, fill(1:n,m),fill(1:m,n),X,Y)
-    else # otherwise unpack the tuple list into an array
+    if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
+        # println("no obs given, using observed_features and observed_examples")
+        glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
+    else # otherwise unpack the tuple list into arrays
         # println("unpacking obs into array")
-        glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)...,X,Y)
-    end # NOTE: THIS DOES NOT ALLOW CALLS WHERE `observed_features` AND `observed_examples` ARE GIVEN DIRECTLY, BUT WHY WOULD YOU DO THAT?
+        glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)..., X,Y)
+    end
     # check to make sure X is properly oriented
     if size(glrm.X) != (k, size(A,1)) 
         # println("transposing X")
         glrm.X = glrm.X'
     end
-    # scale losses (and regularizers) so they all have equal variance
-    if scale
+    if scale # scale losses (and regularizers) so they all have equal variance
         equilibrate_variance!(glrm)
     end
-    # don't penalize the offset of the columns
-    if offset
+    if offset # don't penalize the offset of the columns
         add_offset!(glrm)
     end
     return glrm
@@ -51,12 +53,12 @@ GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry
 
 
 ### OBSERVATION TUPLES TO ARRAYS
-function sort_observations(obs,m,n; check_empty=false)
+function sort_observations(obs::Array{(Int,Int),1}, m::Int, n::Int; check_empty=false)
     observed_features = Array{Int32,1}[Int32[] for i=1:m]
     observed_examples = Array{Int32,1}[Int32[] for j=1:n]
     for (i,j) in obs
-        push!(observed_features[i],j)
-        push!(observed_examples[j],i)
+        @inbounds push!(observed_features[i],j)
+        @inbounds push!(observed_examples[j],i)
     end
     if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
             any(map(x->length(x)==0,observed_features)))

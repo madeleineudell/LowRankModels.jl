@@ -3,12 +3,15 @@
 # the abstract type Regularizer.
 # Regularizers should implement `evaluate` and `prox`. 
 
+# TO DO:
+# document this stuff better
+# tidy up the interfaces a la losses.jl
+
 import Base.scale! 
 
 export Regularizer, # abstract types
        quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
-       add_offset, # utilities
        scale, scale!
 
 # regularizers
@@ -79,11 +82,6 @@ prox!(r::lastentry_unpenalized,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1
 evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
 scale(r::lastentry_unpenalized) = r.r.scale
 scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
-
-## adds an offset to the model by modifying the regularizers
-function add_offset(rx::Regularizer,ry::Regularizer)
-    return lastentry1(rx), lastentry_unpenalized(ry)
-end
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)

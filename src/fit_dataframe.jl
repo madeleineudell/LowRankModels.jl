@@ -6,45 +6,29 @@ max_ordinal_levels = 9
 
 function GLRM(df::DataFrame, k::Integer;
               losses = None, rx = quadreg(.01), ry = quadreg(.01),
-              X = randn(k,size(A,1)), Y = randn(k,size(A,2)))
-    # identify ordinal, boolean and real columns
-    if losses == None
+              X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
+              offset = true, scale = true)
+    if losses == None # if losses not specified, identify ordinal, boolean and real columns
         reals, real_losses = get_reals(df)
         bools, bool_losses = get_bools(df)
         ordinals, ordinal_losses = get_ordinals(df)
-
         A = [df[reals] df[bools] df[ordinals]]
         labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
         losses = [real_losses, bool_losses, ordinal_losses]
-    else
-        # otherwise one loss function per column
-    A = df
+    else # otherwise require one loss function per column
+        A = df
         ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
     end
     # identify which entries in data frame have been observed (ie are not N/A) and form model
-    glrm = GLRM(df2array(A), losses, rx, ry, k, obs=observations(A), X=X, Y=Y)
-    # return model
+    glrm = GLRM(df2array(A), losses, rx, ry, k, obs=observations(A), X=X, Y=Y, offset=offset, scale=scale)
     return glrm, labels
 end
-
-function df2array(df::DataFrame, z::Number)
-    A = zeros(size(df))
-    for i=1:size(A,2)
-        if typeof(df[i]) == Bool
-            A[:,i] = convert(Array, (2*df[i]-1),z)
-        else
-            A[:,i] = convert(Array, df[i],z)
-        end            
-    end
-    return A
-end
-df2array(df::DataFrame) = df2array(df, 0)
 
 function observations(df::DataFrame)
     obs = (Int32, Int32)[]
     m,n = size(df)
-    for i=1:m
-        for j=1:n
+    for j=1:n # follow column-major order. First element of index in innermost loop
+        for i=1:m
             if !isna(df[i,j])
                 push!(obs,(i,j))
             end
@@ -52,6 +36,19 @@ function observations(df::DataFrame)
     end
     return obs
 end
+
+function df2array(df::DataFrame, z::Number)
+    A = zeros(size(df))
+    for i=1:size(A,2)
+        if typeof(df[i]) == Bool
+            A[:,i] = convert(Array, (2*df[i]-1), z)
+        else
+            A[:,i] = convert(Array, df[i], z)
+        end            
+    end
+    return A
+end
+df2array(df::DataFrame) = df2array(df, 0)
 
 function get_reals(df::DataFrame)
     m,n = size(df)
