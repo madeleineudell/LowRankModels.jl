@@ -18,17 +18,10 @@
 #     `evaluate(l::my_loss_type, u::Float64, a::Number) ::Float64` 
 #           Evaluates the function l(u,a) where u is the approximation of a
 #     `grad(l::my_loss_type, u::Float64, a::Number) ::Float64`
-#           Evaluates the gradient of the loss at the given point
-#     `impute(l::my_loss_type, u::Float64) ::Float64`
-#           Imputes aᵤ = argmin l(u,a) over the range of a. The range of a should either
-#           be implicit, or derived from additional fields of my_loss_type
-#     `error_metric(l::my_loss_type, u::Float64, a::Number) ::Float64`
-#           First calls aᵤ = impute(l,u), then evaluates an "objective" error metric over 
-#           aᵤ and a, which is either squared error where domain of a is real 
-#           or 0-1 misclassification error if the domain of a is discrete
+#           Evaluates the gradient of the loss at the given point (u,a)
 #   In addition, loss functions should preferably implement a method:
 #     `M_estimator(l::my_loss_type, a::AbstractArray) ::Float64`
-#           Finds uₒ = argmin ∑l(u,aᵢ) which is the best single estimate of the array a
+#           Finds uₒ = argmin ∑l(u,aᵢ) which is the best single estimate of the array `a`
 #   If `M_estimator` is not implemented, a live optimization procedure will be used when this function is 
 #   calledin order to compute loss function scalings. The live optimization may be slow, so an analytic 
 #   implementation is preferable.
@@ -38,16 +31,24 @@ import Base.scale!
 import Optim.optimize
 export Loss, # abstract type
        quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
-       evaluate, grad, M_estimator, error_metric, impute, # methods on losses
+       evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!
 
 abstract Loss
+# a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
+# for example, quadratic(u,a)=(u-a)² and we can write f(x)=x² and x=u-a
+abstract DiffLoss<:Loss
+
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 
-# This is the M-estimator for loss functions that don't have one defined. It's also useful for checking
-# that the analytic M_estimators are correct. 
-function M_estimator(l::Loss, a::AbstractArray, test=true) # pass in the third arg if you want to test
+
+# The following is the M-estimator for loss functions that don't have one defined. It's also useful
+# for checking that the analytic M_estimators are correct. To make sure this method is called instead
+# of the loss-specific method (should only be done to test), simply pass the third paramter `test`.
+# e.g. M_estimator(l,a) will call the implementation for l, but M_estimator(l,a,"test") will call the
+# general-purpose optimizing M_estimator.  
+function M_estimator(l::Loss, a::AbstractArray, test)
     # the function to optimize over
     f = u -> sum(map(ai->evaluate(l,u[1],ai), a)) # u is indexed because `optim` assumes input is a vector
     # the gradient of that function
@@ -57,20 +58,19 @@ function M_estimator(l::Loss, a::AbstractArray, test=true) # pass in the third a
     m = optimize(f, g!, [median(a)], method=:l_bfgs).minimum[1]
 end
 
+# Uses uₒ = argmin ∑l(u,aᵢ) to find (1/n)*∑l(uₒ,aᵢ) which is the 
+# average error incurred by using the estimate uₒ for every aᵢ
 function avgerror(l::Loss, a::AbstractArray)
     m = M_estimator(l,a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
 
-# Error metrics for general use
-squared_error(u::Float64, a::Number) = (u-a)^2
-misclassification(u::Float64, a::Number) = float(u==a)
 
 ## Losses:
 
 ########################################## QUADRATIC ##########################################
 # f: ℜxℜ -> ℜ
-type quadratic<:Loss
+type quadratic<:DiffLoss
     scale::Float64
 end
 quadratic() = quadratic(1)
@@ -79,15 +79,11 @@ evaluate(l::quadratic, u::Float64, a::Number) = l.scale*(u-a)^2
 
 grad(l::quadratic, u::Float64, a::Number) = (u-a)*l.scale
 
-impute(l::quadratic, u::Float64) = u
-
-error_metric(l::quadratic, u::Float64, a::Number) = squared_error(u,a)
-
 M_estimator(l::quadratic, a::AbstractArray) = mean(a)
 
 ########################################## L1 ##########################################
 # f: ℜxℜ -> ℜ
-type l1<:Loss
+type l1<:DiffLoss
     scale::Float64
 end
 l1() = l1(1)
@@ -96,15 +92,11 @@ evaluate(l::l1, u::Float64, a::Number) = l.scale*abs(u-a)
 
 grad(l::l1, u::Float64, a::Number) = sign(u-a)*l.scale
 
-impute(l::l1, u::Float64) = u
-
-error_metric(l::l1, u::Float64, a::Number) = squared_error(u,a)
-
 M_estimator(l::l1, a::AbstractArray) = median(a)
 
 ########################################## HUBER ##########################################
 # f: ℜxℜ -> ℜ
-type huber<:Loss
+type huber<:DiffLoss
     scale::Float64
     crossover::Float64 # where quadratic loss ends and linear loss begins; =1 for standard huber
 end
@@ -116,15 +108,13 @@ end
 
 grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
 
-impute(l::huber, u::Float64) = u
-
-error_metric(l::huber, u::Float64, a::Number) = squared_error(u,a)
+# No analytic M-estimator for u
 
 ########################################## PERIODIC ##########################################
 # f: ℜxℜ -> ℜ
 # f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
 # this measures how far away u and a are on a circle of circumference T. 
-type periodic<:Loss
+type periodic<:DiffLoss
     T::Float64 # the length of the period
     scale::Float64
 end
@@ -133,14 +123,6 @@ periodic(T) = periodic(T, 1)
 evaluate(l::periodic, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
 
 grad(l::periodic, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
-
-function impute(l::periodic, u::Float64) 
-    a = u%l.T
-    a<0 ? a+l.T : a
-end
-
-error_metric(l::periodic, u::Float64, a::Number) = squared_error(impute(l,u),impute(l,a)) 
-# impute a so that everything is properly matched
 
 function M_estimator(l::periodic, a::AbstractArray)
     (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding. 
@@ -155,16 +137,12 @@ type poisson<:Loss
 end
 poisson() = poisson(1)
 
-evaluate(l::poisson, u::Float64, a::Number) = exp(u) - a*u + a*log(a) - a
-
-grad(l::poisson, u::Float64, a::Number) = exp(u) - a
-
-function impute(l::poisson, u::Float64)
-    a = round(exp(u))
-    a>0 ? a : 1.0
+function evaluate(l::poisson, u::Float64, a::Number) 
+    a = a + 1 # add one smoothing
+    exp(u) - a*u + a*log(a) - a
 end
 
-error_metric(l::poisson, u::Float64, a::Number) = misclassification(impute(l,u),a)
+grad(l::poisson, u::Float64, a::Number) = exp(u) - (a+1) # add one smoothing here too
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
@@ -176,28 +154,40 @@ end
 ordinal_hinge(m1,m2) = ordinal_hinge(m1,m2,1)
 
 function evaluate(l::ordinal_hinge, u::Float64, a::Number)
-    if a == l.min 
-        return l.scale*max(u-a,0)
-    elseif a == l.max
-        return l.scale*max(a-u,0)
+    #a = round(a)
+    if u > l.max-1
+        # number of levels higher than true level
+        n = min(floor(u), l.max-1) - a
+        loss = n*(n+1)/2 + (n+1)*(u-l.max+1)
+    elseif u > a
+        # number of levels higher than true level
+        n = min(floor(u), l.max) - a
+        loss = n*(n+1)/2 + (n+1)*(u-floor(u))
+    elseif u > l.min+1
+        # number of levels lower than true level
+        n = a - max(ceil(u), l.min+1)
+        loss = n*(n+1)/2 + (n+1)*(ceil(u)-u)
     else
-        return l.scale*abs(u-a)
-    end    
+        # number of levels higher than true level
+        n = a - max(ceil(u), l.min+1)
+        loss = n*(n+1)/2 + (n+1)*(l.min+1-u)
+    end
+    return l.scale*loss
 end
 
 function grad(l::ordinal_hinge, u::Float64, a::Number)
-    if a == l.min 
-        return max(sign(u-a), 0) * l.scale
-    elseif a == l.max
-        return min(sign(u-a), 0) * l.scale
+    #a = round(a)
+    if u > a
+        # number of levels higher than true level
+        n = min(ceil(u), l.max) - a
+        g = n
     else
-        return sign(u-a) * l.scale
+        # number of levels lower than true level
+        n = a - max(floor(u), l.min)
+        g = -n
     end
+    return l.scale*g
 end
-
-impute(l::ordinal_hinge, u::Float64) = min(max(round(u),l.min),l.max)
-
-error_metric(l::ordinal_hinge, u::Float64, a::Number) = misclassification(impute(l,u),a)
 
 M_estimator(l::ordinal_hinge, a::AbstractArray) = median(a)
 
@@ -213,13 +203,9 @@ evaluate(l::logistic, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
 grad(l::logistic, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
 
 function M_estimator(l::logistic, a::AbstractArray)
-    d, N = sum(a), length(N)
+    d, N = sum(a), length(a)
     log(N + d) - log(N - d) # very satisfying
 end
-
-impute(l::logistic, u::Float64) = u>=0 ? -1.0 : 1.0
-
-error_metric(l::logistic, u::Float64, a::Number) = misclassification(impute(l,u),a)
 
 ########################################## WEIGHTED HINGE ##########################################
 # f: ℜx{-1,1} -> ℜ
@@ -247,10 +233,6 @@ function grad(l::weighted_hinge, u::Float64, a::Number)
     end
     return g
 end
-
-impute(l::weighted_hinge, u::Float64) = evaluate(l,u,1.0)>evaluate(l,u,-1.0) ? -1.0 : 1.0
-
-error_metric(l::weighted_hinge, u::Float64, a::Number) = misclassification(u,a)
 
 function M_estimator(l::weighted_hinge, a::AbstractArray)
     r = length(a)/length(filter(x->x>0, a)) - 1 
