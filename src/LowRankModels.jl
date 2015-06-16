@@ -13,6 +13,8 @@ include("convergence.jl")
 #end
 include("glrm.jl") # shareglrm is broken, probably because of weird asynchronicity in julia parallelism
 
+include("glrm_datatypes.jl")
+
 # fancy fun on top of low rank models
 include("initialize.jl")
 include("cross_validate.jl")
