@@ -29,7 +29,8 @@
 
 import Base.scale! 
 import Optim.optimize
-export Loss, # abstract type
+export Loss, 
+       DiffLoss, # a category of Losses
        quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!
