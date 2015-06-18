@@ -49,7 +49,7 @@ scale(l::Loss) = l.scale
 # of the loss-specific method (should only be done to test), simply pass the third paramter `test`.
 # e.g. M_estimator(l,a) will call the implementation for l, but M_estimator(l,a,"test") will call the
 # general-purpose optimizing M_estimator.  
-function M_estimator(l::Loss, a::AbstractArray, test)
+function M_estimator(l::Loss, a::AbstractArray; test="test")
     # the function to optimize over
     f = u -> sum(map(ai->evaluate(l,u[1],ai), a)) # u is indexed because `optim` assumes input is a vector
     # the gradient of that function

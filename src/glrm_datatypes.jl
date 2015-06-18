@@ -74,12 +74,12 @@ end
 
 impute(col_type::gOrdinal, l::DiffLoss, u::Float64) = min(max( round(u), col_type.min ), col_type.max)
 impute(col_type::gOrdinal, l::poisson, u::Float64) = min(max( round(exp(u)-1), col_type.min ), col_type.max)
-impute(col_type::gOrdinal, l::ordinal_hinge, u::Float64) = min(max( round(u), col_type.max), col_type.max)
+impute(col_type::gOrdinal, l::ordinal_hinge, u::Float64) = min(max( round(u), col_type.min), col_type.max)
 impute(col_type::gOrdinal, l::logistic, u::Float64) = u>0 ? col_type.max : col_type.min
 function impute(col_type::gOrdinal, l::weighted_hinge, u::Float64) 
 	warn("It doesn't make sense to use hinge to impute ordinals")
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))
-	min(max(round(a_imputed),col_type.max),col_type.max)
+	min(max( round(a_imputed), col_type.min) ,col_type.max)
 end
 
 function error_metric(col_type::gOrdinal, l::Loss, u::Float64, a::Number)
@@ -117,5 +117,30 @@ impute(col_type::gOrdinal, l::Loss, u::Float64) = impute(gOrdinal(0,max_count), 
 function error_metric(col_type::gCount, l::Loss, u::Float64, a::Number)
     a_imputed = impute(l, u, col_type)
     squared_error(a_imputed, a)
+end
+
+####################################################################################
+# To use these functions over arrays
+function impute(types::Array{gDataType,1}, losses::Array{Loss,1}, A::Array{Float64,2})
+	A_imputed = Array(Float64, size(A));
+	m,n = size(A)
+	for j in 1:n
+		for i in 1:m
+			A_imputed[i,j] = impute(types[j], losses[j], A[i,j]) # tests imputation
+		end
+	end 
+	return A_imputed
+end
+
+function error_metric(types::Array{gDataType,1}, losses::Array{Loss,1}, 
+					  U::Array{Float64,2}, A::Array{Float64,2} )
+	err = Array(Float64, size(A));
+	m,n = size(A)
+	for j in 1:n
+		for i in 1:m
+			err[i,j] = error_metric(types[j], losses[j], U[i,j], A[i,j])
+		end
+	end
+	return err
 end
 
