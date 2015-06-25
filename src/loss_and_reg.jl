@@ -218,6 +218,15 @@ evaluate(r::nonnegative,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : 0
 scale(r::nonnegative) = 1
 scale!(r::nonnegative, newscale::Number) = 1
 
+## one norm regularization restricted to nonnegative orthant
+## (enforces nonnegativity, in addition to one norm regularization)
+type nonneg_onereg<:Regularizer
+    scale::Float64
+end
+nonneg_onereg() = nonneg_onereg(1)
+prox(r::nonneg_onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
+evaluate(r::nonneg_onereg,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : r.scale*sum(a)
+
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
 type lastentry1<:Regularizer
