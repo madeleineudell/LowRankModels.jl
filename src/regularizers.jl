@@ -10,7 +10,8 @@
 import Base.scale! 
 
 export Regularizer, # abstract types
-       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
+       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, sumone, # concrete regularizers
+       lastentry1, lastentry_unpenalized, fixed_latent_features, 		# regularizers to fix columns
        prox, # methods on regularizers
        scale, scale!
 
@@ -83,6 +84,22 @@ evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
 scale(r::lastentry_unpenalized) = r.r.scale
 scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
 
+type fixed_latent_features<:Regularizer
+    r::Regularizer
+    y::Array{Float64,1} # the values of the fixed latent features 
+    n::Int # length of y
+end
+fixed_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_latent_features(r,y,length(y))
+prox(r::fixed_latent_features,u::AbstractArray,alpha::Number) = [r.y, prox(r.r,u[(r.n+1):end],alpha)]
+function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
+	prox!(r.r,u[(r.n+1):end],alpha)
+	u[1:r.n]=y
+	u
+end
+evaluate(r::fixed_latent_features,a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
+scale(r::fixed_latent_features) = r.r.scale
+scale!(r::fixed_latent_features, newscale::Number) = (r.r.scale = newscale)
+
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
 type onesparse<:Regularizer
@@ -90,6 +107,16 @@ end
 prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
 prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
+
+# I want to constrain this to the probability simplex, but for now the prox just goes to the whole plane
+type sumone<:Regularizer
+end
+function prox(r::sumone,u::AbstractArray,alpha::Number)
+	p = length(u)
+	n = ones(p)/sqrt(p) # unit vector of [1 1 1 1... 1]
+	return u - (dot(u,n)+sqrt(p/2))*n # project u into the plane defined by [1 1 1 1... 1]
+end
+evaluate(r::sumone,u::AbstractArray) = sum(u)==1 ? 0 : Inf
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)

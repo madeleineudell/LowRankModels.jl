@@ -1,7 +1,9 @@
 module LowRankModels
 
 # define losses, regularizers, convergence history
+include("domains.jl")
 include("losses.jl")
+include("impute_and_err.jl")
 include("regularizers.jl")
 include("convergence.jl")
 
@@ -12,8 +14,6 @@ include("convergence.jl")
 #    include("glrm.jl")
 #end
 include("glrm.jl") # shareglrm is broken, probably because of weird asynchronicity in julia parallelism
-
-include("glrm_datatypes.jl")
 
 # fancy fun on top of low rank models
 include("initialize.jl")

@@ -1,6 +1,6 @@
 import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert
 
-export GLRM, observations, expand_categoricals, add_offset!, equilibrate_variance!
+export GLRM, observations, expand_categoricals
 
 max_ordinal_levels = 9
 

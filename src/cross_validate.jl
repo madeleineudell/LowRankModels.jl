@@ -1,14 +1,15 @@
 export cross_validate, cv_by_iter, regularization_path, get_train_and_test, precision_at_k
 
-# To do:
-#     * implement cv_by_iter
-#     * implement regularization_path
-#     * robustify to cv splits that empty a given row or column (eg check and try again)
-
-function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)
+# to use with error_metric when we have domains in the namespace, call like:
+# cross_validate(glrm, error_fn(g,X,Y) = error_metric(g,domains,X,Y))
+function cross_validate(glrm::GLRM; 
+                        nfolds=5, params=Params(),
+                        verbose=true, use_folds=None,
+                        A_truth=None, error_fn=objective)
     if use_folds==None use_folds = nfolds end
     if verbose println("flattening observations") end
-    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
+#    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
+    obs = unsort_observations(glrm.observed_features)
     if verbose println("computing CV folds") end
     folds = getfolds(obs, nfolds, size(glrm.A)...)
     train_glrms = Array(GLRM, nfolds)
@@ -31,28 +32,27 @@ function cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, us
                                   copy(glrm.X), copy(glrm.Y))
         # evaluate train and test error
         if verbose println("fitting train GLRM for fold $ifold") end
-        X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=false)
+        X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
-        train_error[ifold] = objective(train_glrms[ifold], X, Y, include_regularization=false) / ntrain
+        train_error[ifold] = error_metric(train_glrms[ifold], X, Y) / ntrain
+        #train_error[ifold] = error_metric(domains, train_glrms[ifold].losses, X, Y, A_truth) / ntrain
         if verbose println("\ttrain error: $(train_error[ifold])") end
-        test_error[ifold] = objective(test_glrms[ifold], X, Y, include_regularization=false) / ntest
+        test_error[ifold] = error_metric(test_glrms[ifold], X, Y) / ntest
         if verbose println("\ttest error:  $(test_error[ifold])") end
     end
-    return train_error, test_error, train_glrms, test_glrms
+    return mean(train_error), mean(test_error), train_glrms, test_glrms
 end
 
-function getfolds(obs, nfolds, m, n)    
-
+function getfolds(obs::Array{(Int,Int),1}, nfolds, m, n)    
     # partition elements of obs into nfolds groups
-    groups = Array(Int64, size(obs))
-    rand!(1:nfolds, groups)
-
+    groups = Array(Int, size(obs))
+    rand!(1:nfolds, groups)  # fill an array with random 1 through N
     # create the training and testing observations for each fold
     folds = Array(Tuple, nfolds)
     for ifold=1:nfolds
-        train = obs[filter(i->groups[i]!=ifold, 1:length(obs))]
-        train_observed_features, train_observed_examples = sort_observations(train,m,n)
-        test = obs[filter(i->groups[i]==ifold, 1:length(obs))]
+        train = obs[filter(i->groups[i]!=ifold, 1:length(obs))] # all the obs that didn't get the ifold label
+        train_observed_features, train_observed_examples = sort_observations(train,m,n) 
+        test = obs[filter(i->groups[i]==ifold, 1:length(obs))] # all the obs that did
         test_observed_features, test_observed_examples = sort_observations(test,m,n,check_empty=false)
         folds[ifold] = (train_observed_features, train_observed_examples,
                     test_observed_features,  test_observed_examples)
@@ -76,6 +76,16 @@ function get_train_and_test(obs, m, n, holdout_proportion=.1)
                 test_observed_features,  test_observed_examples)
 end
 
+function unsort_observations(observed_features::ObsArray)
+    obs = (Int,Int)[]
+    for (i, features_in_example_i) in enumerate(observed_features)
+        for j in features_in_example_i
+            push!(obs, (i,j))
+        end
+    end
+    return obs
+end
+
 function flatten(x, y)
     state = start(x)
     if state==false
@@ -89,6 +99,7 @@ function flatten(x, y)
     y
 end
 flatten{T}(x::Array{T})=flatten(x,Array(T, 0))
+
 function flattenarray(x, y)
     if typeof(x)<:Array
         for xi in x

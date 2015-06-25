@@ -3,7 +3,10 @@ import Base.LinAlg.scale!
 import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 
-export GLRM, objective, Params, getindex, display, size, fit!, fit
+export GLRM, 
+       Params, getindex, size, fit!, fit,
+       objective, error_metric, 
+       add_offset!, equilibrate_variance!, fix_latent_features!
 
 ObsArray = Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
@@ -13,7 +16,7 @@ type GLRM
     losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
-    k::Int64                     # Desired rank 
+    k::Int                     # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
     X::Array{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
@@ -54,8 +57,8 @@ GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry
 
 ### OBSERVATION TUPLES TO ARRAYS
 function sort_observations(obs::Array{(Int,Int),1}, m::Int, n::Int; check_empty=false)
-    observed_features = Array{Int32,1}[Int32[] for i=1:m]
-    observed_examples = Array{Int32,1}[Int32[] for j=1:n]
+    observed_features = Array{Int,1}[Int[] for i=1:m]
+    observed_examples = Array{Int,1}[Int[] for j=1:n]
     for (i,j) in obs
         @inbounds push!(observed_features[i],j)
         @inbounds push!(observed_examples[j],i)
@@ -92,16 +95,16 @@ function equilibrate_variance!(glrm::GLRM)
     end
     return glrm
 end
+function fix_latent_features!(glrm::GLRM, n)
+    glrm.ry = [fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) for i in 1:length(glrm.ry)]
+    return glrm
+end
 
 ### OBJECTIVE FUNCTION EVALUATION
-function objective(glrm::GLRM, X, Y, XY=nothing; include_regularization=true)
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
+                   XY::Array{Float64,2}; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
-    # compute value of loss function
-    if XY == nothing # if the user is calling this independent of the optimization,
-    	XY = Array(Float64, (m,n))	# we need to compute XY for her
-    	gemm!('T','N',1.0,X,Y,0.0,XY) 
-    end
     for j=1:n
         for i in glrm.observed_examples[j]
             err += evaluate(glrm.losses[j], XY[i,j], glrm.A[i,j])
@@ -118,8 +121,35 @@ function objective(glrm::GLRM, X, Y, XY=nothing; include_regularization=true)
     end
     return err
 end
-objective(glrm::GLRM, args...; kwargs...) = 
-    objective(glrm, glrm.X, glrm.Y, args...; kwargs...)
+# The user can also pass in X and Y and `objective` will compute XY for them
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}; kwargs...)
+    XY = Array(Float64, size(glrm.A)) 
+    gemm!('T','N',1.0,X,Y,0.0,XY) 
+    objective(glrm, X, Y, XY; kwargs...)
+end
+# Or just the GLRM and `objective` will use glrm.X and .Y
+objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
+
+function error_metric(glrm::GLRM, domains::Array{Domain,1}, XY::Array{Float64,2})
+    m,n = size(glrm.A)
+    err = 0
+    # compute value of loss function
+    for j=1:n
+        for i in glrm.observed_examples[j]
+            err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
+        end
+    end
+    return err
+end
+function error_metric(glrm::GLRM, domains::Array{Domain,1}, X::Array{Float64,2}, Y::Array{Float64,2})
+    XY = Array(Float64, size(glrm.A)) 
+    gemm!('T','N',1.0,X,Y,0.0,XY) 
+    error_metric(glrm, domains, XY)
+end
+error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, domains, glrm.X, glrm.Y)
+function error_metric(glrm::GLRM)
+    domains = [l.domain for l in glrm.losses]
+    error_metric(glrm, domains)
 
 ### PARAMETERS TYPE
 type Params
@@ -179,7 +209,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
-                # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Yⱼ, where dLⱼ/du is our grad() function
+                # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
                 axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step

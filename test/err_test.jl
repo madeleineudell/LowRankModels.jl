@@ -1,59 +1,68 @@
 using LowRankModels
-using Distributions
-srand(3);
+using Plotly
+srand(1);
 
-# Define the structure of our heterogenous dataset
-# gDataType 		Loss 					n
-data_list = [
-( gReal(), 			quadratic(), 			1 ),
-( gReal(), 			l1(), 					1 ),
-( gReal(), 			huber(), 				1 ),
-( gPeriodic(1), 	periodic(1), 			1 ),
-( gOrdinal(1,10), 	ordinal_hinge(1,10), 	1 ),
-( gBool(), 			logistic(), 			1 ),
-( gBool(), 			weighted_hinge(),		1 )
+test_losses = Loss[
+quadratic(), 	
+#l1(), 			
+#huber(), 		
+periodic(1), 	
+ordinal_hinge(1,10),
+logistic(), 		
+weighted_hinge()
 ]
-losses, types = Loss[], gDataType[]
-for (t::gDataType, l::Loss, n) in data_list
-	losses = [losses, fill(l, n)]
-	types = [types, fill(t, n)]
-end
 
-# Make a low rank matrix as our data precursor
-m, n, true_k = 1000, length(types), 10;
-X_real, Y_real = 2*randn(m,k), 2*randn(k,n);
-A_real = X_real*Y_real;
+#for test_iteration = 1:10
+	# Create the configuration for the model (random losses)
+	config = int(abs(round(10*rand(length(test_losses)))));
+	config = [0 0 1 0 10 0 100]
+	losses, doms = Array(Loss,1), Array(Domain,1);
+	for (n,l) in zip(config, test_losses)
+		for i=1:n
+			push!(losses, l);
+			push!(doms, l.domain);
+		end
+	end
+	losses, doms = losses[2:end], doms[2:end]; # this is because the initialization leaves us with an #undef
+	
+	# Make a low rank matrix as our data precursor
+	m, n, true_k = 1000, length(doms), int(round(length(losses)/2)); 
+	X_real, Y_real = 2*randn(m,true_k), 2*randn(true_k,n);
+	A_real = X_real*Y_real;
 
-# Impute over the low rank-precursor to make our heterogenous dataset
-A_no_noise = impute(types, losses, A_real);						# our ideal data
-A = impute(types, losses, A_real+1*rand(Cauchy(),size(A_real)));	# our data with noise
+	# Impute over the low rank-precursor to make our heterogenous dataset
+	A = impute(doms, losses, A_real);				# our data with noise
 
-p = Params(1, max_iter=400, convergence_tol=0.0001, min_stepsize=0.001)
-model_k = 15;
-rx, ry = zeroreg(), zeroreg();
+	# Create a glrm using these losses and data
+	p = Params(1, max_iter=10000, convergence_tol=0.00000001, min_stepsize=0.0000001)
+	model_k = true_k;
+	rx, ry = zeroreg(), zeroreg();
+	hetero = GLRM(A, losses, rx,ry,model_k, scale=false, offset=false);
 
-# A GLRM using the datatype appropriate losses
-hetero = GLRM(A, losses, rx,ry,model_k, scale=true, offset=true);
-@time X,Y,ch = fit!(hetero, params=p, verbose=false);
-hetero_err = error_metric(types, losses, X'*Y, A_no_noise)
+	# Test that our imputation is consistent
+	if !(error_metric(hetero, doms, X_real', Y_real) == 0)
+		error("Imputation failed.")
+	end
 
-# A GLRM using all quadratic loss w/ no reg (PCA)
-base_losses = Array(Loss, size(losses));
-fill!(base_losses, quadratic());
-base = GLRM(A, base_losses, rx,ry,model_k, scale=true, offset=true);
-init_svd!(base)
-@time Xb,Yb,chb = fit!(base, params=p, verbose=false);
-base_err = error_metric(types, base_losses, Xb'*Yb, A_no_noise)
+	real_obj = objective(hetero, X_real', Y_real, include_regularization=false);
 
-println()
-println("Hetero Error:")
-println(ch.objective[end])
-println(sum(vec(hetero_err)))
-println([sum(hetero_err[:,f]) for f in 1:n])
-println("Baseline Error:")
-println(chb.objective[end])
-println(sum(vec(base_err)))
-println([sum(base_err[:,f]) for f in 1:n])
+	X_fit,Y_fit,ch = fit!(hetero, params=p, verbose=false);
 
-# end
-
+	println("model objective: $(ch.objective[end])")
+	println("objective using data precursor: $real_obj")
+	err = error_metric(hetero, doms, X_fit, Y_fit)
+	if err != 0
+		println("Model did not correctly impute all entries. Average error: $(err/(m*n))")
+	end
+	data = [
+		[
+			"z" => errors(doms, losses, X_fit'*Y_fit, A)',
+			"x" => [string(typeof(l),"    ",randn()) for l in losses],
+			"type" => "heatmap"
+		]
+	]
+	response = Plotly.plot(data, ["filename" => "labelled-heatmap", "fileopt" => "overwrite"])
+	plot_url = response["url"]
+	# println(final_obj/initial_obj)
+	# println(real_obj/initial_obj)
+#end

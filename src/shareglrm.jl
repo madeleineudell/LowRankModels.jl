@@ -21,7 +21,7 @@ type GLRM
     losses::Array{Loss,1}
     rx::Regularizer
     ry::Array{Regularizer,1}
-    k::Int64
+    k::Int
     X::AbstractArray # k x n
     Y::AbstractArray # k x m
 end
