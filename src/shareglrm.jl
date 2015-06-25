@@ -119,7 +119,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     ## a few scalars that need to be shared among all processes
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = Base.shmem_fill(float(params.stepsize),(1,1))
-    obj = Base.shmem_fill(0.0,(1,1))
+    obj = Base.shmem_fill(0.0,(nprocs(),1))
 
     if verbose println("sending data and caching views") end
     @sync begin
@@ -214,8 +214,8 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             end
         end
         # evaluate objective 
-        obj[1] = 0
         @everywhere begin
+            pid = myid()
             XY = X[:,xlcols]'*Y
             err = 0
             for e=xlcols
@@ -230,15 +230,16 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             for f=ylcols
                 err += evaluate(ry[f],vf[f]::AbstractArray)
             end
-            obj[1] = obj[1] + err
+            obj[pid] = err
         end
-        #obj[1] = objective(glrm,X,Y)
+        # totalobj = objective(glrm,X,Y)
         # make sure parallel obj eval is the same as local (it is)
         # println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
         # record the best X and Y yet found
-        if obj[1] < ch.objective[end]
+        totalobj = sum(obj)
+        if totalobj < ch.objective[end]
             t = time() - t
-            update!(ch, t, obj[1])
+            update!(ch, t, totalobj)
             #copy!(glrm.X, X); copy!(glrm.Y, Y)
             @everywhere begin
                 @inbounds for i in localindexes(X)
@@ -265,7 +266,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             steps_in_a_row = min(0, steps_in_a_row-1)
         end
         # check stopping criterion
-        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj[1] < tol) || alpha[1] <= params.min_stepsize
+        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - totalobj < tol) || alpha[1] <= params.min_stepsize
             break
         end
         if verbose && i%10==0 

@@ -9,7 +9,7 @@ import Base.scale!
 export Loss, Regularizer, # abstract types
        quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
        grad, evaluate, avgerror, # methods on losses
-       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
+       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, simplex, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
        add_offset, # utilities
        scale, scale!
@@ -88,6 +88,51 @@ function evaluate(l::ordinal_hinge,u::Float64,a::Number)
     else
         return l.scale*abs(u-a)
     end    
+end
+
+## ordinal sum-of-hinge 
+# (presented as the "ordinal hinge loss" in the paper
+# Generalized Low Rank Models arXiv:1410.0342)
+type ordinal_sumofhinge<:Loss
+    min::Integer
+    max::Integer
+    scale::Float64
+end
+ordinal_sumofhinge(m1,m2) = sumofordinal_hinge(m1,m2,1)
+function evaluate(l::ordinal_sumofhinge, u::Float64, a::Number)
+    #a = round(a)
+    if u > l.max-1
+        # number of levels higher than true level
+        n = min(floor(u), l.max-1) - a
+        loss = n*(n+1)/2 + (n+1)*(u-l.max+1)
+    elseif u > a
+        # number of levels higher than true level
+        n = min(floor(u), l.max) - a
+        loss = n*(n+1)/2 + (n+1)*(u-floor(u))
+    elseif u > l.min+1
+        # number of levels lower than true level
+        n = a - max(ceil(u), l.min+1)
+        loss = n*(n+1)/2 + (n+1)*(ceil(u)-u)
+    else
+        # number of levels higher than true level
+        n = a - max(ceil(u), l.min+1)
+        loss = n*(n+1)/2 + (n+1)*(l.min+1-u)
+    end
+    return l.scale*loss
+end
+
+function grad(l::ordinal_sumofhinge, u::Float64, a::Number)
+    #a = round(a)
+    if u > a
+        # number of levels higher than true level
+        n = min(ceil(u), l.max) - a
+        g = n
+    else
+        # number of levels lower than true level
+        n = a - max(floor(u), l.min)
+        g = -n
+    end
+    return l.scale*g
 end
 
 ## periodic
@@ -252,6 +297,8 @@ end
 prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
 prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
+scale(r::onesparse) = 1
+scale!(r::onesparse, newscale::Number) = 1
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
@@ -260,3 +307,23 @@ end
 prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
+scale(r::unitonesparse) = 1
+scale!(r::unitonesparse, newscale::Number) = 1
+
+## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
+## (eg for quadratic mixtures, ie soft kmeans)
+type simplex<:Regularizer
+end
+function prox(r::simplex,u::AbstractArray,alpha::Number)
+    v = broadcast(max,u,0)
+    s = sum(v)
+    s > 0 ? scale!(v,1/s) : fill(1/length(u), length(u))
+end
+function prox!(r::simplex,u::AbstractArray,alpha::Number)
+    @simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end
+    s = sum(u)
+    s > 0 ? scale!(u,1/s) : fill(1/length(u), length(u))
+end
+evaluate(r::simplex,a::AbstractArray) = ((sum(map(x->x>=0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
+scale(r::simplex) = 1
+scale!(r::simplex, newscale::Number) = 1
