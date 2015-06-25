@@ -34,10 +34,9 @@ function cross_validate(glrm::GLRM;
         if verbose println("fitting train GLRM for fold $ifold") end
         X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
-        train_error[ifold] = error_metric(train_glrms[ifold], X, Y) / ntrain
-        #train_error[ifold] = error_metric(domains, train_glrms[ifold].losses, X, Y, A_truth) / ntrain
+        train_error[ifold] = error_fn(train_glrms[ifold], X, Y) / ntrain
         if verbose println("\ttrain error: $(train_error[ifold])") end
-        test_error[ifold] = error_metric(test_glrms[ifold], X, Y) / ntest
+        test_error[ifold] = error_fn(test_glrms[ifold], X, Y) / ntest
         if verbose println("\ttest error:  $(test_error[ifold])") end
     end
     return mean(train_error), mean(test_error), train_glrms, test_glrms

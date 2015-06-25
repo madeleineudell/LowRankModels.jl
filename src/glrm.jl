@@ -130,10 +130,10 @@ end
 # Or just the GLRM and `objective` will use glrm.X and .Y
 objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
 
-function error_metric(glrm::GLRM, domains::Array{Domain,1}, XY::Array{Float64,2})
+## ERROR METRIC EVALUATION (BASED ON DOMAINS OF THE DATA)
+function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
     m,n = size(glrm.A)
     err = 0
-    # compute value of loss function
     for j=1:n
         for i in glrm.observed_examples[j]
             err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
@@ -141,15 +141,14 @@ function error_metric(glrm::GLRM, domains::Array{Domain,1}, XY::Array{Float64,2}
     end
     return err
 end
-function error_metric(glrm::GLRM, domains::Array{Domain,1}, X::Array{Float64,2}, Y::Array{Float64,2})
+# The user can also pass in X and Y and `error_metric` will compute XY for them
+function error_metric(glrm::GLRM, X::Array{Float64,2}, Y:::Array{Float64,2}, domains::Array{Domain,1})
     XY = Array(Float64, size(glrm.A)) 
     gemm!('T','N',1.0,X,Y,0.0,XY) 
     error_metric(glrm, domains, XY)
 end
-error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, domains, glrm.X, glrm.Y)
-function error_metric(glrm::GLRM)
-    domains = [l.domain for l in glrm.losses]
-    error_metric(glrm, domains)
+# Or just the GLRM and `error_metric` will use glrm.X and .Y
+error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, glrm.X, glrm.Y, domains)
 
 ### PARAMETERS TYPE
 type Params
