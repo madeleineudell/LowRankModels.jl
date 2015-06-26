@@ -9,7 +9,7 @@ import Base.scale!
 export Loss, Regularizer, # abstract types
        quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
        grad, evaluate, avgerror, # methods on losses
-       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
+       quadreg, onereg, zeroreg, nonnegative, nonneg_onereg, onesparse, unitonesparse, lastentry1, lastentry_unpenalized, # concrete regularizers
        prox, # methods on regularizers
        add_offset, # utilities
        scale, scale!
