@@ -2,17 +2,22 @@
 # You may also implement your own loss or regularizer by subtyping 
 # the abstract type Loss or Regularizer.
 # Losses will need to have the methods `evaluate` and `grad` defined, 
-# while regularizers should implement `evaluate` and `prox`. 
+# while regularizers should implement `evaluate` and `prox!`. 
 # For automatic scaling, losses should also implement `avgerror`.
 
 import Base.scale! 
 export Loss, Regularizer, # abstract types
-       quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, l1, huber, periodic, # concrete losses
-       grad, evaluate, avgerror, # methods on losses
-       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, simplex, lastentry1, lastentry_unpenalized, # concrete regularizers
-       prox, # methods on regularizers
-       add_offset, # utilities
-       scale, scale!
+       # concrete losses
+       quadratic, weighted_hinge, hinge, logistic, ordinal_hinge, 
+       l1, huber, periodic, 
+       # methods on losses
+       grad, evaluate, avgerror, 
+       # concrete regularizers
+       quadreg, onereg, zeroreg, nonnegative, nonneg_onereg, 
+       onesparse, unitonesparse, simplex, lastentry1, lastentry_unpenalized,
+       prox!, prox # methods on regularizers
+       # utilities
+       add_offset, scale, scale!
 
 abstract Loss
 
@@ -267,6 +272,15 @@ function evaluate(r::nonnegative,a::AbstractArray)
 end
 scale(r::nonnegative) = 1
 scale!(r::nonnegative, newscale::Number) = 1
+
+## one norm regularization restricted to nonnegative orthant
+## (enforces nonnegativity, in addition to one norm regularization)
+type nonneg_onereg<:Regularizer
+    scale::Float64
+end
+nonneg_onereg() = nonneg_onereg(1)
+prox(r::nonneg_onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
+evaluate(r::nonneg_onereg,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : r.scale*sum(a)
 
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
