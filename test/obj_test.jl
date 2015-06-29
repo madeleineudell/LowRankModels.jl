@@ -1,4 +1,5 @@
 using LowRankModels
+using Plotly
 
 test_losses = Loss[
 quadratic(), 	

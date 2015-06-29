@@ -4,8 +4,8 @@ srand(1);
 
 test_losses = Loss[
 quadratic(), 	
-#l1(), 			
-#huber(), 		
+l1(), 			
+huber(), 		
 periodic(1), 	
 ordinal_hinge(1,10),
 logistic(), 		
@@ -24,6 +24,7 @@ weighted_hinge()
 		end
 	end
 	losses, doms = losses[2:end], doms[2:end]; # this is because the initialization leaves us with an #undef
+	my_error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}) = error_metric(glrm, X, Y, doms) # embed the domains into the error function.
 	
 	# Make a low rank matrix as our data precursor
 	m, n, true_k = 1000, length(doms), int(round(length(losses)/2)); 
@@ -40,7 +41,7 @@ weighted_hinge()
 	hetero = GLRM(A, losses, rx,ry,model_k, scale=false, offset=false);
 
 	# Test that our imputation is consistent
-	if !(error_metric(hetero, doms, X_real', Y_real) == 0)
+	if !(my_error_metric(hetero, X_real', Y_real) == 0)
 		error("Imputation failed.")
 	end
 
@@ -50,7 +51,7 @@ weighted_hinge()
 
 	println("model objective: $(ch.objective[end])")
 	println("objective using data precursor: $real_obj")
-	err = error_metric(hetero, doms, X_fit, Y_fit)
+	err = my_error_metric(hetero, X_fit, Y_fit)
 	if err != 0
 		println("Model did not correctly impute all entries. Average error: $(err/(m*n))")
 	end
