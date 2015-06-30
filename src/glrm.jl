@@ -162,7 +162,7 @@ function Params(stepsize=1; max_iter=100, convergence_tol=0.00001, min_stepsize=
 end
 
 ### FITTING
-function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
+function fit!(glrm::GLRM; params::Params=Params(), ch::ConvergenceHistory=ConvergenceHistory("glrm"), verbose=true)
 	
 	### initialization
 	A = glrm.A # rename these for easier local access
