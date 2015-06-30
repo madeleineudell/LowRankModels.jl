@@ -51,7 +51,7 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     end
     if offset
         k = glrm.k-1
-        glrm.X[:,end] = 1
+        glrm.X[end,:] = 1
         glrm.Y[end,:] = means
         Astd = Ademeaned*diagm(1./stds)
     else
@@ -67,7 +67,7 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     u,s,v = svd(Astd)
     # initialize with the top k components of the SVD,
     # rescaling by the variances
-    glrm.X[1:m,1:k] = u[:,1:k]*diagm(sqrt(s[1:k]))
+    glrm.X[1:k,1:m] = diagm(sqrt(s[1:k]))*(u[:,1:k]') # recall X is transposed as per column major order.
     glrm.Y[1:k,1:n] = diagm(sqrt(s[1:k]))*v[:,1:k]'*diagm(stds)
     return glrm
 end
