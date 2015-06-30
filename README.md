@@ -8,7 +8,7 @@ include many well known models in data analysis, such as
 principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
 
-For more information on GLRMs, see [glrmpaper].
+For more information on GLRMs, see [our paper][glrmpaper].
 
 LowRankModels.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
@@ -193,8 +193,8 @@ the new loss functions.
 If you don't have a good guess at a warm start for your model, you might try
 one of the initializations provided in `LowRankModels`.
 
-* `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems. See [glrmpaper] for details.
-* init_kmeanspp! initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
+* `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems. See [our paper][glrmpaper] for details.
+* init_kmeanspp! initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
 
 ### Parameters
 
@@ -254,4 +254,4 @@ Use the following BibTeX citation:
         journal={arXiv preprint arXiv:1410.0342},
     }
 
-[glrmpaper](http://arxiv.org/abs/1410.0342)
+[glrmpaper]: http://arxiv.org/abs/1410.0342
