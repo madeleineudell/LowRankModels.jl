@@ -6,7 +6,7 @@ max_ordinal_levels = 9
 
 function GLRM(df::DataFrame, k::Integer;
               losses = None, rx = quadreg(.01), ry = quadreg(.01),
-              X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
+              X = randn(k,size(df,1)), Y = randn(k,size(df,2)),
               offset = true, scale = true)
     if losses == None # if losses not specified, identify ordinal, boolean and real columns
         reals, real_losses = get_reals(df)
@@ -25,7 +25,7 @@ function GLRM(df::DataFrame, k::Integer;
 end
 
 function observations(df::DataFrame)
-    obs = (Int32, Int32)[]
+    obs = (Int, Int)[]
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m

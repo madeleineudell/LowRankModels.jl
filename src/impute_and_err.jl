@@ -123,27 +123,6 @@ function impute(losses::Array{Loss,1}, U::Array{Float64,2})
 	impute(domains, losses, U)
 end
 
-# function error_metric(domains::Array{Domain,1}, losses::Array{Loss,1}, 
-# 					  U::Array{Float64,2}, A::Array{Float64,2} )
-# 	err = 0
-# 	m,n = size(A)
-# 	for j in 1:n
-# 		for i in 1:m
-# 			err += error_metric(domains[j], losses[j], U[i,j], A[i,j])
-# 		end
-# 	end
-# 	return err
-# end
-# function error_metric(domains::Array{Domain,1}, losses::Array{Loss,1}, 
-# 					  X::Array{Float64,2}, Y::Array{Float64,2}, A::Array{Float64,2})
-# 	XY = Array(Float64, size(A)) 
-#     gemm!('T','N',1.0,X,Y,0.0,XY) 
-#     error_metric(domains, losses, XY, A)
-# end
-# function error_metric(losses::Array{Loss,1}, args...) # if the first arg isn't a domain list, use defaults
-# 	domains = [l.domain for l in losses]
-# 	error_metric(domains, losses, args...)
-# end
 
 function errors(domains::Array{Domain,1}, losses::Array{Loss,1}, 
 					  U::Array{Float64,2}, A::Array{Float64,2} )
