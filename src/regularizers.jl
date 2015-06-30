@@ -131,17 +131,21 @@ evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a
 
 ## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
 ## (eg for quadratic mixtures, ie soft kmeans)
+## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
 type simplex<:Regularizer
 end
-function prox(r::simplex,u::AbstractArray,alpha::Number)
-    v = broadcast(max,u,0)
-    s = sum(v)
-    s > 0 ? scale!(v,1/s) : fill(1/length(u), length(u))
-end
 function prox!(r::simplex,u::AbstractArray,alpha::Number)
-    @simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end
-    s = sum(u)
-    s > 0 ? scale!(u,1/s) : fill(1/length(u), length(u))
+    n = length(u)
+    y = sort(u, rev=true)
+    ysum = cumsum(y)
+    t = ysum[end]/n
+    for i=1:n-1
+        if (ysum[i] - 1)/i >= y[i+1]
+            t = (ysum[i] - 1)/i
+            break
+        end
+    end
+    u = max(u - t, 0)
 end
 evaluate(r::simplex,a::AbstractArray) = ((sum(map(x->x>=0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
 scale(r::simplex) = 1
