@@ -3,7 +3,11 @@ import Base.LinAlg: scale!
 import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 import Base: shmem_rand, shmem_randn#, acontrank
-export GLRM, objective, Params, getindex, display, size, fit, fit!, localcols#, acontrank
+
+export GLRM, 
+       Params, fit!, fit, localcols
+       objective, error_metric, 
+       add_offset!, equilibrate_variance!, fix_latent_features!
 
 # functions for shared arrays
 function localcols(Y::SharedArray)
@@ -14,81 +18,158 @@ function localcols(Y::SharedArray)
 end
 # acontrank(s::SharedArray,i::Any,c::Any) = acontrank(s.s,i,c)
 
+typealias ObsArray Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
+typealias mbSharedArray{T,N} Union(Array{T,N}, SharedArray{T,N})
+
+### GLRM TYPE
 type GLRM
-    A
-    observed_features
-    observed_examples
-    losses::Array{Loss,1}
-    rx::Regularizer
-    ry::Array{Regularizer,1}
-    k::Int
-    X::AbstractArray # k x n
-    Y::AbstractArray # k x m
+    A::Array{Float64,2}          # The data table transformed into a coded array 
+    losses::Array{Loss,1}        # array of loss functions
+    rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
+    ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
+    k::Int                     # Desired rank 
+    observed_features::ObsArray  # for each example, an array telling which features were observed
+    observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
+    X::mbSharedArray{Float64,2}    # Representation of data in low-rank space. A ≈ X'Y
+    Y::mbSharedArray{Float64,2}    # Representation of features in low-rank space. A ≈ X'Y
 end
-# default initializations for obs, X, Y, regularizing every column equally
-function GLRM(A,observed_features,observed_examples,losses,rx,ry::Regularizer,k,X,Y)
-    rys = Regularizer[typeof(ry)() for i=1:length(losses)]
-    for iry in rys
-        scale!(iry, scale(ry))
+function GLRM(A, losses, rx, ry, k; 
+              X = shmem_randn(k,size(A,1)), Y = shmem_randn(k,size(A,2)),
+              obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
+              observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
+              observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
+              offset = true, scale = true)
+    if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
+        # println("no obs given, using observed_features and observed_examples")
+        glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
+    else # otherwise unpack the tuple list into arrays
+        # println("unpacking obs into array")
+        glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)..., X,Y)
     end
-    return GLRM(A,observed_features,observed_examples,losses,rx,rys,k,X,Y)
+    # check to make sure X is properly oriented
+    if size(glrm.X) != (k, size(A,1)) 
+        # println("transposing X")
+        glrm.X = glrm.X'
+    end
+    if scale # scale losses (and regularizers) so they all have equal variance
+        equilibrate_variance!(glrm)
+    end
+    if offset # don't penalize the offset of the columns
+        add_offset!(glrm)
+    end
+    return glrm
 end
-# default initializations for obs, X, and Y
-GLRM(A,observed_features,observed_examples,losses,rx,ry,k) = 
-    GLRM(A,observed_features,observed_examples,losses,rx,ry,k,shmem_randn(k,size(A,1)),shmem_randn(k,size(A,2)))
-GLRM(A,obs,losses,rx,ry,k,X,Y) = 
-    GLRM(A,sort_observations(obs,size(A)...)...,losses,rx,ry,k,X,Y)
-GLRM(A,obs,losses,rx,ry,k) = 
-    GLRM(A,obs,losses,rx,ry,k,shmem_randn(k,size(A,1)),shmem_randn(k,size(A,2)))
-function GLRM(A,losses,rx,ry,k)
-    m,n = size(A)
-    return GLRM(A,fill(1:n, m),fill(1:m, n),losses,rx,ry,k)
-end    
-function objective(glrm::GLRM,X::Array,Y::Array,Z=nothing; include_regularization=true)
-    m,n = size(glrm.A)
-    err = 0
-    # compute value of loss function
-    if Z==nothing Z = X'*Y end
-    for i=1:m
-        for j in glrm.observed_features[i]
-            err += evaluate(glrm.losses[j], Z[i,j], glrm.A[i,j])
-        end
-    end
-    # add regularization penalty
-    if include_regularization
-        for i=1:m
-            err += evaluate(glrm.rx,view(X,:,i))
-        end
-        for j=1:n
-            err += evaluate(glrm.ry[j], view(Y,:,j)::AbstractArray)
-        end
-    end
-    return err
-end
-objective(glrm::GLRM) = objective(glrm,glrm.X,glrm.Y)
-objective(glrm::GLRM,X::SharedArray,Y::SharedArray,args...;kwargs...) = objective(glrm,X.s,Y.s,args...;kwargs...)
+GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry,size(losses)), k; kwargs...)
 
-type Params
-    stepsize # stepsize
-    max_iter # maximum number of iterations
-    convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
-    min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
-end
-Params(stepsize,max_iter,convergence_tol) = Params(stepsize,max_iter,convergence_tol,stepsize)
-Params() = Params(1,100,.00001,.01)
-
-function sort_observations(obs,m,n; check_empty=false)
-    observed_features = Array{Int32,1}[Int32[] for i=1:m]
-    observed_examples = Array{Int32,1}[Int32[] for j=1:n]
+### OBSERVATION TUPLES TO ARRAYS
+function sort_observations(obs::Array{(Int,Int),1}, m::Int, n::Int; check_empty=false)
+    observed_features = Array{Int,1}[Int[] for i=1:m]
+    observed_examples = Array{Int,1}[Int[] for j=1:n]
     for (i,j) in obs
-        push!(observed_features[i],j)
-        push!(observed_examples[j],i)
+        @inbounds push!(observed_features[i],j)
+        @inbounds push!(observed_examples[j],i)
     end
     if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
             any(map(x->length(x)==0,observed_features)))
         error("Every row and column must contain at least one observation")
     end
     return observed_features, observed_examples
+end
+
+
+## SCALINGS AND OFFSETS ON GLRM
+function add_offset!(glrm::GLRM)
+    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
+    return glrm
+end
+function equilibrate_variance!(glrm::GLRM)
+    for i=1:size(glrm.A,2)
+        nomissing = glrm.A[glrm.observed_examples[i],i]
+        if length(nomissing)>0
+            varlossi = avgerror(glrm.losses[i], nomissing)
+            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
+        else
+            varlossi = 1
+            varregi = 1
+        end
+        if varlossi > 0
+            # rescale the losses and regularizers for each column by the inverse of the empirical variance
+            scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
+        end
+        if varregi > 0
+            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
+        end
+    end
+    return glrm
+end
+function fix_latent_features!(glrm::GLRM, n)
+    glrm.ry = [fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) for i in 1:length(glrm.ry)]
+    return glrm
+end
+
+### OBJECTIVE FUNCTION EVALUATION
+function objective(glrm::GLRM, X::mbSharedArray{Float64,2}, Y::mbSharedArray{Float64,2}, 
+                   XY::mbSharedArray{Float64,2}; include_regularization=true)
+    X, Y = convert(Array,X), convert(Array,Y)
+    m,n = size(glrm.A)
+    err = 0
+    for j=1:n
+        for i in glrm.observed_examples[j]
+            err += evaluate(glrm.losses[j], XY[i,j], glrm.A[i,j])
+        end
+    end
+    # add regularization penalty
+    if include_regularization
+        for i=1:m
+            err += evaluate(glrm.rx, view(X,:,i))
+        end
+        for j=1:n
+            err += evaluate(glrm.ry[j], view(Y,:,j))
+        end
+    end
+    return err
+end
+# The user can also pass in X and Y and `objective` will compute XY for them
+function objective(glrm::GLRM, X::mbSharedArray{Float64,2}, Y::mbSharedArray{Float64,2}; kwargs...)
+    X, Y = convert(Array,X), convert(Array,Y)
+    XY = Array(Float64, size(glrm.A)) 
+    gemm!('T','N',1.0,X,Y,0.0,XY) 
+    objective(glrm, X, Y, XY; kwargs...)
+end
+# Or just the GLRM and `objective` will use glrm.X and .Y
+objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
+
+## ERROR METRIC EVALUATION (BASED ON DOMAINS OF THE DATA)
+function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
+    m,n = size(glrm.A)
+    err = 0
+    for j=1:n
+        for i in glrm.observed_examples[j]
+            err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
+        end
+    end
+    return err
+end
+# The user can also pass in X and Y and `error_metric` will compute XY for them
+function error_metric(glrm::GLRM, X::mbSharedArray{Float64,2}, 
+                      Y::mbSharedArray{Float64,2}, domains::Array{Domain,1})
+    X, Y = convert(Array,X), convert(Array,Y)
+    XY = Array(Float64, size(glrm.A)) 
+    gemm!('T','N',1.0,X,Y,0.0,XY) 
+    error_metric(glrm, XY, domains)
+end
+# Or just the GLRM and `error_metric` will use glrm.X and .Y
+error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, glrm.X, glrm.Y, domains)
+
+### PARAMETERS TYPE
+type Params
+    stepsize # stepsize
+    max_iter # maximum number of iterations
+    convergence_tol # stop when decrease in objective per iteration is less than convergence_tol*length(obs)
+    min_stepsize # use a decreasing stepsize, stop when reaches min_stepsize
+end
+function Params(stepsize=1; max_iter=100, convergence_tol=0.00001, min_stepsize=0.01*stepsize) 
+    return Params(stepsize, max_iter, convergence_tol, min_stepsize)
 end
 
 function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
@@ -240,10 +321,10 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
             end
             obj[pid] = err
         end
-        # make sure parallel obj eval is the same as local (it is)
-        # println("local objective = $(objective(glrm,X,Y)) while shared objective = $(obj[1])")
-        # record the best X and Y yet found
         totalobj = sum(obj)
+        # make sure parallel obj eval is the same as local (it is)
+        # println("local objective = $(objective(glrm)) while shared objective = $(totalobj)")
+        # record the best X and Y yet found
         if totalobj < ch.objective[end]
             t = time() - t
             update!(ch, t, totalobj)

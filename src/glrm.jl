@@ -4,7 +4,7 @@ import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 
 export GLRM, 
-       Params, getindex, size, fit!, fit,
+       Params, fit!, fit,
        objective, error_metric, 
        add_offset!, equilibrate_variance!, fix_latent_features!
 
@@ -28,10 +28,6 @@ function GLRM(A, losses, rx, ry, k;
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = true, scale = true)
-    # if isa(ry, Regularizer)
-    # 	# println("single reg given, converting")
-        # 	ry = fill(ry, size(losses))
-    # end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
