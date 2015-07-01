@@ -26,6 +26,9 @@
 
 export impute, error_metric, errors
 
+# function for general use
+roundcutoff(x,a,b) = min(max(round(x),a),b)
+
 # Error metrics for general use
 squared_error(a_imputed::Float64, a::Number) = (a_imputed-a)^2
 misclassification(a_imputed::Float64, a::Number) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
@@ -37,8 +40,8 @@ impute(l::Loss, u::Float64) = impute(l.domain, l, u)
 # Real data can take values from ℜ
 
 impute(D::RealDomain, l::DiffLoss, u::Float64) = u # by the properties of any DiffLoss
-impute(D::RealDomain, l::poisson, u::Float64) = exp(u)-1
-impute(D::RealDomain, l::ordinal_hinge, u::Float64) = min(max(round(u),l.min),l.max)
+impute(D::RealDomain, l::poisson, u::Float64) = exp(u)
+impute(D::RealDomain, l::ordinal_hinge, u::Float64) = roundcutoff(u, l.min, l.max)
 impute(D::RealDomain, l::logistic, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")
 function impute(D::RealDomain, l::weighted_hinge, u::Float64) 
 	warn("It doesn't make sense to use hinge to impute data that can take values in ℜ")
@@ -65,14 +68,14 @@ end
 ########################################## ORDINALS ##########################################
 # Ordinal data should take integer values ranging from `min` to `max`
 
-impute(D::OrdinalDomain, l::DiffLoss, u::Float64) = min(max( round(u), D.min ), D.max)
-impute(D::OrdinalDomain, l::poisson, u::Float64) = min(max( round(exp(u)-1), D.min ), D.max)
-impute(D::OrdinalDomain, l::ordinal_hinge, u::Float64) = min(max( round(u), D.min), D.max)
+impute(D::OrdinalDomain, l::DiffLoss, u::Float64) = roundcutoff(u, D.min, D.max)
+impute(D::OrdinalDomain, l::poisson, u::Float64) = roundcutoff(exp(u), D.min , D.max)
+impute(D::OrdinalDomain, l::ordinal_hinge, u::Float64) = roundcutoff(u, D.min, D.max)
 impute(D::OrdinalDomain, l::logistic, u::Float64) = u>0 ? D.max : D.min
 function impute(D::OrdinalDomain, l::weighted_hinge, u::Float64) 
 	warn("It doesn't make sense to use hinge to impute ordinals")
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))
-	min(max( round(a_imputed), D.min) ,D.max)
+	roundcutoff(a_imputed, D.min, D.max)
 end
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
@@ -123,27 +126,6 @@ function impute(losses::Array{Loss,1}, U::Array{Float64,2})
 	impute(domains, losses, U)
 end
 
-# function error_metric(domains::Array{Domain,1}, losses::Array{Loss,1}, 
-# 					  U::Array{Float64,2}, A::Array{Float64,2} )
-# 	err = 0
-# 	m,n = size(A)
-# 	for j in 1:n
-# 		for i in 1:m
-# 			err += error_metric(domains[j], losses[j], U[i,j], A[i,j])
-# 		end
-# 	end
-# 	return err
-# end
-# function error_metric(domains::Array{Domain,1}, losses::Array{Loss,1}, 
-# 					  X::Array{Float64,2}, Y::Array{Float64,2}, A::Array{Float64,2})
-# 	XY = Array(Float64, size(A)) 
-#     gemm!('T','N',1.0,X,Y,0.0,XY) 
-#     error_metric(domains, losses, XY, A)
-# end
-# function error_metric(losses::Array{Loss,1}, args...) # if the first arg isn't a domain list, use defaults
-# 	domains = [l.domain for l in losses]
-# 	error_metric(domains, losses, args...)
-# end
 
 function errors(domains::Array{Domain,1}, losses::Array{Loss,1}, 
 					  U::Array{Float64,2}, A::Array{Float64,2} )

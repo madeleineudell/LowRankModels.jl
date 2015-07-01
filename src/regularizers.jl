@@ -9,10 +9,14 @@
 
 import Base.scale! 
 
-export Regularizer, # abstract types
-       quadreg, onereg, zeroreg, nonnegative, onesparse, unitonesparse, sumone, # concrete regularizers
-       lastentry1, lastentry_unpenalized, fixed_latent_features, 		# regularizers to fix columns
-       prox, # methods on regularizers
+export Regularizer, # abstract type
+       # concrete regularizers
+       quadreg, onereg, zeroreg, nonnegative, nonneg_onereg, 
+       onesparse, unitonesparse, simplex, 
+       lastentry1, lastentry_unpenalized, fixed_latent_features,
+       # methods on regularizers
+       prox!, prox,
+       # utilities
        scale, scale!
 
 # regularizers
@@ -62,6 +66,15 @@ evaluate(r::nonnegative,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : 0
 scale(r::nonnegative) = 1
 scale!(r::nonnegative, newscale::Number) = 1
 
+## one norm regularization restricted to nonnegative orthant
+## (enforces nonnegativity, in addition to one norm regularization)
+type nonneg_onereg<:Regularizer
+    scale::Float64
+end
+nonneg_onereg() = nonneg_onereg(1)
+prox(r::nonneg_onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
+evaluate(r::nonneg_onereg,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : r.scale*sum(a)
+
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
 type lastentry1<:Regularizer
@@ -108,16 +121,6 @@ prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(si
 prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
 evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
 
-# I want to constrain this to the probability simplex, but for now the prox just goes to the whole plane
-type sumone<:Regularizer
-end
-function prox(r::sumone,u::AbstractArray,alpha::Number)
-	p = length(u)
-	n = ones(p)/sqrt(p) # unit vector of [1 1 1 1... 1]
-	return u - (dot(u,n)+sqrt(p/2))*n # project u into the plane defined by [1 1 1 1... 1]
-end
-evaluate(r::sumone,u::AbstractArray) = sum(u)==1 ? 0 : Inf
-
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
 type unitonesparse<:Regularizer
@@ -125,3 +128,25 @@ end
 prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
+
+## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
+## (eg for quadratic mixtures, ie soft kmeans)
+## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
+type simplex<:Regularizer
+end
+function prox!(r::simplex,u::AbstractArray,alpha::Number)
+    n = length(u)
+    y = sort(u, rev=true)
+    ysum = cumsum(y)
+    t = ysum[end]/n
+    for i=1:n-1
+        if (ysum[i] - 1)/i >= y[i+1]
+            t = (ysum[i] - 1)/i
+            break
+        end
+    end
+    u = max(u - t, 0)
+end
+evaluate(r::simplex,a::AbstractArray) = ((sum(map(x->x>=0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
+scale(r::simplex) = 1
+scale!(r::simplex, newscale::Number) = 1

@@ -4,7 +4,7 @@ import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 
 export GLRM, 
-       Params, getindex, size, fit!, fit,
+       Params, fit!, fit,
        objective, error_metric, 
        add_offset!, equilibrate_variance!, fix_latent_features!
 
@@ -12,7 +12,7 @@ ObsArray = Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
 ### GLRM TYPE
 type GLRM
-    A::Array{Float64,2}          # The data table transformed into a coded array 
+    A::AbstractArray             # The data table transformed into a coded array 
     losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
@@ -22,27 +22,26 @@ type GLRM
     X::Array{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
     Y::Array{Float64,2}          # Representation of features in low-rank space. A ≈ X'Y
 end
-function GLRM(A, losses, rx, ry, k; 
+function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Array{Regularizer,1}, k::Int; 
               X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = true, scale = true)
-    # if isa(ry, Regularizer)
-    # 	# println("single reg given, converting")
-        # 	ry = fill(ry, size(losses))
-    # end
+    # Check dimensions of the arguments
+    m,n = size(A)
+    if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
+    if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
+    if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix.
+                                    This is the transpose of the standard notation used in the paper, but it 
+                                    makes for better memory management.") end
+    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix.") end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
     else # otherwise unpack the tuple list into arrays
         # println("unpacking obs into array")
         glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)..., X,Y)
-    end
-    # check to make sure X is properly oriented
-    if size(glrm.X) != (k, size(A,1)) 
-        # println("transposing X")
-        glrm.X = glrm.X'
     end
     if scale # scale losses (and regularizers) so they all have equal variance
         equilibrate_variance!(glrm)
@@ -52,7 +51,10 @@ function GLRM(A, losses, rx, ry, k;
     end
     return glrm
 end
-GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry,size(losses)), k; kwargs...)
+function GLRM(A, losses, rx, ry::Regularizer, k; kwargs...)
+    ry_array = convert(Array{Regularizer,1}, fill(ry,size(losses)))
+    GLRM(A, losses, rx, ry_array, k; kwargs...)
+end
 
 
 ### OBSERVATION TUPLES TO ARRAYS
@@ -149,6 +151,7 @@ function error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, doma
 end
 # Or just the GLRM and `error_metric` will use glrm.X and .Y
 error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, glrm.X, glrm.Y, domains)
+error_metric(glrm::GLRM) = error_metric(glrm, Domain[l.domain for l in glrm.losses])
 
 ### PARAMETERS TYPE
 type Params
@@ -162,7 +165,7 @@ function Params(stepsize=1; max_iter=100, convergence_tol=0.00001, min_stepsize=
 end
 
 ### FITTING
-function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=ConvergenceHistory("glrm"),verbose=true)
+function fit!(glrm::GLRM; params::Params=Params(), ch::ConvergenceHistory=ConvergenceHistory("glrm"), verbose=true)
 	
 	### initialization
 	A = glrm.A # rename these for easier local access
@@ -210,6 +213,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
                 axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
+                # if any(isnan(g))
+                #     warn("evaluation of gradient at [$e,$f] produced a NAN.")
+                # end
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1

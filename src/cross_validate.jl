@@ -1,7 +1,7 @@
 export cross_validate, cv_by_iter, regularization_path, get_train_and_test, precision_at_k
 
-# to use with error_metric when we have domains in the namespace, call like:
-# cross_validate(glrm, error_fn(g,X,Y) = error_metric(g,domains,X,Y))
+# to use with error_metric when we have domains in the namespace, call as:
+# cross_validate(glrm, error_fn = error_metric(glrm,domains,X,Y))
 function cross_validate(glrm::GLRM; 
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=None,
@@ -9,7 +9,7 @@ function cross_validate(glrm::GLRM;
     if use_folds==None use_folds = nfolds end
     if verbose println("flattening observations") end
 #    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
-    obs = unsort_observations(glrm.observed_features)
+    obs = flatten_observations(glrm.observed_features)
     if verbose println("computing CV folds") end
     folds = getfolds(obs, nfolds, size(glrm.A)...)
     train_glrms = Array(GLRM, nfolds)
@@ -75,7 +75,7 @@ function get_train_and_test(obs, m, n, holdout_proportion=.1)
                 test_observed_features,  test_observed_examples)
 end
 
-function unsort_observations(observed_features::ObsArray)
+function flatten_observations(observed_features::ObsArray)
     obs = (Int,Int)[]
     for (i, features_in_example_i) in enumerate(observed_features)
         for j in features_in_example_i
