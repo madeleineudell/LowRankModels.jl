@@ -156,7 +156,7 @@ end
 
 grad(l::poisson, u::Float64, a::Number) = exp(u) - a
 
-M_estimator(l::poisson, u::Float64, a::AbstractArray) = log(mean(a))
+M_estimator(l::poisson, a::AbstractArray) = log(mean(a))
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
