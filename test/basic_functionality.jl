@@ -7,10 +7,11 @@ X_real, Y_real = randn(m,k), randn(k,n);
 A = X_real*Y_real;
 losses = fill(quadratic(),n);
 rx, ry = zeroreg(), zeroreg();
-glrm = GLRM(A,losses,rx,ry,5, scale=false, offset=false);
+glrm = GLRM(A,losses,rx,ry,5, scale=false, offset=false, X=randn(m,k), Y=randn(k,n));
 
 p = Params(1, max_iter=200, convergence_tol=0.0000001, min_stepsize=0.001) 
 @time X,Y,ch = fit!(glrm, params=p);
 Ah = X'*Y;
 p.convergence_tol > abs(vecnorm(A-Ah)^2 - ch.objective[end])
 
+display(Y)

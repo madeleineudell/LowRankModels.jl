@@ -55,15 +55,15 @@ weighted_hinge()
 	if err != 0
 		println("Model did not correctly impute all entries. Average error: $(err/(m*n))")
 	end
-	data = [
-		[
-			"z" => errors(doms, losses, X_fit'*Y_fit, A)',
-			"x" => [string(typeof(l),"    ",randn()) for l in losses],
-			"type" => "heatmap"
-		]
-	]
-	response = Plotly.plot(data, ["filename" => "labelled-heatmap", "fileopt" => "overwrite"])
-	plot_url = response["url"]
+	# data = [
+	# 	[
+	# 		"z" => errors(doms, losses, X_fit'*Y_fit, A)',
+	# 		"x" => [string(typeof(l),"    ",randn()) for l in losses],
+	# 		"type" => "heatmap"
+	# 	]
+	# ]
+	# response = Plotly.plot(data, ["filename" => "labelled-heatmap", "fileopt" => "overwrite"])
+	# plot_url = response["url"]
 	# println(final_obj/initial_obj)
 	# println(real_obj/initial_obj)
 #end

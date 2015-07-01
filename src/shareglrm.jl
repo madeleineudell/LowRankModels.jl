@@ -5,7 +5,7 @@ import ArrayViews: view, StridedView, ContiguousView
 import Base: shmem_rand, shmem_randn#, acontrank
 
 export GLRM, 
-       Params, fit!, fit, localcols
+       Params, fit!, fit, localcols,
        objective, error_metric, 
        add_offset!, equilibrate_variance!, fix_latent_features!
 
@@ -19,7 +19,6 @@ end
 # acontrank(s::SharedArray,i::Any,c::Any) = acontrank(s.s,i,c)
 
 typealias ObsArray Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
-typealias mbSharedArray{T,N} Union(Array{T,N}, SharedArray{T,N})
 
 ### GLRM TYPE
 type GLRM
@@ -30,8 +29,8 @@ type GLRM
     k::Int                     # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
-    X::mbSharedArray{Float64,2}    # Representation of data in low-rank space. A ≈ X'Y
-    Y::mbSharedArray{Float64,2}    # Representation of features in low-rank space. A ≈ X'Y
+    X::SharedArray{Float64,2}    # Representation of data in low-rank space. A ≈ X'Y
+    Y::SharedArray{Float64,2}    # Representation of features in low-rank space. A ≈ X'Y
 end
 function GLRM(A, losses, rx, ry, k; 
               X = shmem_randn(k,size(A,1)), Y = shmem_randn(k,size(A,2)),
@@ -39,17 +38,23 @@ function GLRM(A, losses, rx, ry, k;
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = true, scale = true)
+    # Check dimensions of the arguments
+    m,n = size(A)
+    if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
+    if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
+    if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix.
+                                    This is the transpose of the standard notation used in the paper, but it 
+                                    makes for better memory management.") end
+    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix.") end
+    # If the user passed in arrays, make sure to convert them to shared arrays
+    if !isa(X, SharedArray) X = convert(SharedArray, X) end
+    if !isa(Y, SharedArray) Y = convert(SharedArray, Y) end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
     else # otherwise unpack the tuple list into arrays
         # println("unpacking obs into array")
         glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)..., X,Y)
-    end
-    # check to make sure X is properly oriented
-    if size(glrm.X) != (k, size(A,1)) 
-        # println("transposing X")
-        glrm.X = glrm.X'
     end
     if scale # scale losses (and regularizers) so they all have equal variance
         equilibrate_variance!(glrm)
@@ -108,9 +113,8 @@ function fix_latent_features!(glrm::GLRM, n)
 end
 
 ### OBJECTIVE FUNCTION EVALUATION
-function objective(glrm::GLRM, X::mbSharedArray{Float64,2}, Y::mbSharedArray{Float64,2}, 
-                   XY::mbSharedArray{Float64,2}; include_regularization=true)
-    X, Y = convert(Array,X), convert(Array,Y)
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
+                   XY::Array{Float64,2}; include_regularization=true)
     m,n = size(glrm.A)
     err = 0
     for j=1:n
@@ -130,11 +134,13 @@ function objective(glrm::GLRM, X::mbSharedArray{Float64,2}, Y::mbSharedArray{Flo
     return err
 end
 # The user can also pass in X and Y and `objective` will compute XY for them
-function objective(glrm::GLRM, X::mbSharedArray{Float64,2}, Y::mbSharedArray{Float64,2}; kwargs...)
-    X, Y = convert(Array,X), convert(Array,Y)
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}; kwargs...)
     XY = Array(Float64, size(glrm.A)) 
     gemm!('T','N',1.0,X,Y,0.0,XY) 
     objective(glrm, X, Y, XY; kwargs...)
+end
+function objective(glrm::GLRM, X::SharedArray{Float64,2}, Y::SharedArray{Float64,2}; kwargs...)
+    objective(glrm, convert(Array,X), convert(Array,Y); kwargs...)
 end
 # Or just the GLRM and `objective` will use glrm.X and .Y
 objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
@@ -151,12 +157,14 @@ function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1}
     return err
 end
 # The user can also pass in X and Y and `error_metric` will compute XY for them
-function error_metric(glrm::GLRM, X::mbSharedArray{Float64,2}, 
-                      Y::mbSharedArray{Float64,2}, domains::Array{Domain,1})
-    X, Y = convert(Array,X), convert(Array,Y)
+function error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, domains::Array{Domain,1})
     XY = Array(Float64, size(glrm.A)) 
     gemm!('T','N',1.0,X,Y,0.0,XY) 
     error_metric(glrm, XY, domains)
+end
+function error_metric(glrm::GLRM, X::SharedArray{Float64,2}, 
+                      Y::SharedArray{Float64,2}, domains::Array{Domain,1})
+    error_metric(glrm, convert(Array,X), convert(Array,Y), domains)
 end
 # Or just the GLRM and `error_metric` will use glrm.X and .Y
 error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, glrm.X, glrm.Y, domains)
@@ -369,7 +377,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
     t = time() - t
     update!(ch, t, ch.objective[end])
 
-    return glrm.X', glrm.Y, ch
+    return glrm.X.s, glrm.Y.s, ch
 end
 
 function fit(glrm::GLRM, args...; kwargs...)

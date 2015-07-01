@@ -28,17 +28,20 @@ function GLRM(A, losses, rx, ry, k;
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = true, scale = true)
+    # Check dimensions of the arguments
+    m,n = size(A)
+    if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
+    if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
+    if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix.
+                                    This is the transpose of the standard notation used in the paper, but it 
+                                    makes for better memory management.") end
+    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix.") end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
     else # otherwise unpack the tuple list into arrays
         # println("unpacking obs into array")
         glrm = GLRM(A,losses,rx,ry,k, sort_observations(obs,size(A)...)..., X,Y)
-    end
-    # check to make sure X is properly oriented
-    if size(glrm.X) != (k, size(A,1)) 
-        # println("transposing X")
-        glrm.X = glrm.X'
     end
     if scale # scale losses (and regularizers) so they all have equal variance
         equilibrate_variance!(glrm)
