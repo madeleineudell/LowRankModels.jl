@@ -32,13 +32,14 @@ type GLRM
     X::SharedArray{Float64,2}    # Representation of data in low-rank space. A ≈ X'Y
     Y::SharedArray{Float64,2}    # Representation of features in low-rank space. A ≈ X'Y
 end
-function GLRM(A, losses, rx, ry, k; 
+function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Array{Regularizer,1}, k::Int; 
               X = shmem_randn(k,size(A,1)), Y = shmem_randn(k,size(A,2)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = true, scale = true)
     # Check dimensions of the arguments
+    A = convert(Array{Float64,2}, A)
     m,n = size(A)
     if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
     if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
@@ -64,7 +65,10 @@ function GLRM(A, losses, rx, ry, k;
     end
     return glrm
 end
-GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry,size(losses)), k; kwargs...)
+function GLRM(A, losses, rx, ry::Regularizer, k; kwargs...)
+    ry_array = convert(Array{Regularizer,1}, fill(ry,size(losses)))
+    GLRM(A, losses, rx, ry_array, k; kwargs...)
+end
 
 ### OBSERVATION TUPLES TO ARRAYS
 function sort_observations(obs::Array{(Int,Int),1}, m::Int, n::Int; check_empty=false)
@@ -168,6 +172,7 @@ function error_metric(glrm::GLRM, X::SharedArray{Float64,2},
 end
 # Or just the GLRM and `error_metric` will use glrm.X and .Y
 error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, glrm.X, glrm.Y, domains)
+error_metric(glrm::GLRM) = error_metric(glrm, Domain[l.domain for l in glrm.losses])
 
 ### PARAMETERS TYPE
 type Params

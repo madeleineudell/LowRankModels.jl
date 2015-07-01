@@ -26,6 +26,9 @@
 
 export impute, error_metric, errors
 
+# function for general use
+roundcutoff(x,a,b) = min(max(round(x),a),b)
+
 # Error metrics for general use
 squared_error(a_imputed::Float64, a::Number) = (a_imputed-a)^2
 misclassification(a_imputed::Float64, a::Number) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
@@ -37,8 +40,8 @@ impute(l::Loss, u::Float64) = impute(l.domain, l, u)
 # Real data can take values from ℜ
 
 impute(D::RealDomain, l::DiffLoss, u::Float64) = u # by the properties of any DiffLoss
-impute(D::RealDomain, l::poisson, u::Float64) = exp(u)-1
-impute(D::RealDomain, l::ordinal_hinge, u::Float64) = min(max(round(u),l.min),l.max)
+impute(D::RealDomain, l::poisson, u::Float64) = exp(u)
+impute(D::RealDomain, l::ordinal_hinge, u::Float64) = roundcutoff(u, l.min, l.max)
 impute(D::RealDomain, l::logistic, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")
 function impute(D::RealDomain, l::weighted_hinge, u::Float64) 
 	warn("It doesn't make sense to use hinge to impute data that can take values in ℜ")
@@ -65,14 +68,14 @@ end
 ########################################## ORDINALS ##########################################
 # Ordinal data should take integer values ranging from `min` to `max`
 
-impute(D::OrdinalDomain, l::DiffLoss, u::Float64) = min(max( round(u), D.min ), D.max)
-impute(D::OrdinalDomain, l::poisson, u::Float64) = min(max( round(exp(u)-1), D.min ), D.max)
-impute(D::OrdinalDomain, l::ordinal_hinge, u::Float64) = min(max( round(u), D.min), D.max)
+impute(D::OrdinalDomain, l::DiffLoss, u::Float64) = roundcutoff(u, D.min, D.max)
+impute(D::OrdinalDomain, l::poisson, u::Float64) = roundcutoff(exp(u), D.min , D.max)
+impute(D::OrdinalDomain, l::ordinal_hinge, u::Float64) = roundcutoff(u, D.min, D.max)
 impute(D::OrdinalDomain, l::logistic, u::Float64) = u>0 ? D.max : D.min
 function impute(D::OrdinalDomain, l::weighted_hinge, u::Float64) 
 	warn("It doesn't make sense to use hinge to impute ordinals")
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))
-	min(max( round(a_imputed), D.min) ,D.max)
+	roundcutoff(a_imputed, D.min, D.max)
 end
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
