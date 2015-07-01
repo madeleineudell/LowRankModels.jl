@@ -22,7 +22,7 @@ typealias ObsArray Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
 ### GLRM TYPE
 type GLRM
-    A::Array{Float64,2}          # The data table transformed into a coded array 
+    A::AbstractArray             # The data table transformed into a coded array 
     losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
@@ -39,7 +39,6 @@ function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Arra
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = true, scale = true)
     # Check dimensions of the arguments
-    A = convert(Array{Float64,2}, A)
     m,n = size(A)
     if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
     if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
