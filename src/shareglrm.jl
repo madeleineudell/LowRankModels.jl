@@ -374,7 +374,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - totalobj < tol) || alpha[1] <= params.min_stepsize
             break
         end
-        if verbose && i%10==0 
+        if verbose
             println("Iteration $i: objective value = $(ch.objective[end])") 
         end
     end
