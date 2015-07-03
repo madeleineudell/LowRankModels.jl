@@ -1,5 +1,4 @@
 using LowRankModels
-using Plotly
 srand(1);
 
 test_losses = Loss[
@@ -15,7 +14,7 @@ weighted_hinge()
 #for test_iteration = 1:10
 	# Create the configuration for the model (random losses)
 	config = int(abs(round(10*rand(length(test_losses)))));
-	config = [0 0 1 0 10 0 100]
+	#config = [0 0 1 0 10 0 100]
 	losses, doms = Array(Loss,1), Array(Domain,1);
 	for (n,l) in zip(config, test_losses)
 		for i=1:n
@@ -46,8 +45,10 @@ weighted_hinge()
 	end
 
 	real_obj = objective(hetero, X_real', Y_real, include_regularization=false);
-
 	X_fit,Y_fit,ch = fit!(hetero, params=p, verbose=false);
+
+	train_err, test_err, trainers, testers = cross_validate(hetero, error_fn=my_error_metric)
+
 
 	println("model objective: $(ch.objective[end])")
 	println("objective using data precursor: $real_obj")
@@ -55,15 +56,4 @@ weighted_hinge()
 	if err != 0
 		println("Model did not correctly impute all entries. Average error: $(err/(m*n))")
 	end
-	# data = [
-	# 	[
-	# 		"z" => errors(doms, losses, X_fit'*Y_fit, A)',
-	# 		"x" => [string(typeof(l),"    ",randn()) for l in losses],
-	# 		"type" => "heatmap"
-	# 	]
-	# ]
-	# response = Plotly.plot(data, ["filename" => "labelled-heatmap", "fileopt" => "overwrite"])
-	# plot_url = response["url"]
-	# println(final_obj/initial_obj)
-	# println(real_obj/initial_obj)
-#end
+
