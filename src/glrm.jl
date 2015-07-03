@@ -274,7 +274,7 @@ function fit!(glrm::GLRM; params::Params=Params(), ch::ConvergenceHistory=Conver
     t = time() - t
     update!(ch, t, ch.objective[end])
 
-    return glrm.X, glrm.Y, ch
+    return glrm.X, glrm.Y, ch, alpha[1]
 end
 
 function fit(glrm::GLRM, args...; kwargs...)

@@ -42,35 +42,5 @@ weighted_hinge()
 	k0=skip
 	model = GLRM(A, losses, rx, ry, k0, scale=false, offset=false);
 	X_fit, Y_fit, ch = fit!(model, params=p, verbose=false);
-	Xi = [X_fit; 0.1*randn(skip, m)];
-	Yi = [Y_fit; 0.1*randn(skip, n)];
-	println("k=$k0")
-	println("Obj: $(ch.objective[1]) to $(ch.objective[end])")
-	#display([norm(Y_fit[i,:]) for i in 1:k])
-	for k = (k0+skip):skip:(true_k*2)
-		println()
-		println("k=$k")
-		model = GLRM(A, losses, rx, ry, k, scale=false, offset=false, X=Xi, Y=Yi);
-		naive_model = GLRM(A, losses, rx, ry, k, scale=false, offset=false)
-		fix_latent_features!(model, k-skip) # fix the first k-1 rows of Y so we're only finding skip# new ones
-		old_ch = ch
-		X_fit, Y_fit, ch = fit!(model, params=p, verbose=false);
-		X_naive, Y_naive, ch_naive = fit!(naive_model, params=p, verbose=false)
-		println("Obj: $(ch.objective[1]) ... $(ch.objective[end]): $(old_ch.objective[end]/ch.objective[end])-fold reduction")
-		println("Naive objective: $(ch_naive.objective[end])")
-		#display([norm(Y_fit[i,:]) for i in 1:k])
-		Xi = [X_fit; 0.1*randn(skip, m)];
-		Yi = [Y_fit; 0.1*randn(skip, n)];
-	end
 
-#end
-# function cosdisty(Y,a,b)
-# 	for a=1:k
-# 		for b=1:k
-# 			dists[a,b] = dot(Y[a,:], Y[b,:]) / (norm(Y[a,:]) * norm(Y[b,:]))
-# 		end
-# 	end
-# 	return dists
-# end
-# HEATMAP OF DISTS for Y and Y naive PLZ!!!
 
