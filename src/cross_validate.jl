@@ -39,7 +39,7 @@ function cross_validate(glrm::GLRM;
         test_error[ifold] = error_fn(test_glrms[ifold], X, Y) / ntest
         if verbose println("\ttest error:  $(test_error[ifold])") end
     end
-    return mean(train_error), mean(test_error), train_glrms, test_glrms
+    return train_error, test_error, train_glrms, test_glrms
 end
 
 function getfolds(obs::Array{(Int,Int),1}, nfolds, m, n)    
