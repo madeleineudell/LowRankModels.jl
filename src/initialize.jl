@@ -58,7 +58,7 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
         # i'm not sure why you'd want to do this, unless you're sure the data was already demeaned,
         # or possibly to cope with regularization
         k = glrm.k
-        Astd = A*diagm(1./stds)
+        Astd = glrm.A*diagm(1./stds)
     end
     # TODO: might also want to remove entries in columns that have many fewer missing values than others
     # intuition: noise in a dense column is low rank
