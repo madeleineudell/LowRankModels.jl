@@ -9,7 +9,7 @@ do_plot = false
 
 m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
-losses = convert(Array{Loss,1}, fill(huber(),n))
+losses = fill(huber(),n)
 r = quadreg(.1)
 glrm = GLRM(A,losses,r,r,k+2)
 

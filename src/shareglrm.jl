@@ -21,18 +21,18 @@ end
 typealias ObsArray Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
 ### GLRM TYPE
-type GLRM
+type GLRM{L<:Loss, R<:Regularizer}
     A::AbstractArray             # The data table transformed into a coded array 
-    losses::Array{Loss,1}        # array of loss functions
+    losses::Array{L,1}           # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
-    ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
-    k::Int                     # Desired rank 
+    ry::Array{R,1}               # Array of regularizers to be applied to each column of Y
+    k::Int                       # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
     X::SharedArray{Float64,2}    # Representation of data in low-rank space. A ≈ X'Y
     Y::SharedArray{Float64,2}    # Representation of features in low-rank space. A ≈ X'Y
 end
-function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Array{Regularizer,1}, k::Int; 
+function GLRM(A::AbstractArray, losses, rx::Regularizer, ry::Array, k::Int; 
               X = shmem_randn(k,size(A,1)), Y = shmem_randn(k,size(A,2)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
@@ -42,10 +42,8 @@ function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Arra
     m,n = size(A)
     if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
     if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
-    if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix.
-                                    This is the transpose of the standard notation used in the paper, but it 
-                                    makes for better memory management.") end
-    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix.") end
+    if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix. This is the transpose of the standard notation used in the paper, but it makes for better memory management. size(X) = $(size(X)), size(A) = $(size(A))") end
+    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix. size(Y) = $(size(Y)), size(A) = $(size(A))") end
     # If the user passed in arrays, make sure to convert them to shared arrays
     if !isa(X, SharedArray) X = convert(SharedArray, X) end
     if !isa(Y, SharedArray) Y = convert(SharedArray, Y) end

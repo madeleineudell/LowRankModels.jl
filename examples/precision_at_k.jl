@@ -7,7 +7,7 @@ m,n,k,ktrue = 100,100,1,1
 A = rand(m,ktrue)*rand(ktrue,n)
 println("max value of A is ",maximum(maximum(A))," which is less than $ktrue")
 B = int(ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
-losses = convert(Array{Loss,1}, fill(quadratic(),n))
+losses = fill(quadratic(),n)
 r = quadreg(.1)
 obs = (Int,Int)[]
 for i=1:m
