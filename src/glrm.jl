@@ -16,7 +16,7 @@ type GLRM
     losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
-    k::Int                     # Desired rank 
+    k::Int                       # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
     X::Array{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
@@ -34,8 +34,8 @@ function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Arra
     if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
     if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix.
                                     This is the transpose of the standard notation used in the paper, but it 
-                                    makes for better memory management.") end
-    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix.") end
+                                    makes for better memory management. size(X) = $(size(X)), size(A) = $(size(A))") end
+    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix. size(Y) = $(size(Y)), size(A) = $(size(A))") end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)

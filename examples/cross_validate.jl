@@ -1,4 +1,4 @@
-using LowRankModels, DataFrames, Gadfly
+using DataFrames, LowRankModels, Gadfly
 
 println("cross validation example")
 
@@ -9,13 +9,13 @@ do_plot = false
 
 m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
-losses = fill(huber(),n)
+losses = convert(Array{Loss,1}, fill(huber(),n))
 r = quadreg(.1)
 glrm = GLRM(A,losses,r,r,k+2)
 
 if do_cv
     println("Computing cross validation error for each fold")
-    train_error, test_error, train_glrms, test_glrms = cross_validate(glrm,5,Params(1,100,0,.001))
+    train_error, test_error, train_glrms, test_glrms = cross_validate(glrm, nfolds=5, params=Params(1,100,0,.001))
     df = DataFrame(train_error = train_error, test_error = test_error)
 end
 
