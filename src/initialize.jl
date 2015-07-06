@@ -72,7 +72,6 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     return glrm
 end
 
-
 function init_nnmf!(glrm::GLRM; scaling=true, variant=:nndsvd)
     # NNDSVD initialization:
     #    Boutsidis C, Gallopoulos E (2007). SVD based initialization: A head
