@@ -1,4 +1,4 @@
-using LowRankModels, DataFrames
+using DataFrames, LowRankModels
 
 # boolean example with only entries greater than threshold t observed
 # ie, censored data
@@ -21,7 +21,7 @@ end
 (train_observed_features, train_observed_examples, test_observed_features,  test_observed_examples) = 
     get_train_and_test(obs, m, n, .2)
 
-train_glrm = GLRM(B,train_observed_features, train_observed_examples,losses,r,r,k)
+train_glrm = GLRM(B,losses,r,r,k, observed_features=train_observed_features, observed_examples=train_observed_examples)
 
 train_error, test_error, prec_at_k, train_time, reg_params, solution =
     precision_at_k(train_glrm, test_observed_features, params=Params(1,200,.00001,.01), 

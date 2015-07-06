@@ -113,8 +113,9 @@ flattenarray{T}(x::Array{T})=flattenarray(x,Array(T, 0))
 
 function cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)
     if verbose println("flattening observations") end
-    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
-    
+    # obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
+    obs = flatten_observations(glrm.observed_features)
+
     if verbose println("splitting train and test sets") end
     train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = 
         get_train_and_test(obs, size(glrm.A)..., holdout_proportion)
@@ -148,8 +149,9 @@ function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,
                                          holdout_proportion=.1, verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     if verbose println("flattening observations") end
-    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
-    
+    # obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
+    obs = flatten_observations(glrm.observed_features)
+
     if verbose println("splitting train and test sets") end
     train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = 
         get_train_and_test(obs, size(glrm.A)..., holdout_proportion)
@@ -215,16 +217,16 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
     prec_at_k = Array(Float64, length(reg_params))
     solution = Array((Float64,Float64), length(reg_params))
     train_time = Array(Float64, length(reg_params))
-    test_glrm = GLRM(train_glrm.A, test_observed_features, [], 
-                     train_glrm.losses, train_glrm.rx, train_glrm.ry, 
-                     train_glrm.k, copy(train_glrm.X), copy(train_glrm.Y))
+    test_glrm = GLRM(train_glrm.A, train_glrm.losses, train_glrm.rx, train_glrm.ry, train_glrm.k,
+                     X=copy(train_glrm.X), Y=copy(train_glrm.Y),
+                     observed_features = test_observed_features)
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
         scale!(train_glrm.rx, reg_param)
         scale!(train_glrm.ry, reg_param)
-        train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
+        train_glrm.X, train_glrm.Y = randn(train_glrm.k,m), randn(train_glrm.k,n) # this bypasses the error checking in GLRM(). Risky.
         X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         if verbose println("computing train error and precision at k for reg_param $reg_param:") end
@@ -233,7 +235,7 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntrain
         if verbose println("\ttest error: $(test_error[iparam])") end
         # precision at k
-        XY = X*Y
+        XY = X'*Y
         q = sort(XY[:],rev=true)[ntrain] # the ntest+ntrain largest value in the model XY
         true_pos = 0; false_pos = 0
         kfound = 0

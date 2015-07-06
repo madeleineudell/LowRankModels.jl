@@ -1,4 +1,4 @@
-using LowRankModels, DataFrames
+using DataFrames, LowRankModels
 
 println("censored data example")
 # boolean example with only entries greater than threshold t observed
@@ -21,8 +21,8 @@ end
     test_observed_features,  test_observed_examples) = 
     get_train_and_test(obs, m, n, .2)
 
-train_glrm = GLRM(B,train_observed_features, train_observed_examples,losses,r,r,k)
-test_glrm = GLRM(B,test_observed_features,  test_observed_examples,losses,r,r,k)
+train_glrm = GLRM(B,losses,r,r,k, observed_features=train_observed_features, observed_examples=train_observed_examples,)
+test_glrm = GLRM(B,losses,r,r,k, observed_features=test_observed_features, observed_examples=test_observed_examples)
 
 function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
                                          holdout_proportion=.1, verbose=true,
@@ -40,7 +40,7 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
         if verbose println("fitting train GLRM for reg_param $reg_param") end
         scale!(train_glrm.rx, reg_param)
         scale!(train_glrm.ry, reg_param)
-        train_glrm.X, train_glrm.Y = randn(m,train_glrm.k), randn(train_glrm.k,n)
+        train_glrm.X, train_glrm.Y = randn(train_glrm.k,m), randn(train_glrm.k,n)
         X, Y, ch = fit!(train_glrm; params=params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         if verbose println("computing train and test error for reg_param $reg_param:") end
