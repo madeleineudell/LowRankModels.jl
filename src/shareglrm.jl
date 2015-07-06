@@ -265,7 +265,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
 
     # alternating updates of X and Y
     if verbose println("fitting GLRM") end
-    update!(ch, 0, objective(glrm,X,Y))
+    update!(ch, 0, objective(glrm,X,Y), alpha[1])
     t = time()
     steps_in_a_row = 0
 
@@ -339,7 +339,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         # record the best X and Y yet found
         if totalobj < ch.objective[end]
             t = time() - t
-            update!(ch, t, totalobj)
+            update!(ch, t, totalobj, alpha[1])
             #copy!(glrm.X, X); copy!(glrm.Y, Y)
             @everywhere begin
                 @inbounds for i in localindexes(X)
@@ -379,9 +379,9 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         end
     end
     t = time() - t
-    update!(ch, t, ch.objective[end])
+    update!(ch, t, ch.objective[end], alpha[1])
 
-    return glrm.X.s, glrm.Y.s, ch, alpha[1]
+    return glrm.X.s, glrm.Y.s, ch
 end
 
 function fit(glrm::GLRM, args...; kwargs...)

@@ -49,11 +49,3 @@ weighted_hinge()
 
 	train_err, test_err, trainers, testers = cross_validate(hetero, error_fn=my_error_metric)
 
-
-	println("model objective: $(ch.objective[end])")
-	println("objective using data precursor: $real_obj")
-	err = my_error_metric(hetero, X_fit, Y_fit)
-	if err != 0
-		println("Model did not correctly impute all entries. Average error: $(err/(m*n))")
-	end
-
