@@ -92,7 +92,7 @@ function init_nnmf!(glrm::GLRM; scaling=true, variant=:nndsvd)
     end
 
     # compute svd
-    U,s,V = svd(A_sparse)
+    U,s,V = svd(A_sparse, thin=true)
 
     # determine how to initialize negative values
     z0 = variant == :nndsvd ? 0.0 :
@@ -120,7 +120,6 @@ function init_nnmf!(glrm::GLRM; scaling=true, variant=:nndsvd)
             scalepos!(view(glrm.X,j,:), uj, 1 / u_pnrm, zj) # Remember X is transposed (in column-major order)
             scalepos!(view(glrm.Y,j,:), vj, s[j] * mp / v_pnrm, zj)
         else
-            ss = sqrt(s[j] * mn)
             scaleneg!(view(glrm.X,j,:), uj, 1 / u_nnrm, zj)  # Remember X is transposed (in column-major order)
             scaleneg!(view(glrm.Y,j,:), vj, s[j] * mn / v_nnrm, zj)
         end            
