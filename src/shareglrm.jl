@@ -147,9 +147,9 @@ end
 objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
 
 ## ERROR METRIC EVALUATION (BASED ON DOMAINS OF THE DATA)
-function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
+function raw_error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
     m,n = size(glrm.A)
-    err = 0
+    err = 0.0
     for j=1:n
         for i in glrm.observed_examples[j]
             err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
@@ -157,19 +157,44 @@ function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1}
     end
     return err
 end
+function std_error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
+    m,n = size(glrm.A)
+    err = 0.0
+    for j=1:n
+        column_mean = 0.0
+        column_err = 0.0
+        for i in glrm.observed_examples[j]
+            column_mean += glrm.A[i,j]^2
+            column_err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
+        end
+        column_mean = column_mean/length(glrm.observed_examples[j])
+        if column_mean != 0
+            column_err = column_err/column_mean
+        end
+        err += column_err
+    end
+    return err
+end
+function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1}; standardize=false)
+    if standardize
+        return std_error_metric(glrm, XY, domains)
+    else
+        return raw_error_metric(glrm, XY, domains)
+    end
+end
 # The user can also pass in X and Y and `error_metric` will compute XY for them
-function error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, domains::Array{Domain,1})
+function error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, domains::Array{Domain,1}; kwargs...)
     XY = Array(Float64, size(glrm.A)) 
     gemm!('T','N',1.0,X,Y,0.0,XY) 
-    error_metric(glrm, XY, domains)
+    error_metric(glrm, XY, domains; kwargs...)
 end
 function error_metric(glrm::GLRM, X::SharedArray{Float64,2}, 
-                      Y::SharedArray{Float64,2}, domains::Array{Domain,1})
-    error_metric(glrm, convert(Array,X), convert(Array,Y), domains)
+                      Y::SharedArray{Float64,2}, domains::Array{Domain,1}; kwargs...)
+    error_metric(glrm, convert(Array,X), convert(Array,Y), domains; kwargs...)
 end
 # Or just the GLRM and `error_metric` will use glrm.X and .Y
-error_metric(glrm::GLRM, domains::Array{Domain,1}) = error_metric(glrm, glrm.X, glrm.Y, domains)
-error_metric(glrm::GLRM) = error_metric(glrm, Domain[l.domain for l in glrm.losses])
+error_metric(glrm::GLRM, domains::Array{Domain,1}; kwargs...) = error_metric(glrm, glrm.X, glrm.Y, domains; kwargs...)
+error_metric(glrm::GLRM; kwargs...) = error_metric(glrm, Domain[l.domain for l in glrm.losses]; kwargs...)
 
 ### PARAMETERS TYPE
 type Params
