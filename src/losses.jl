@@ -79,7 +79,7 @@ end
 # f: ℜxℜ -> ℜ
 type quadratic<:DiffLoss
     scale::Float64
-    domain::RealDomain
+    domain::Domain
 end
 quadratic(scale=1.0; domain=RealDomain()) = quadratic(scale, domain)
 
@@ -93,7 +93,7 @@ M_estimator(l::quadratic, a::AbstractArray) = mean(a)
 # f: ℜxℜ -> ℜ
 type l1<:DiffLoss
     scale::Float64
-    domain::RealDomain
+    domain::Domain
 end
 l1(scale=1.0; domain=RealDomain()) = l1(scale, domain)
 
@@ -107,7 +107,7 @@ M_estimator(l::l1, a::AbstractArray) = median(a)
 # f: ℜxℜ -> ℜ
 type huber<:DiffLoss
     scale::Float64
-    domain::RealDomain
+    domain::Domain
     crossover::Float64 # where quadratic loss ends and linear loss begins; =1 for standard huber
 end
 huber(scale=1.0; domain=RealDomain(), crossover=1.0) = huber(scale, domain, crossover)
@@ -127,7 +127,7 @@ grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale :
 type periodic<:DiffLoss
     T::Float64 # the length of the period
     scale::Float64
-    domain::PeriodicDomain
+    domain::Domain
 end
 periodic(T, scale=1.0; domain=PeriodicDomain(T)) = periodic(T, scale, domain)
 
@@ -146,12 +146,12 @@ end
 # BEWARE: THIS LOSS MAY CAUSE MODEL INSTABLITY AND DIFFICULTY FITTING.
 type poisson<:Loss
     scale::Float64
-    domain::CountDomain
+    domain::Domain
 end
 poisson(max_count::Int, scale=1.0; domain=CountDomain(max_count)) = poisson(scale, domain)
 
 function evaluate(l::poisson, u::Float64, a::Number) 
-    exp(u) - a*u
+    exp(u) - a*u # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
 end
 
 grad(l::poisson, u::Float64, a::Number) = exp(u) - a
@@ -164,7 +164,7 @@ type ordinal_hinge<:Loss
     min::Integer
     max::Integer
     scale::Float64
-    domain::OrdinalDomain
+    domain::Domain
 end
 ordinal_hinge(m1, m2, scale=1.0; domain=OrdinalDomain(m1,m2)) = ordinal_hinge(m1,m2,scale,domain)
 
@@ -210,7 +210,7 @@ M_estimator(l::ordinal_hinge, a::AbstractArray) = median(a)
 # f: ℜx{-1,1}-> ℜ
 type logistic<:Loss
     scale::Float64
-    domain::BoolDomain
+    domain::Domain
 end
 logistic(scale=1.0; domain=BoolDomain()) = logistic(scale, domain)
 
@@ -229,7 +229,7 @@ end
 #        = { c * w * max(0,-u) for a =  1
 type weighted_hinge<:Loss
     scale::Float64
-    domain::BoolDomain
+    domain::Domain
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
 end
 weighted_hinge(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) = 
