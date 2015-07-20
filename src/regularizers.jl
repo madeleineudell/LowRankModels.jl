@@ -7,12 +7,12 @@
 # document this stuff better
 # tidy up the interfaces a la losses.jl
 
-import Base.scale! 
+import Base.scale!, Roots.fzero
 
 export Regularizer, # abstract type
        # concrete regularizers
-       quadreg, onereg, zeroreg, nonnegative, nonneg_onereg, 
-       onesparse, unitonesparse, simplex, 
+       quadreg, onereg, zeroreg, nonnegative, nonneg_onereg,
+       onesparse, unitonesparse, simplex, poisson_sparse,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
        # methods on regularizers
        prox!, prox,
@@ -46,6 +46,20 @@ end
 onereg() = onereg(1)
 prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
+
+## sum regularization for poisson errors
+type poisson_sparse<:Regularizer
+    scale::Float64
+end
+poisson_sparse() = poisson_sparse(1)
+function prox(r::poisson_sparse,u::AbstractArray,alpha::Number) 
+    uprox = zeros(size(u))
+    for i in 1:length(u)
+        uprox[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], 0)
+    end
+    return uprox
+end
+evaluate(r::poisson_sparse,a::AbstractArray) = r.scale*sum(exp(a))
 
 ## no regularization
 type zeroreg<:Regularizer
@@ -105,9 +119,9 @@ end
 fixed_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_latent_features(r,y,length(y))
 prox(r::fixed_latent_features,u::AbstractArray,alpha::Number) = [r.y, prox(r.r,u[(r.n+1):end],alpha)]
 function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
-	prox!(r.r,u[(r.n+1):end],alpha)
-	u[1:r.n]=y
-	u
+  	prox!(r.r,u[(r.n+1):end],alpha)
+  	u[1:r.n]=y
+  	u
 end
 evaluate(r::fixed_latent_features,a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
 scale(r::fixed_latent_features) = r.r.scale
