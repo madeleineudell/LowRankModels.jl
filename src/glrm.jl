@@ -16,7 +16,7 @@ type GLRM
     losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
-    k::Int                     # Desired rank 
+    k::Int                       # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
     X::Array{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
