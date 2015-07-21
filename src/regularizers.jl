@@ -12,7 +12,7 @@ import Base.scale!, Roots.fzero
 export Regularizer, # abstract type
        # concrete regularizers
        quadreg, onereg, zeroreg, nonnegative, nonneg_onereg,
-       onesparse, unitonesparse, simplex, poisson_sparse,
+       onesparse, unitonesparse, simplex, lesser_better,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
        # methods on regularizers
        prox!, prox,
@@ -48,18 +48,19 @@ prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## sum regularization for poisson errors
-type poisson_sparse<:Regularizer
+type lesser_better<:Regularizer
     scale::Float64
 end
-poisson_sparse() = poisson_sparse(1)
-function prox(r::poisson_sparse,u::AbstractArray,alpha::Number) 
-    uprox = zeros(size(u))
+lesser_better() = lesser_better(1)
+function prox(r::lesser_better,u::AbstractArray,alpha::Number) 
     for i in 1:length(u)
-        uprox[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], -50, 50)
+        u[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], [-100000, 100000]) #sketchy interval.... 
     end
-    return uprox
+    return u
 end
-evaluate(r::poisson_sparse,a::AbstractArray) = r.scale*sum(exp(a))
+evaluate(r::lesser_better,a::AbstractArray) = r.scale*sum(exp(a))
+scale(r::lesser_better) = 1
+scale!(r::lesser_better, newscale::Number) = 1
 
 ## no regularization
 type zeroreg<:Regularizer
@@ -76,7 +77,14 @@ type nonnegative<:Regularizer
 end
 prox(r::nonnegative,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
 prox!(r::nonnegative,u::Array{Float64},alpha::Number) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
-evaluate(r::nonnegative,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : 0
+function evaluate(r::nonnegative,a::AbstractArray) 
+    for ai in a
+        if ai<0
+            return Inf
+        end
+    end
+    return 0
+end
 scale(r::nonnegative) = 1
 scale!(r::nonnegative, newscale::Number) = 1
 
@@ -87,7 +95,16 @@ type nonneg_onereg<:Regularizer
 end
 nonneg_onereg() = nonneg_onereg(1)
 prox(r::nonneg_onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
-evaluate(r::nonneg_onereg,a::AbstractArray) = any(map(x->x<0,a)) ? Inf : r.scale*sum(a)
+function evaluate(r::nonneg_onereg,a::AbstractArray)
+    for ai in a
+        if ai<0
+            return Inf
+        end
+    end
+    return r.scale*sum(a)
+end
+scale(r::nonneg_onereg) = 1
+scale!(r::nonneg_onereg, newscale::Number) = 1
 
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
@@ -123,7 +140,7 @@ function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
   	u[1:r.n]=y
   	u
 end
-evaluate(r::fixed_latent_features,a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
+evaluate(r::fixed_latent_features, a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
 scale(r::fixed_latent_features) = r.r.scale
 scale!(r::fixed_latent_features, newscale::Number) = (r.r.scale = newscale)
 
@@ -131,24 +148,56 @@ scale!(r::fixed_latent_features, newscale::Number) = (r.r.scale = newscale)
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
 type onesparse<:Regularizer
 end
-prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
-prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
-evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
+prox(r::onesparse, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
+prox!(r::onesparse, u::Array, alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
+function evaluate(r::onesparse, a::AbstractArray)
+    oneflag = false
+    for ai in a
+        if oneflag
+            if ai!=0
+                return Inf
+            end
+        else
+            if ai!=0
+                oneflag=true
+            end
+        end
+    end
+    return 0
+end
+scale(r::onesparse) = 1
+scale!(r::onesparse, newscale::Number) = 1
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
 type unitonesparse<:Regularizer
 end
-prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
-prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
-evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
+prox(r::unitonesparse, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::unitonesparse, u::Array, alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+function evaluate(r::unitonesparse, a::AbstractArray)
+    oneflag = false
+    for ai in a
+        if oneflag
+            if ai==1
+                return Inf
+            end
+        else
+            if ai==1
+                oneflag=true
+            end
+        end
+    end
+    return 0
+end
+scale(r::unitonesparse) = 1
+scale!(r::unitonesparse, newscale::Number) = 1
 
 ## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
 ## (eg for quadratic mixtures, ie soft kmeans)
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
 type simplex<:Regularizer
 end
-function prox!(r::simplex,u::AbstractArray,alpha::Number)
+function prox(r::simplex, u::AbstractArray, alpha::Number)
     n = length(u)
     y = sort(u, rev=true)
     ysum = cumsum(y)
@@ -159,8 +208,19 @@ function prox!(r::simplex,u::AbstractArray,alpha::Number)
             break
         end
     end
-    u = max(u - t, 0)
+    max(u - t, 0)
 end
-evaluate(r::simplex,a::AbstractArray) = ((all(map(x->(x>=0 && x<=1),a)) && sum(a)==1) ? 0.0 : Inf )
+function evaluate(r::simplex, a::AbstractArray)
+    for ai in a
+        if ai>=1 || ai<=0
+            return Inf
+        end
+    end
+    if sum(a) != 1
+        return Inf
+    end
+    return 0
+end
 scale(r::simplex) = 1
 scale!(r::simplex, newscale::Number) = 1
+
