@@ -12,7 +12,7 @@ import Base.scale!, Roots.fzero
 export Regularizer, # abstract type
        # concrete regularizers
        quadreg, onereg, zeroreg, nonnegative, nonneg_onereg,
-       onesparse, unitonesparse, simplex, downweight,
+       onesparse, unitonesparse, simplex, lesser_better,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
        # methods on regularizers
        prox!, prox,
@@ -48,19 +48,19 @@ prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## sum regularization for poisson errors
-type downweight<:Regularizer
+type lesser_better<:Regularizer
     scale::Float64
 end
-downweight() = downweight(1)
-function prox(r::downweight,u::AbstractArray,alpha::Number) 
+lesser_better() = lesser_better(1)
+function prox(r::lesser_better,u::AbstractArray,alpha::Number) 
     for i in 1:length(u)
         u[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], [-100000, 100000]) #sketchy interval.... 
     end
     return u
 end
-evaluate(r::downweight,a::AbstractArray) = r.scale*sum(exp(a))
-scale(r::downweight) = 1
-scale!(r::downweight, newscale::Number) = 1
+evaluate(r::lesser_better,a::AbstractArray) = r.scale*sum(exp(a))
+scale(r::lesser_better) = 1
+scale!(r::lesser_better, newscale::Number) = 1
 
 ## no regularization
 type zeroreg<:Regularizer
