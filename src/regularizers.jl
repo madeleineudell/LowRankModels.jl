@@ -161,6 +161,6 @@ function prox!(r::simplex,u::AbstractArray,alpha::Number)
     end
     u = max(u - t, 0)
 end
-evaluate(r::simplex,a::AbstractArray) = ((sum(map(x->x>=0.0,a)) <= 1.0 && sum(a)==1) ? 0.0 : Inf )
+evaluate(r::simplex,a::AbstractArray) = ((all(map(x->(x>=0 && x<=1),a)) && sum(a)==1) ? 0.0 : Inf )
 scale(r::simplex) = 1
 scale!(r::simplex, newscale::Number) = 1
