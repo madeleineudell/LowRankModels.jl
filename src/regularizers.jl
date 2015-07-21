@@ -55,7 +55,7 @@ poisson_sparse() = poisson_sparse(1)
 function prox(r::poisson_sparse,u::AbstractArray,alpha::Number) 
     uprox = zeros(size(u))
     for i in 1:length(u)
-        uprox[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], 0)
+        uprox[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], -50, 50)
     end
     return uprox
 end
