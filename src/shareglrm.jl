@@ -378,7 +378,7 @@ function fit!(glrm::GLRM; params::Params=Params(),ch::ConvergenceHistory=Converg
         else
             # if the objective went up, reduce the step size, and undo the step
             alpha[1] = alpha[1] * (1 / max(1.5, -steps_in_a_row)) # another sketchy constant
-            if verbose println("obj went up to $obj; reducing step size to $alpha") end
+            if verbose println("obj went up to $totalobj; reducing step size to $alpha") end
             @everywhere begin
                 @inbounds for i in localindexes(X)
                     X[i] = glrm.X[i]
