@@ -201,10 +201,10 @@ function prox(r::simplex, u::AbstractArray, alpha::Number)
     n = length(u)
     y = sort(u, rev=true)
     ysum = cumsum(y)
-    t = ysum[end]/n
-    for i=1:n-1
-        if (ysum[i] - 1)/i >= y[i+1]
-            t = (ysum[i] - 1)/i
+    t = (ysum[end]-1)/n
+    for i=1:(n-1)
+        if (ysum[i]-1)/i >= y[i+1]
+            t = (ysum[i]-1)/i
             break
         end
     end
