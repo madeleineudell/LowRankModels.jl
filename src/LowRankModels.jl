@@ -16,9 +16,11 @@ include("convergence.jl")
 include("glrm.jl") # shareglrm is broken, probably because of weird asynchronicity in julia parallelism
 
 # fancy fun on top of low rank models
+include("rsvd.jl")
 include("initialize.jl")
 include("cross_validate.jl")
 include("fit_dataframe.jl")
-#include("plot.jl")
+# this takes to long to load for normal use
+# include("plot.jl")
 
 end # module

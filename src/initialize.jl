@@ -60,18 +60,23 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
         k = glrm.k
         Astd = A*diagm(1./stds)
     end
-    # TODO: might also want to remove entries in columns that have many fewer missing values than others
-    # intuition: noise in a dense column is low rank
-    # scale Astd so its mean is the same as the mean of the observations
+    # options for rescaling:
+    # 1) scale Astd so its mean is the same as the mean of the observations
     Astd *= m*n/sum(map(length, glrm.observed_features))
-    u,s,v = svd(Astd)
+    # 2) scale columns inversely proportional to number of entries in them & so that column mean is same as mean of observations in it
+    # intuition: noise in a dense column is low rank, so downweight dense columns
+    # Astd *= diagm(m./map(length, glrm.observed_examples))
+    # 3) scale columns proportional to scale of regularizer & so that column mean is same as mean of observations in it
+    # Astd *= diagm(m./map(scale, glrm.ry))
+    ASVD = rsvd(Astd, k)
     # initialize with the top k components of the SVD,
     # rescaling by the variances
-    glrm.X[1:k,1:m] = diagm(sqrt(s[1:k]))*(u[:,1:k]') # recall X is transposed as per column major order.
-    glrm.Y[1:k,1:n] = diagm(sqrt(s[1:k]))*v[:,1:k]'*diagm(stds)
+    glrm.X[1:k,1:m] = diagm(sqrt(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
+    glrm.Y[1:k,1:n] = diagm(sqrt(ASVD[:S]))*ASVD[:Vt]*diagm(stds)
     return glrm
 end
 
 function init_nnmf!(glrm::GLRM)
-	return glrm
+	error("Not implemented.")
+    return glrm
 end
