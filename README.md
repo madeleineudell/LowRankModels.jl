@@ -93,7 +93,7 @@ For example, the following code forms a k-means model with `k=5` on the `100`x`1
     ry = zeroreg() # no regularization on the cluster centroids
     glrm = GLRM(A,losses,rx,ry,k)
 
-For more examples, see `examples/simple_glrms.jl`.
+[More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
 To fit the model, call
 
@@ -120,13 +120,16 @@ any entry that is of type `NA`, you can use
 
 # Scaling and offsets
 
-By default, LowRankModels.jl adds proper offsets to your model scales the loss 
+If you choose, LowRankModels.jl can add an offset to your model and scale the loss 
 functions and regularizers so all columns have the same pull in the model.
-(For more about what these functions do, see the code or the paper.)
-To change this behavior, you can call `glrm = GLRM(A,losses,rx,ry,k, offset=false, scale=false)`.
+Simply call 
 
-If you change your mind after creating the GLRM, you can also add offsets and scalings 
-to previously unscaled models:
+    glrm = GLRM(A,losses,rx,ry,k, offset=true, scale=true)
+
+This transformation generalizes standardization, a common proprocessing technique applied before PCA.
+(For more about offsets and scaling, see the code or the paper.)
+
+You can also add offsets and scalings to previously unscaled models:
 
 * Add an offset to the model (by applying no regularization to the last row 
   of the matrix `Y`, and enforcing that the last column of `X` be all 1s) using

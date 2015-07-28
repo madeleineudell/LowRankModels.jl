@@ -27,6 +27,6 @@ include("fit_dataframe.jl")
 
 # utilities
 include("utilities/conveniencemethods.jl")
-# include("utilities/deprecated.jl")
+include("utilities/deprecated.jl")
 
 end # module
