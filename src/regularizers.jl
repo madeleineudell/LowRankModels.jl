@@ -119,16 +119,28 @@ type onesparse<:Regularizer
 end
 prox(r::onesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
 prox!(r::onesparse,u::Array,alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
-evaluate(r::onesparse,a::AbstractArray) = sum(map(x->x>0,a)) <= 1 ? 0 : Inf 
-
+function evaluate(r::onesparse,a::AbstractArray)
+    s = 0
+    for i=1:length(a)
+        s += (a[i] > 0)
+    end
+    s <= 1 ? 0 : Inf
+end
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
 type unitonesparse<:Regularizer
 end
 prox(r::unitonesparse,u::AbstractArray,alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::unitonesparse,u::Array,alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
-evaluate(r::unitonesparse,a::AbstractArray) = ((sum(map(x->x>0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
-
+function evaluate(r::unitonesparse,a::AbstractArray)
+    # check it's a unit vector
+    if sum(a)!=1 return Inf end
+    s = 0
+    for i=1:length(a)
+        s += (a[i] > 0)
+    end
+    (s <= 1 && sum(a)==1) ? 0 : Inf
+end
 ## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
 ## (eg for quadratic mixtures, ie soft kmeans)
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
@@ -147,6 +159,14 @@ function prox!(r::simplex,u::AbstractArray,alpha::Number)
     end
     u = max(u - t, 0)
 end
-evaluate(r::simplex,a::AbstractArray) = ((sum(map(x->x>=0,a)) <= 1 && sum(a)==1) ? 0 : Inf )
+function evaluate(r::simplex,a::AbstractArray)
+    # check it's a unit vector
+    sum(a)!=1 && return Inf
+    # check every entry is nonnegative
+    for i=1:length(a)
+        a[i] < 0 && return Inf
+    end
+    return 0
+end
 scale(r::simplex) = 1
 scale!(r::simplex, newscale::Number) = 1
