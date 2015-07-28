@@ -84,6 +84,8 @@ Regularizers:
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
 
+## Example
+
 For example, the following code forms a k-means model with `k=5` on the `100`x`100` matrix `A`:
 
     using LowRankModels
@@ -92,8 +94,6 @@ For example, the following code forms a k-means model with `k=5` on the `100`x`1
     rx = unitonesparse() # each row is assigned to exactly one cluster
     ry = zeroreg() # no regularization on the cluster centroids
     glrm = GLRM(A,losses,rx,ry,k)
-
-[More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
 To fit the model, call
 
@@ -104,6 +104,8 @@ which runs an alternating directions proximal gradient method on `glrm` to find 
 (`ch` gives the convergence history; see 
 [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) 
 below for more information.)
+
+[More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
 # Missing data
 
@@ -197,7 +199,7 @@ If you don't have a good guess at a warm start for your model, you might try
 one of the initializations provided in `LowRankModels`.
 
 * `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems. See [our paper][glrmpaper] for details.
-* init_kmeanspp! initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
+* `init_kmeanspp!` initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
 
 ### Parameters
 

@@ -16,6 +16,8 @@ include("convergence.jl")
 #    include("glrm.jl")
 #end
 include("glrm.jl")
+include("fit.jl")
+include("algorithms/proxgrad.jl")
 
 # fancy fun on top of low rank models
 include("rsvd.jl")
