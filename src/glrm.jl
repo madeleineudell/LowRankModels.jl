@@ -12,7 +12,7 @@ ObsArray = Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
 ### GLRM TYPE
 type GLRM
-    A::Array{Float64,2}          # The data table transformed into a coded array 
+    A::AbstractArray
     losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
@@ -22,16 +22,17 @@ type GLRM
     X::Array{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
     Y::Array{Float64,2}          # Representation of features in low-rank space. A ≈ X'Y
 end
-function GLRM(A, losses, rx, ry, k; 
+
+# usage notes:
+# * providing argument `obs` overwrites arguments `observed_features` and `observed_examples`
+# * offset and scale are *false* by default to avoid unexpected behavior
+# * convenience methods for calling are defined in utilities/conveniencemethods.jl
+function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Array{Regularizer,1}, k::Int; 
               X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
-              offset = true, scale = true)
-    # if isa(ry, Regularizer)
-    # 	# println("single reg given, converting")
-        # 	ry = fill(ry, size(losses))
-    # end
+              offset = false, scale = false)
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
@@ -52,8 +53,6 @@ function GLRM(A, losses, rx, ry, k;
     end
     return glrm
 end
-GLRM(A, losses, rx, ry::Regularizer, k; kwargs...) = GLRM(A, losses, rx, fill(ry,size(losses)), k; kwargs...)
-
 
 ### OBSERVATION TUPLES TO ARRAYS
 function sort_observations(obs::Array{(Int,Int),1}, m::Int, n::Int; check_empty=false)

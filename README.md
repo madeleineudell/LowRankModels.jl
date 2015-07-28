@@ -88,10 +88,10 @@ For example, the following code forms a k-means model with `k=5` on the `100`x`1
 
     using LowRankModels
     m,n,k = 100,100,5
-    losses = fill(quadratic(),n)
+    losses = quadratic() # minimize squared distance to cluster centroids
     rx = unitonesparse() # each row is assigned to exactly one cluster
     ry = zeroreg() # no regularization on the cluster centroids
-    glrm = GLRM(A,losses,rt,r,k)
+    glrm = GLRM(A,losses,rx,ry,k)
 
 For more examples, see `examples/simple_glrms.jl`.
 

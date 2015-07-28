@@ -15,7 +15,7 @@ end
 # acontrank(s::SharedArray,i::Any,c::Any) = acontrank(s.s,i,c)
 
 type GLRM
-    A
+    A::AbstractArray # m x n
     observed_features
     observed_examples
     losses::Array{Loss,1}
