@@ -46,7 +46,7 @@ The data is modeled as `XY`, where `X` is a `m`x`k` matrix and `Y` is a `k`x`n` 
 The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
-* the data `A`
+* the data `A` (any `AbstractArray`, such as an array, a sparse matrix, or a data frame)
 * the array of loss functions `losses`
 * the regularizers `rx` and `ry`
 * the rank `k`
@@ -119,6 +119,22 @@ If `A` is a DataFrame and you just want the model to ignore
 any entry that is of type `NA`, you can use
 
     obs = observations(A)
+
+# Standard low rank models
+
+Low rank models can easily be used to fit standard models such as PCA, k-means, and nonnegative matrix factorization.
+
+* `pca`: principal components analysis
+* `qpca`: quadratically regularized principal components analysis
+* `rpca`: robust principal components analysis
+* `nnmf`: nonnegative matrix factorization
+* `k-means`: k-means
+
+See [the code](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/simple_glrms.jl) for usage.
+Any keyword argument valid for a `GLRM` object, 
+such as an initial value for `X` or `Y`
+or a list of observations, 
+can also be used with these standard low rank models.
 
 # Scaling and offsets
 
