@@ -55,7 +55,7 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
 end
 
 ### OBSERVATION TUPLES TO ARRAYS
-function sort_observations(obs::Array{(Int,Int),1}, m::Int, n::Int; check_empty=false)
+@compat function sort_observations(obs::Array{Tuple{Int,Int},1}, m::Int, n::Int; check_empty=false)
     observed_features = Array{Int,1}[Int[] for i=1:m]
     observed_examples = Array{Int,1}[Int[] for j=1:n]
     for (i,j) in obs
@@ -95,6 +95,7 @@ function equilibrate_variance!(glrm::GLRM)
     return glrm
 end
 function fix_latent_features!(glrm::GLRM, n)
-    glrm.ry = [fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) for i in 1:length(glrm.ry)]
+    glrm.ry = Regularizer[fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) 
+                            for i in 1:length(glrm.ry)]
     return glrm
 end
