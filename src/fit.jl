@@ -6,10 +6,10 @@ abstract AbstractParams
 Params(args...; kwargs...) = ProxGradParams(args...; kwargs...)
 
 # default in-place fitting uses proximal gradient method
-function fit!(glrm::GLRM; kwargs...)
-    println(kwargs)
-    if :params in keys(kwargs)
-        return fit!(glrm, kwargs[:params]; kwargs...)
+@compat function fit!(glrm::GLRM; kwargs...)
+    kwdict = Dict(kwargs)
+    if :params in keys(kwdict)
+        return fit!(glrm, kwdict[:params]; kwargs...)
     else
         return fit!(glrm, ProxGradParams(); kwargs...)
     end
