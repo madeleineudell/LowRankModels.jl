@@ -42,7 +42,7 @@ function cross_validate(glrm::GLRM;
     return mean(train_error), mean(test_error), train_glrms, test_glrms
 end
 
-function getfolds(obs::Array{(Int,Int),1}, nfolds, m, n)    
+@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n)    
     # partition elements of obs into nfolds groups
     groups = Array(Int, size(obs))
     rand!(1:nfolds, groups)  # fill an array with random 1 through N
