@@ -25,7 +25,7 @@ In particular, it supports
 
 To install, just call
 ```
-Pkg.clone("https://github.com/madeleineudell/LowRankModels.jl.git")
+Pkg.add("LowRankModels")
 ```
 at the julia prompt.
 
@@ -46,7 +46,7 @@ The data is modeled as `XY`, where `X` is a `m`x`k` matrix and `Y` is a `k`x`n` 
 The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
-* the data `A`
+* the data `A` (any `AbstractArray`, such as an array, a sparse matrix, or a data frame)
 * the array of loss functions `losses`
 * the regularizers `rx` and `ry`
 * the rank `k`
@@ -84,16 +84,16 @@ Regularizers:
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
 
+## Example
+
 For example, the following code forms a k-means model with `k=5` on the `100`x`100` matrix `A`:
 
     using LowRankModels
     m,n,k = 100,100,5
-    losses = fill(quadratic(),n)
+    losses = quadratic() # minimize squared distance to cluster centroids
     rx = unitonesparse() # each row is assigned to exactly one cluster
     ry = zeroreg() # no regularization on the cluster centroids
-    glrm = GLRM(A,losses,rt,r,k)
-
-For more examples, see `examples/simple_glrms.jl`.
+    glrm = GLRM(A,losses,rx,ry,k)
 
 To fit the model, call
 
@@ -104,6 +104,8 @@ which runs an alternating directions proximal gradient method on `glrm` to find 
 (`ch` gives the convergence history; see 
 [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) 
 below for more information.)
+
+[More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
 # Missing data
 
@@ -118,15 +120,34 @@ any entry that is of type `NA`, you can use
 
     obs = observations(A)
 
+# Standard low rank models
+
+Low rank models can easily be used to fit standard models such as PCA, k-means, and nonnegative matrix factorization.
+
+* `pca`: principal components analysis
+* `qpca`: quadratically regularized principal components analysis
+* `rpca`: robust principal components analysis
+* `nnmf`: nonnegative matrix factorization
+* `k-means`: k-means
+
+See [the code](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/simple_glrms.jl) for usage.
+Any keyword argument valid for a `GLRM` object, 
+such as an initial value for `X` or `Y`
+or a list of observations, 
+can also be used with these standard low rank models.
+
 # Scaling and offsets
 
-By default, LowRankModels.jl adds proper offsets to your model scales the loss 
+If you choose, LowRankModels.jl can add an offset to your model and scale the loss 
 functions and regularizers so all columns have the same pull in the model.
-(For more about what these functions do, see the code or the paper.)
-To change this behavior, you can call `glrm = GLRM(A,losses,rx,ry,k, offset=false, scale=false)`.
+Simply call 
 
-If you change your mind after creating the GLRM, you can also add offsets and scalings 
-to previously unscaled models:
+    glrm = GLRM(A,losses,rx,ry,k, offset=true, scale=true)
+
+This transformation generalizes standardization, a common proprocessing technique applied before PCA.
+(For more about offsets and scaling, see the code or the paper.)
+
+You can also add offsets and scalings to previously unscaled models:
 
 * Add an offset to the model (by applying no regularization to the last row 
   of the matrix `Y`, and enforcing that the last column of `X` be all 1s) using
@@ -194,7 +215,7 @@ If you don't have a good guess at a warm start for your model, you might try
 one of the initializations provided in `LowRankModels`.
 
 * `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems. See [our paper][glrmpaper] for details.
-* init_kmeanspp! initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
+* `init_kmeanspp!` initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
 
 ### Parameters
 
