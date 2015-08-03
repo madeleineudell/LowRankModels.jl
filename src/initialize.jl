@@ -97,18 +97,24 @@ function init_nndsvd!(glrm::GLRM; scale::Bool=true, zeroh::Bool=false,
         end
     end
 
-    # run the nndsvd initialization 
+    # run the first nndsvd initialization 
     W,H = nndsvd(A_init, glrm.k, zeroh=zeroh, variant=variant)
-
-
-    # If max_iters>0 do a soft impute for the missing entries of A.
-    #   Iterate: Estimate A as the product of W*H
-    #            Update (W,H) nndsvd estimate based on new A
-    for _ = 1:max_iters
-        A_init = W*H 
-        W,H = nndsvd(A_init, glrm.k, zeroh=zeroh, variant=variant)
-    end
-
     glrm.X = W'
     glrm.Y = H
+
+    # If max_iters>0 do a soft impute for the missing entries of A.
+    #   Iterate: Estimate missing entries of A with W*H
+    #            Update (W,H) nndsvd estimate based on new A
+    for iter = 1:max_iters
+        # Update missing entries of A_init
+        for j = 1:n
+            for i = setdiff(1:m,glrm.observed_examples[j])
+                A_init[i,j] = dot(glrm.X[:,i],glrm.Y[:,j])
+            end
+        end
+        # Re-estimate W and H
+        W,H = nndsvd(A_init, glrm.k, zeroh=zeroh, variant=variant)
+        glrm.X = W'
+        glrm.Y = H
+    end
 end

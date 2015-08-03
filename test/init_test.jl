@@ -46,3 +46,17 @@ init_nndsvd!(glrm; scale=false)
 
 @test(all(round(glrm.X,5) .== Wt))
 @test(all(round(glrm.Y,5) .== H))
+
+# Test with missing entries for A
+obs = [(1,1),(1,3),(1,5),
+       (2,1),(2,2),(2,4),
+       (3,2),(3,3),(3,5),
+       (4,1),(4,2),(4,5),
+       (5,2),(5,3),(5,5),
+       (6,1),(6,2),(6,5),
+       (7,1),(7,3),(7,4),
+       (8,2),(8,3),(8,4),
+       (9,1),(9,3),(9,5),
+       (10,3),(10,4),(10,5)]
+glrm = GLRM(A,losses,r,r,k,obs=obs)
+init_nndsvd!(glrm; max_iters=5)
