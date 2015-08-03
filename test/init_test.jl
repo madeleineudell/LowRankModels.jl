@@ -9,7 +9,7 @@ A = rand(m,k)*rand(k,n)
 losses = fill(quadratic(),n)
 r = nonnegative()
 glrm = GLRM(A,losses,r,r,k)
-init_nnmf!(glrm)
+init_nndsvd!(glrm)
 
 # Test dims and nonnegativity of X,Y
 @test(all(glrm.X .>= 0.0))
@@ -42,7 +42,7 @@ H = [1.60738 1.42165 1.97295 1.47396 1.57709
 
 # initialize glrm and check output
 glrm.A = A
-init_nnmf!(glrm; scaling=false)
+init_nndsvd!(glrm; scale=false)
 
 @test(all(round(glrm.X,5) .== Wt))
 @test(all(round(glrm.Y,5) .== H))

@@ -1,5 +1,6 @@
 import StatsBase.sample, StatsBase.wsample
-export init_kmeanspp!, init_svd!, init_nnmf!
+export init_kmeanspp!, init_svd!, init_nndsvd!
+import NMF.nndsvd
 
 # kmeans++ initialization, but with missing data
 # we make sure never to look at "unobserved" entries in A
@@ -76,100 +77,38 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     return glrm
 end
 
-function init_nnmf!(glrm::GLRM; scaling=true, variant=:nndsvd)
+function init_nndsvd!(glrm::GLRM; scale::Bool=true, zeroh::Bool=false,
+                      variant::Symbol=:std, max_iters::Int=0)
     # NNDSVD initialization:
     #    Boutsidis C, Gallopoulos E (2007). SVD based initialization: A head
     #    start for nonnegative matrix factorization. Pattern Recognition 
     m,n = size(glrm.A)
 
     # only initialize based on observed entries
-    A_sparse = zeros(size(glrm.A))
+    A_init = zeros(m,n)
     for i = 1:n
-        A_sparse[glrm.observed_examples[i],i] = glrm.A[glrm.observed_examples[i],i]
+        A_init[glrm.observed_examples[i],i] = glrm.A[glrm.observed_examples[i],i]
     end
 
     # scale all columns by the Loss.scale parameter
-    if scaling
+    if scale
         for i = 1:n
-            A_sparse[:,i] ./= glrm.losses[i].scale
+            A_init[:,i] .*= glrm.losses[i].scale
         end
     end
 
-    # compute svd
-    U,s,V = svd(A_sparse, thin=true)
+    # run the nndsvd initialization 
+    W,H = nndsvd(A_init, glrm.k, zeroh=zeroh, variant=variant)
 
-    # determine how to initialize negative values
-    z0 = variant == :nndsvd ? 0.0 :
-         variant == :nndsvd_a ? mean(A_sparse) : 
-         variant == :nndsvd_ar ? (mean(A_sparse)*0.01) :
-         error("NNDSVD variant not recognized")
 
-    # main loop
-    for j = 1:glrm.k
-        uj = view(U,:,j)
-        vj = view(V,:,j)
-        u_pnrm, u_nnrm = posnegnorm(uj)
-        v_pnrm, v_nnrm = posnegnorm(vj)
-        mp = v_pnrm * u_pnrm
-        mn = v_nnrm * u_nnrm
-
-        # randomization for nndsvd_ar variant
-        zj = z0
-        if variant == :nndsvd_ar
-            zj *= rand()
-        end
-
-        # scale X and Y
-        if mp >= mn
-            scalepos!(view(glrm.X,j,:), uj, 1 / u_pnrm, zj) # Remember X is transposed (in column-major order)
-            scalepos!(view(glrm.Y,j,:), vj, s[j] * mp / v_pnrm, zj)
-        else
-            scaleneg!(view(glrm.X,j,:), uj, 1 / u_nnrm, zj)  # Remember X is transposed (in column-major order)
-            scaleneg!(view(glrm.Y,j,:), vj, s[j] * mn / v_nnrm, zj)
-        end            
+    # If max_iters>0 do a soft impute for the missing entries of A.
+    #   Iterate: Estimate A as the product of W*H
+    #            Update (W,H) nndsvd estimate based on new A
+    for _ = 1:max_iters
+        A_init = W*H 
+        W,H = nndsvd(A_init, glrm.k, zeroh=zeroh, variant=variant)
     end
 
-	return glrm
-end
-
-## The following functions are reproduced from the
-## NMF.jl package (https://github.com/JuliaStats/NMF.jl)
-
-# compute separate norms for pos and neg elements of a vector
-function posnegnorm{T}(x::AbstractArray{T})
-    pn = zero(T)
-    nn = zero(T)
-    for i = 1:length(x)
-        @inbounds xi = x[i]
-        if xi > zero(T)
-            pn += abs2(xi)
-        else
-            nn += abs2(xi)
-        end
-    end
-    return (sqrt(pn), sqrt(nn))
-end
-
-# y = x * c; setting negative elements to v0
-function scalepos!{T<:Number}(y, x, c::T, v0::T)
-    @inbounds for i = 1:length(y)
-        xi = x[i]
-        if xi > zero(T)
-            y[i] = xi * c
-        else
-            y[i] = v0
-        end
-    end
-end
-
-# y = -x * c; setting negative elements to v0
-function scaleneg!{T<:Number}(y, x, c::T, v0::T)
-    @inbounds for i = 1:length(y)
-        xi = x[i]
-        if xi < zero(T)
-            y[i] = - (xi * c)
-        else
-            y[i] = v0
-        end
-    end
+    glrm.X = W'
+    glrm.Y = H
 end
