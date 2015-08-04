@@ -83,7 +83,7 @@ function fit_pca_nucnorm_sparse_nonuniform(m,n,k,s)
 	return A,X,Y,ch
 end
 
-function fit_simplex_pca(m,n,k)
+function fit_soft_kmeans(m,n,k)
 	# PCA with loadings constrained to lie on unit simplex
 	# constrain columns of X to lie on unit simplex
 	Xreal = rand(k,m)

@@ -157,22 +157,22 @@ end
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
 type simplex<:Regularizer
 end
-function prox!(r::simplex,u::AbstractArray,alpha::Number)
+function prox(r::simplex,u::AbstractArray,alpha::Number)
     n = length(u)
     y = sort(u, rev=true)
     ysum = cumsum(y)
-    t = ysum[end]/n
+    t = (ysum[end]-1)/n
     for i=1:n-1
         if (ysum[i] - 1)/i >= y[i+1]
             t = (ysum[i] - 1)/i
             break
         end
     end
-    u = max(u - t, 0)
+    return max(u - t, 0)
 end
 function evaluate(r::simplex,a::AbstractArray)
     # check it's a unit vector
-    sum(a)!=1 && return Inf
+    abs(sum(a)-1)>2*eps() && return Inf
     # check every entry is nonnegative
     for i=1:length(a)
         a[i] < 0 && return Inf
