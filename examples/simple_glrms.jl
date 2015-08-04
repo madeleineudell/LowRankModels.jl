@@ -83,6 +83,22 @@ function fit_pca_nucnorm_sparse_nonuniform(m,n,k,s)
 	return A,X,Y,ch
 end
 
+function fit_simplex_pca(m,n,k)
+	# PCA with loadings constrained to lie on unit simplex
+	# constrain columns of X to lie on unit simplex
+	Xreal = rand(k,m)
+	Xreal ./= sum(Xreal,1)
+	A = Xreal' * randn(k,n)
+
+	loss = quadratic()
+	rx = simplex()
+	ry = zeroreg()
+	glrm = GLRM(A,loss,rx,ry,k)
+	X,Y,ch = fit!(glrm)	
+	println("Convergence history:",ch.objective)
+	return A,X,Y,ch
+end
+
 if true
 	srand(10)
 	fit_pca(100,100,2)
