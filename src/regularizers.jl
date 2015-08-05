@@ -171,6 +171,7 @@ function prox!(r::simplex,u::AbstractArray,alpha::Number)
     for i = 1:n
         u[i] = max(u[i] - t, 0)
     end
+    u
 end
 function evaluate(r::simplex,a::AbstractArray)
     # check it's a unit vector

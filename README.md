@@ -216,6 +216,7 @@ one of the initializations provided in `LowRankModels`.
 
 * `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems. See [our paper][glrmpaper] for details.
 * `init_kmeanspp!` initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
+* `init_nndsvd!` initializes the model using a modification of the [NNDSVD](https://github.com/JuliaStats/NMF.jl/blob/master/src/initialization.jl#L18) algorithm as implemented by the [NMF](https://github.com/JuliaStats/NMF.jl) package. This modification handles data sets with missing entries by replacing missing entries with zeros. Optionally, by setting the argument `max_iters=n` with `n>0`, it will iteratively replace missing entries by their values as imputed by the NNDSVD, and call NNDSVD again on the new matrix. (This procedure is similar to the [soft impute](http://dl.acm.org/citation.cfm?id=1859931) method of Mazumder, Hastie and Tibshirani for matrix completion.)
 
 ### Parameters
 
