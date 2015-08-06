@@ -7,7 +7,7 @@
 # document this stuff better
 # tidy up the interfaces a la losses.jl
 
-import Base.scale! 
+import Base: scale!, scale
 
 export Regularizer, # abstract type
        # concrete regularizers
