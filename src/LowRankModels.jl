@@ -2,6 +2,9 @@ module LowRankModels
 
 using Compat
 
+import Base: scale!, scale
+import StatsBase.fit!
+
 # define losses, regularizers, convergence history
 include("domains.jl")
 include("losses.jl")

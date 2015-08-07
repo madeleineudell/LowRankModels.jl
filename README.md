@@ -164,7 +164,7 @@ Perhaps all this sounds like too much work. Perhaps you happen to have a
 [DataFrame](https://github.com/JuliaStats/DataFrames.jl) `df` lying around 
 that you'd like a low rank (eg, `k=2`) model for. For example,
 
-    using RDatasets
+    import RDatasets
     df = RDatasets.dataset("psych", "msq")
 
 Never fear! Just call

@@ -7,8 +7,6 @@
 # document this stuff better
 # tidy up the interfaces a la losses.jl
 
-import Base: scale!, scale
-
 export Regularizer, # abstract type
        # concrete regularizers
        quadreg, onereg, zeroreg, nonnegative, nonneg_onereg, 
