@@ -24,7 +24,7 @@ end
 
 function show(ch::ConvergenceHistory)
     print("Convergence History for $(ch.name)\n\n")
-    @printf "%16s%16s\n" "time" "objective"
+    @printf "%16s%16s\n" "time (s)" "objective"
     for i=1:length(ch.objective)
         @printf "%16.2e%16.4e\n" ch.times[i] ch.objective[i]
     end
