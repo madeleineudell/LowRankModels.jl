@@ -18,13 +18,20 @@ include("convergence.jl")
 #else
 #    include("glrm.jl")
 #end
+
+# define basic data type
 include("glrm.jl")
+
+# fitting algorithms
 include("fit.jl")
 include("algorithms/proxgrad.jl")
 
-# fancy fun on top of low rank models
+# initialization methods
 include("rsvd.jl")
 include("initialize.jl")
+
+# fancy fun on top of low rank models
+include("simple_glrms.jl")
 include("cross_validate.jl")
 include("fit_dataframe.jl")
 # this takes to long to load for normal use

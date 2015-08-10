@@ -1,6 +1,6 @@
-import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert
+import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA
 
-export GLRM, observations, expand_categoricals
+export GLRM, observations, expand_categoricals, NaNs_to_NAs
 
 max_ordinal_levels = 9
 
@@ -118,4 +118,17 @@ function expand_categoricals(df::DataFrame,categoricals::Array)
     end
     # remove the original categorical columns
     return df[:, filter(x->(!(x in categoricals)), names(df))]
+end
+
+# convert NaNs to NAs
+function NaNs_to_NAs(df::DataFrame)
+    m,n = size(df)
+    for j=1:n # follow column-major order. First element of index in innermost loop
+        for i=1:m
+            if isnan(df[i,j])
+                df[i,j] = NA
+            end
+        end
+    end
+    return df
 end

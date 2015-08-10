@@ -4,7 +4,8 @@ import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 
 export GLRM, getindex, size,
-       add_offset!, equilibrate_variance!, fix_latent_features!
+       add_offset!, equilibrate_variance!, fix_latent_features!,
+       impute, errors
 
 ObsArray = Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
@@ -32,7 +33,9 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
-              offset = false, scale = false)
+              offset = false, scale = false,
+              checknan = true)
+
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")
         glrm = GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y)
@@ -44,6 +47,16 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
     if size(glrm.X) != (k, size(A,1)) 
         # println("transposing X")
         glrm.X = glrm.X'
+    end
+    # check none of the observations are NaN
+    if checknan
+        for i=1:size(A,1)
+            for j=glrm.observed_features[i]
+                if isnan(A[i,j]) 
+                    error("Observed value in entry ($i, $j) is NaN.")
+                end
+            end
+        end
     end
     if scale # scale losses (and regularizers) so they all have equal variance
         equilibrate_variance!(glrm)
@@ -99,3 +112,10 @@ function fix_latent_features!(glrm::GLRM, n)
                             for i in 1:length(glrm.ry)]
     return glrm
 end
+
+# Use impute and errors over GLRMS
+impute(glrm::GLRM) = impute(glrm.losses, glrm.X'*glrm.Y)
+errors(glrm::GLRM) = errors(Domain[l.domain for l in glrm.losses],
+                            glrm.losses,
+                            glrm.X'*glrm.Y,
+                            glrm.A)
