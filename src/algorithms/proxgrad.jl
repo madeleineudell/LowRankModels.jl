@@ -8,13 +8,17 @@ type ProxGradParams<:AbstractParams
     convergence_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
     min_stepsize::Float64 # use a decreasing stepsize, stop when reaches min_stepsize
 end
-function ProxGradParams(stepsize=1; # initial stepsize
-				        max_iter=100, # maximum number of outer iterations
-				        inner_iter=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
-				        convergence_tol=0.00001, # stop if objective decrease upon one outer iteration is less than this
-				        min_stepsize=0.01*stepsize) # stop if stepsize gets this small
+function ProxGradParams(stepsize::Number=1.0; # initial stepsize
+				        max_iter::Int=100, # maximum number of outer iterations
+				        inner_iter::Int=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
+				        convergence_tol::Float64=0.00001, # stop if objective decrease upon one outer iteration is less than this
+				        min_stepsize::Float64=0.01*stepsize) # stop if stepsize gets this small
+    stepsize = convert(Float64, stepsize)
     return ProxGradParams(stepsize, max_iter, inner_iter, convergence_tol, min_stepsize)
 end
+# backward compatibility
+ProxGradParams(s::Number,m::Int,c::Float64,ms::Float64) = 
+    ProxGradParams(s, max_iter=m, convergence_tol=c, min_stepsize=ms)
 
 ### FITTING
 function fit!(glrm::GLRM, params::ProxGradParams;
