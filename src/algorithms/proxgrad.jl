@@ -16,9 +16,6 @@ function ProxGradParams(stepsize::Number=1.0; # initial stepsize
     stepsize = convert(Float64, stepsize)
     return ProxGradParams(stepsize, max_iter, inner_iter, convergence_tol, min_stepsize)
 end
-# backward compatibility
-ProxGradParams(s::Number,m::Int,c::Float64,ms::Float64) = 
-    ProxGradParams(s, max_iter=m, convergence_tol=c, min_stepsize=ms)
 
 ### FITTING
 function fit!(glrm::GLRM, params::ProxGradParams;
