@@ -29,7 +29,7 @@ end
 function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
                    XY::Array{Float64,2}; include_regularization=true)
     m,n = size(glrm.A)
-    err = 0
+    err = 0.0
     for j=1:n
         for i in glrm.observed_examples[j]
             err += evaluate(glrm.losses[j], XY[i,j], glrm.A[i,j])
@@ -37,23 +37,48 @@ function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2},
     end
     # add regularization penalty
     if include_regularization
-        for i=1:m
-            err += evaluate(glrm.rx, view(X,:,i))
-        end
-        for j=1:n
-            err += evaluate(glrm.ry[j], view(Y,:,j))
-        end
+        err += calc_penalty(glrm,X,Y)
     end
     return err
 end
 # The user can also pass in X and Y and `objective` will compute XY for them
-function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}; kwargs...)
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2};
+                   sparse=false, include_regularization=true)
     XY = Array(Float64, size(glrm.A)) 
-    gemm!('T','N',1.0,X,Y,0.0,XY) 
-    objective(glrm, X, Y, XY; kwargs...)
+    if sparse
+        # Calculate X'*Y only at observed entries of A
+        m,n = size(glrm.A)
+        err = 0.0
+        for j=1:n
+            for i in glrm.observed_examples[j]
+                err += evaluate(glrm.losses[j], dot(X[:,i],Y[:,j]), glrm.A[i,j])
+            end
+        end
+        if include_regularization
+            err += calc_penalty(glrm,X,Y)
+        end
+        return err
+    else
+        # dense calculation variant (calculate XY up front)
+        gemm!('T','N',1.0,X,Y,0.0,XY)
+        return objective(glrm, X, Y, XY; include_regularization=include_regularization)
+    end
 end
 # Or just the GLRM and `objective` will use glrm.X and .Y
 objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
+
+# Helper function to calculate the regularization penalty for X and Y
+function calc_penalty(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2})
+    m,n = size(glrm.A)
+    penalty = 0.0
+    for i=1:m
+        penalty += evaluate(glrm.rx, view(X,:,i))
+    end
+    for j=1:n
+        penalty += evaluate(glrm.ry[j], view(Y,:,j))
+    end
+    return penalty
+end
 
 ## ERROR METRIC EVALUATION (BASED ON DOMAINS OF THE DATA)
 function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
