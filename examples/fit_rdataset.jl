@@ -1,4 +1,4 @@
-using RDatasets
+import RDatasets
 using LowRankModels
 
 # pick a data set

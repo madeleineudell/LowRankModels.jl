@@ -25,7 +25,7 @@ In particular, it supports
 
 To install, just call
 ```
-Pkg.clone("https://github.com/madeleineudell/LowRankModels.jl.git")
+Pkg.add("LowRankModels")
 ```
 at the julia prompt.
 
@@ -46,7 +46,7 @@ The data is modeled as `XY`, where `X` is a `m`x`k` matrix and `Y` is a `k`x`n` 
 The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
-* the data `A`
+* the data `A` (any `AbstractArray`, such as an array, a sparse matrix, or a data frame)
 * the array of loss functions `losses`
 * the regularizers `rx` and `ry`
 * the rank `k`
@@ -81,19 +81,22 @@ Regularizers:
 * 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)
 * unit 1-sparse constraint `unitonesparse` (eg, for k-means)
 
+Each of these losses and regularizers can be scaled 
+(for example, to increase the importance of the loss relative to the regularizer) 
+by calling `scale!(loss, newscale)`.
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
+
+## Example
 
 For example, the following code forms a k-means model with `k=5` on the `100`x`100` matrix `A`:
 
     using LowRankModels
     m,n,k = 100,100,5
-    losses = fill(quadratic(),n)
+    losses = quadratic() # minimize squared distance to cluster centroids
     rx = unitonesparse() # each row is assigned to exactly one cluster
     ry = zeroreg() # no regularization on the cluster centroids
-    glrm = GLRM(A,losses,rt,r,k)
-
-For more examples, see `examples/simple_glrms.jl`.
+    glrm = GLRM(A,losses,rx,ry,k)
 
 To fit the model, call
 
@@ -104,6 +107,14 @@ which runs an alternating directions proximal gradient method on `glrm` to find 
 (`ch` gives the convergence history; see 
 [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) 
 below for more information.)
+
+The `losses` argument can also be an array of loss functions, 
+with one for each column (in order). For example, 
+for a data set with 3 columns, you could use 
+
+    losses = [quadratic(), logistic(), hinge()]
+
+[More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
 # Missing data
 
@@ -118,15 +129,35 @@ any entry that is of type `NA`, you can use
 
     obs = observations(A)
 
-# Scaling and offsets
+# Standard low rank models
 
-By default, LowRankModels.jl adds proper offsets to your model scales the loss 
+Low rank models can easily be used to fit standard models such as PCA, k-means, and nonnegative matrix factorization. 
+The following functions are available:
+
+* `pca`: principal components analysis
+* `qpca`: quadratically regularized principal components analysis
+* `rpca`: robust principal components analysis
+* `nnmf`: nonnegative matrix factorization
+* `k-means`: k-means
+
+See [the code](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/simple_glrms.jl) for usage.
+Any keyword argument valid for a `GLRM` object, 
+such as an initial value for `X` or `Y`
+or a list of observations, 
+can also be used with these standard low rank models.
+
+# Scaling and offsets <a name="scaling"></a>
+
+If you choose, LowRankModels.jl can add an offset to your model and scale the loss 
 functions and regularizers so all columns have the same pull in the model.
-(For more about what these functions do, see the code or the paper.)
-To change this behavior, you can call `glrm = GLRM(A,losses,rx,ry,k, offset=false, scale=false)`.
+Simply call 
 
-If you change your mind after creating the GLRM, you can also add offsets and scalings 
-to previously unscaled models:
+    glrm = GLRM(A,losses,rx,ry,k, offset=true, scale=true)
+
+This transformation generalizes standardization, a common proprocessing technique applied before PCA.
+(For more about offsets and scaling, see the code or the paper.)
+
+You can also add offsets and scalings to previously unscaled models:
 
 * Add an offset to the model (by applying no regularization to the last row 
   of the matrix `Y`, and enforcing that the last column of `X` be all 1s) using
@@ -143,7 +174,7 @@ Perhaps all this sounds like too much work. Perhaps you happen to have a
 [DataFrame](https://github.com/JuliaStats/DataFrames.jl) `df` lying around 
 that you'd like a low rank (eg, `k=2`) model for. For example,
 
-    using RDatasets
+    import RDatasets
     df = RDatasets.dataset("psych", "msq")
 
 Never fear! Just call
@@ -152,9 +183,20 @@ Never fear! Just call
 	X, Y, ch = fit!(glrm)
 
 This will fit a GLRM to your data, using a quadratic loss for real valued columns,
-hinge loss for boolean columns, and ordinal hinge loss for integer columns.
-(Right now, all other data types are ignored, as are `NA`s.)
+hinge loss for boolean columns, and ordinal hinge loss for integer columns,
+a small amount of quadratic regularization,
+and scaling and adding an offset to the model as described [here](#scaling).
+(You can turn off these options by calling `GLRM(df, k; scale=false, offset=false)`.)
 It returns the column labels for the columns it fit, along with the model.
+
+(Right now, all other data types are ignored, as are `NA`s.
+To fit a data frame with categorical values, you can use the function
+`expand_categoricals!` to turn categorical columns into a Boolean column for each 
+level of the categorical variable. 
+For example, `expand_categoricals!(df, [:gender])` will replace the gender 
+column with a column corresponding to `gender=male`, 
+a column corresponding to `gender=female`, and other columns corresponding to 
+labels outside the gender binary, if they appear in the data set.)
 
 You can use the model to get some intuition for the data set. For example,
 try plotting the columns of `Y` with the labels; you might see
@@ -194,7 +236,8 @@ If you don't have a good guess at a warm start for your model, you might try
 one of the initializations provided in `LowRankModels`.
 
 * `init_svd!` initializes the model as the truncated SVD of the matrix of observed entries, with unobserved entries filled in with zeros. This initialization is known to result in provably good solutions for a number of "PCA-like" problems. See [our paper][glrmpaper] for details.
-* init_kmeanspp! initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
+* `init_kmeanspp!` initializes the model using a modification of the [kmeans++](https://en.wikipedia.org/wiki/K-means_clustering) algorithm for data sets with missing entries; see [our paper][glrmpaper] for details. This works well for fitting clustering models, and may help in achieving better fits for nonnegative matrix factorization problems as well.
+* `init_nndsvd!` initializes the model using a modification of the [NNDSVD](https://github.com/JuliaStats/NMF.jl/blob/master/src/initialization.jl#L18) algorithm as implemented by the [NMF](https://github.com/JuliaStats/NMF.jl) package. This modification handles data sets with missing entries by replacing missing entries with zeros. Optionally, by setting the argument `max_iters=n` with `n>0`, it will iteratively replace missing entries by their values as imputed by the NNDSVD, and call NNDSVD again on the new matrix. (This procedure is similar to the [soft impute](http://dl.acm.org/citation.cfm?id=1859931) method of Mazumder, Hastie and Tibshirani for matrix completion.)
 
 ### Parameters
 
@@ -226,7 +269,7 @@ These functions should help you choose adequate regularization for your model.
 
 ## Cross validation
 
-* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds `use_folds` new GLRMs, each with one group of observations left out. (`use_folds` defaults to `nfolds`.) Trains each GLRM and returns the average loss.
+* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds `use_folds` new GLRMs, each with one group of observations left out. (`use_folds` defaults to `nfolds`.) Trains each GLRM and returns the average loss on the test sets.
 * `cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)`: computes the test error and train error of the GLRM as it is trained. Splits the observations into a training set (`1-holdout_proportion` of the original observations) and a test set (`holdout_proportion` of the original observations). Performs `params.maxiter` iterations of the fitting algorithm on the training set `niters` times, and returns the test and train error as a function of iteration. 
 
 ## Regularization paths

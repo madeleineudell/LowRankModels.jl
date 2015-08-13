@@ -1,12 +1,13 @@
-import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert
+import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA
 
-export GLRM, observations, expand_categoricals
+export GLRM, observations, expand_categoricals!, NaNs_to_NAs
 
 max_ordinal_levels = 9
 
-function GLRM(df::DataFrame, k::Integer;
+# TODO: identify categoricals automatically from PooledDataArray columns
+
+function GLRM(df::DataFrame, k::Int;
               losses = None, rx = quadreg(.01), ry = quadreg(.01),
-              X = randn(k,size(df,1)), Y = randn(k,size(df,2)),
               offset = true, scale = true)
     if losses == None # if losses not specified, identify ordinal, boolean and real columns
         reals, real_losses = get_reals(df)
@@ -19,8 +20,13 @@ function GLRM(df::DataFrame, k::Integer;
         A = df
         ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
     end
-    # identify which entries in data frame have been observed (ie are not N/A) and form model
-    glrm = GLRM(df2array(A), losses, rx, ry, k, obs=observations(A), X=X, Y=Y, offset=offset, scale=scale)
+    # identify which entries in data frame have been observed (ie are not N/A)
+    obs = observations(A)
+    # initialize X and Y
+    X = randn(k,size(A,1))
+    Y = randn(k,size(A,2))
+    # form model
+    glrm = GLRM(df2array(A), losses, rx, ry, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
     return glrm, labels
 end
 
@@ -63,7 +69,7 @@ end
 
 function get_bools(df::DataFrame)
     m,n = size(df)
-    bools = [typeof(df[i])<:DataArray{Bool,1} for i in 1:n]
+    bools = [isa(df[i], DataArray{Bool,1}) for i in 1:n]
     n1 = sum(bools)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -74,7 +80,10 @@ end
 
 function get_ordinals(df::DataFrame)
     m,n = size(df)
-    ordinals = [typeof(df[i])<:DataArray{Int,1} for i in 1:n]
+    # there must be a better way to check types...
+    ordinals = [(isa(df[i], DataArray{Int,1}) || 
+                 isa(df[i], DataArray{Int32,1}) || 
+                 isa(df[i], DataArray{Int64,1})) for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]
     maxs = zeros(nord,1)
@@ -95,7 +104,7 @@ function get_ordinals(df::DataFrame)
     return ordinals, losses
 end
 
-function expand_categoricals(df::DataFrame,categoricals::Array)
+function expand_categoricals!(df::DataFrame,categoricals::Array)
     categoricalidxs = map(y->df.colindex[y], categoricals)
     # create one boolean column for each level of categorical column
     for col in categoricals
@@ -109,4 +118,17 @@ function expand_categoricals(df::DataFrame,categoricals::Array)
     end
     # remove the original categorical columns
     return df[:, filter(x->(!(x in categoricals)), names(df))]
+end
+
+# convert NaNs to NAs
+function NaNs_to_NAs(df::DataFrame)
+    m,n = size(df)
+    for j=1:n # follow column-major order. First element of index in innermost loop
+        for i=1:m
+            if isnan(df[i,j])
+                df[i,j] = NA
+            end
+        end
+    end
+    return df
 end

@@ -15,35 +15,36 @@
 # They serve as a way to evaluate the performance of the low-rank model.
 
 export Domain, # the abstract type
-	   RealDomain, BoolDomain, OrdinalDomain, PeriodicDomain, CountDomain # the domains
+	   RealDomain, BoolDomain, OrdinalDomain, PeriodicDomain, CountDomain, # the domains
+	   copy
 
 abstract Domain
 
 ########################################## REALS ##########################################
 # Real data can take values from ℜ
-type RealDomain<:Domain
+immutable RealDomain<:Domain
 end
 
 ########################################## BOOLS ##########################################
 # Boolean data should take values from {-1,1}
-type BoolDomain<:Domain
+immutable BoolDomain<:Domain
 end
 
 ########################################## ORDINALS ##########################################
 # Ordinal data should take integer values ranging from `min` to `max`
-type OrdinalDomain<:Domain
+immutable OrdinalDomain<:Domain
 	min::Int
 	max::Int
 end
 
 ########################################## PERIODIC ##########################################
 # Periodic data can take values from ℜ, but given a period T, we should have error_metric(a,a+T) = 0
-type PeriodicDomain<:Domain
+immutable PeriodicDomain<:Domain
 	T::Float64 # the period 
 end
 
 ########################################## COUNTS ##########################################
 # Count data can take values over ℕ, which we approximate as {0, 1, 2 ... `max_count`}
-type CountDomain<:Domain
+immutable CountDomain<:Domain
 	max_count::Int # the biggest possible count
 end

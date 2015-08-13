@@ -30,6 +30,15 @@ scale(r::Regularizer) = r.scale
 scale!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
 scale!(rs::Array{Regularizer}, newscale::Number) = (for r in rs scale!(r, newscale) end; rs)
 
+## utilities
+
+function allnonneg(a::AbstractArray)
+  for ai in a
+    ai < 0 && return false
+  end
+  return true
+end
+
 ## quadratic regularization
 type quadreg<:Regularizer
     scale::Float64

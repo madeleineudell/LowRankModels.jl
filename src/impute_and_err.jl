@@ -126,9 +126,8 @@ function impute(losses::Array{Loss,1}, U::Array{Float64,2})
 	impute(domains, losses, U)
 end
 
-
 function errors(domains::Array{Domain,1}, losses::Array{Loss,1}, 
-					  U::Array{Float64,2}, A::Array{Float64,2} )
+					  U::Array{Float64,2}, A::AbstractArray )
 	err = zeros(size(A))
 	m,n = size(A)
 	for j in 1:n

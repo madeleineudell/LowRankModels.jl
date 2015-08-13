@@ -42,7 +42,7 @@ function cross_validate(glrm::GLRM;
     return train_error, test_error, train_glrms, test_glrms
 end
 
-function getfolds(obs::Array{(Int,Int),1}, nfolds, m, n)    
+@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n)    
     # partition elements of obs into nfolds groups
     groups = Array(Int, size(obs))
     rand!(1:nfolds, groups)  # fill an array with random 1 through N
@@ -111,7 +111,9 @@ function flattenarray(x, y)
 end
 flattenarray{T}(x::Array{T})=flattenarray(x,Array(T, 0))
 
-function cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)
+function cv_by_iter(glrm::GLRM, holdout_proportion=.1, 
+                    params=Params(1,max_iter=1,convergence_tol=.01,min_stepsize=.01), 
+                    niters=30; verbose=true)
     if verbose println("flattening observations") end
     # obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
     obs = flatten_observations(glrm.observed_features)
