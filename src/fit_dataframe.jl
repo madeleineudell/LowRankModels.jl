@@ -1,6 +1,6 @@
 import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA
 
-export GLRM, observations, expand_categoricals, NaNs_to_NAs
+export GLRM, observations, expand_categoricals!, NaNs_to_NAs
 
 max_ordinal_levels = 9
 
@@ -104,7 +104,7 @@ function get_ordinals(df::DataFrame)
     return ordinals, losses
 end
 
-function expand_categoricals(df::DataFrame,categoricals::Array)
+function expand_categoricals!(df::DataFrame,categoricals::Array)
     categoricalidxs = map(y->df.colindex[y], categoricals)
     # create one boolean column for each level of categorical column
     for col in categoricals

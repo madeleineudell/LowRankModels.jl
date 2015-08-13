@@ -81,6 +81,9 @@ Regularizers:
 * 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)
 * unit 1-sparse constraint `unitonesparse` (eg, for k-means)
 
+Each of these losses and regularizers can be scaled 
+(for example, to increase the importance of the loss relative to the regularizer) 
+by calling `scale!(loss, newscale)`.
 Users may also implement their own losses and regularizers; 
 see `loss_and_reg.jl` for more details.
 
@@ -105,6 +108,12 @@ which runs an alternating directions proximal gradient method on `glrm` to find 
 [Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details) 
 below for more information.)
 
+The `losses` argument can also be an array of loss functions, 
+with one for each column (in order). For example, 
+for a data set with 3 columns, you could use 
+
+    losses = [quadratic(), logistic(), hinge()]
+
 [More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
 # Missing data
@@ -122,7 +131,8 @@ any entry that is of type `NA`, you can use
 
 # Standard low rank models
 
-Low rank models can easily be used to fit standard models such as PCA, k-means, and nonnegative matrix factorization.
+Low rank models can easily be used to fit standard models such as PCA, k-means, and nonnegative matrix factorization. 
+The following functions are available:
 
 * `pca`: principal components analysis
 * `qpca`: quadratically regularized principal components analysis
@@ -136,7 +146,7 @@ such as an initial value for `X` or `Y`
 or a list of observations, 
 can also be used with these standard low rank models.
 
-# Scaling and offsets
+# Scaling and offsets <a name="scaling"></a>
 
 If you choose, LowRankModels.jl can add an offset to your model and scale the loss 
 functions and regularizers so all columns have the same pull in the model.
@@ -173,9 +183,20 @@ Never fear! Just call
 	X, Y, ch = fit!(glrm)
 
 This will fit a GLRM to your data, using a quadratic loss for real valued columns,
-hinge loss for boolean columns, and ordinal hinge loss for integer columns.
-(Right now, all other data types are ignored, as are `NA`s.)
+hinge loss for boolean columns, and ordinal hinge loss for integer columns,
+a small amount of quadratic regularization,
+and scaling and adding an offset to the model as described [here](#scaling).
+(You can turn off these options by calling `GLRM(df, k; scale=false, offset=false)`.)
 It returns the column labels for the columns it fit, along with the model.
+
+(Right now, all other data types are ignored, as are `NA`s.
+To fit a data frame with categorical values, you can use the function
+`expand_categoricals!` to turn categorical columns into a Boolean column for each 
+level of the categorical variable. 
+For example, `expand_categoricals!(df, [:gender])` will replace the gender 
+column with a column corresponding to `gender=male`, 
+a column corresponding to `gender=female`, and other columns corresponding to 
+labels outside the gender binary, if they appear in the data set.)
 
 You can use the model to get some intuition for the data set. For example,
 try plotting the columns of `Y` with the labels; you might see
@@ -248,7 +269,7 @@ These functions should help you choose adequate regularization for your model.
 
 ## Cross validation
 
-* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds `use_folds` new GLRMs, each with one group of observations left out. (`use_folds` defaults to `nfolds`.) Trains each GLRM and returns the average loss.
+* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds `use_folds` new GLRMs, each with one group of observations left out. (`use_folds` defaults to `nfolds`.) Trains each GLRM and returns the average loss on the test sets.
 * `cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)`: computes the test error and train error of the GLRM as it is trained. Splits the observations into a training set (`1-holdout_proportion` of the original observations) and a test set (`holdout_proportion` of the original observations). Performs `params.maxiter` iterations of the fitting algorithm on the training set `niters` times, and returns the test and train error as a function of iteration. 
 
 ## Regularization paths
