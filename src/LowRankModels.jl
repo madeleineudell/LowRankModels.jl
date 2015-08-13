@@ -13,16 +13,17 @@ include("regularizers.jl")
 include("convergence.jl")
 
 # define basic data type
-# to use many processes to fit a model in shared memory, use shareglrm instead of glrm
-if nprocs()>1
-    include("shareglrm.jl")
-else
-    include("glrm.jl")
-	# fitting algorithms
-	include("fit.jl")
-	include("algorithms/proxgrad.jl")
-    include("algorithms/sparse_proxgrad.jl")
-end
+include("glrm.jl")
+include("shareglrm.jl")
+
+# modify models (eg scaling and offsets) and evaluate fit
+include("modify_glrm.jl")
+include("evaluate_glrm.jl")
+
+# fitting algorithms
+include("fit.jl")
+include("algorithms/proxgrad.jl")
+include("algorithms/sparse_proxgrad.jl")
 
 # initialization methods
 include("rsvd.jl")

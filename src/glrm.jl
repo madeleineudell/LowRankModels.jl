@@ -3,15 +3,14 @@ import Base.LinAlg.scale!
 import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 
-export GLRM, getindex, size,
-       objective, error_metric, 
-       add_offset!, equilibrate_variance!, fix_latent_features!,
-       impute, error_metric
+abstract AbstractGLRM
 
-ObsArray = Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
+export AbstractGLRM, GLRM, getindex, size
+
+typealias ObsArray Union(Array{Array{Int,1},1}, Array{UnitRange{Int},1})
 
 ### GLRM TYPE
-type GLRM{L<:Loss, R<:Regularizer}
+type GLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     A::AbstractArray             # The data table transformed into a coded array 
     losses::Array{L,1}           # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
@@ -74,98 +73,3 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
     end
     return glrm
 end
-
-### OBSERVATION TUPLES TO ARRAYS
-@compat function sort_observations(obs::Array{Tuple{Int,Int},1}, m::Int, n::Int; check_empty=false)
-    observed_features = Array{Int,1}[Int[] for i=1:m]
-    observed_examples = Array{Int,1}[Int[] for j=1:n]
-    for (i,j) in obs
-        @inbounds push!(observed_features[i],j)
-        @inbounds push!(observed_examples[j],i)
-    end
-    if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
-            any(map(x->length(x)==0,observed_features)))
-        error("Every row and column must contain at least one observation")
-    end
-    return observed_features, observed_examples
-end
-
-## SCALINGS AND OFFSETS ON GLRM
-function add_offset!(glrm::GLRM)
-    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
-    return glrm
-end
-function equilibrate_variance!(glrm::GLRM)
-    for i=1:size(glrm.A,2)
-        nomissing = glrm.A[glrm.observed_examples[i],i]
-        if length(nomissing)>0
-            varlossi = avgerror(glrm.losses[i], nomissing)
-            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
-        else
-            varlossi = 1
-            varregi = 1
-        end
-        if varlossi > 0
-            # rescale the losses and regularizers for each column by the inverse of the empirical variance
-            scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
-        end
-        if varregi > 0
-            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
-        end
-    end
-    return glrm
-end
-function fix_latent_features!(glrm::GLRM, n)
-    glrm.ry = Regularizer[fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) 
-                            for i in 1:length(glrm.ry)]
-    return glrm
-end
-
-## ERROR METRIC EVALUATION (BASED ON DOMAINS OF THE DATA)
-function raw_error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
-    m,n = size(glrm.A)
-    err = 0.0
-    for j=1:n
-        for i in glrm.observed_examples[j]
-            err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
-        end
-    end
-    return err
-end
-function std_error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
-    m,n = size(glrm.A)
-    err = 0.0
-    for j=1:n
-        column_mean = 0.0
-        column_err = 0.0
-        for i in glrm.observed_examples[j]
-            column_mean += glrm.A[i,j]^2
-            column_err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
-        end
-        column_mean = column_mean/length(glrm.observed_examples[j])
-        if column_mean != 0
-            column_err = column_err/column_mean
-        end
-        err += column_err
-    end
-    return err
-end
-function error_metric(glrm::GLRM, XY::Array{Float64,2}, domains::Array{Domain,1}; standardize=false)
-    if standardize
-        return std_error_metric(glrm, XY, domains)
-    else
-        return raw_error_metric(glrm, XY, domains)
-    end
-end
-# The user can also pass in X and Y and `error_metric` will compute XY for them
-function error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, domains::Array{Domain,1}; kwargs...)
-    XY = Array(Float64, size(glrm.A)) 
-    gemm!('T','N',1.0,X,Y,0.0,XY) 
-    error_metric(glrm, XY, domains; kwargs...)
-end
-# Or just the GLRM and `error_metric` will use glrm.X and .Y
-error_metric(glrm::GLRM, domains::Array{Domain,1}; kwargs...) = error_metric(glrm, glrm.X, glrm.Y, domains; kwargs...)
-error_metric(glrm::GLRM; kwargs...) = error_metric(glrm, Domain[l.domain for l in glrm.losses]; kwargs...)
-
-# Use impute and errors over GLRMS
-impute(glrm::GLRM) = impute(glrm.losses, glrm.X'*glrm.Y)
