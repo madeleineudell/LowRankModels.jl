@@ -13,32 +13,14 @@ function localcols(Y::SharedArray)
     return round(floor((s-1)/m+1)):round(floor(t/m))
 end
 
-### Parameters
-
-type ParProxGradParams<:AbstractParams
-    stepsize::Float64 # initial stepsize
-    max_iter::Int # maximum number of outer iterations
-    inner_iter::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
-    convergence_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
-    min_stepsize::Float64 # use a decreasing stepsize, stop when reaches min_stepsize
-end
-function ParProxGradParams(stepsize=1; # initial stepsize
-                        max_iter=100, # maximum number of outer iterations
-                        inner_iter=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
-                        convergence_tol=0.00001, # stop if objective decrease upon one outer iteration is less than this
-                        min_stepsize=0.01*stepsize) # stop if stepsize gets this small
-    println("#### called default params ####")
-    return ParProxGradParams(stepsize, max_iter, inner_iter, convergence_tol, min_stepsize)
-end
-
 ### Fitting
 
-function fit!(glrm::GLRM, params::ParProxGradParams;
-    ch::ConvergenceHistory=ConvergenceHistory("ParProxGradGLRM"),verbose=true)
+function fit!(glrm::ShareGLRM, params::ProxGradParams;
+    ch::ConvergenceHistory=ConvergenceHistory("ProxGradShareGLRM"),verbose=true)
 	
 	### initialization (mostly name shortening)
     isa(glrm.A, SharedArray) ? A = glrm.A : A = convert(SharedArray,glrm.A)
-    # make sure that we've oriented the factors as shareglrm expects
+    # make sure that we've oriented the factors correctly
     # k, m == size(X) and k, n == size(Y)
     if size(glrm.Y,1)!==size(glrm.X,1)
         glrm.X = glrm.X'
@@ -49,16 +31,8 @@ function fit!(glrm::GLRM, params::ParProxGradParams;
     end
     # at any time, glrm.X and glrm.Y will be the best model yet found, while
     # X and Y will be the working variables. All of these are shared arrays.
-    if isa(glrm.X, SharedArray)
-        X, glrm.X = glrm.X, copy(glrm.X)
-    else
-        X, glrm.X = convert(SharedArray,glrm.X), convert(SharedArray,glrm.X)
-    end
-    if isa(glrm.Y, SharedArray)
-        Y, glrm.Y = glrm.Y, copy(glrm.Y)
-    else
-        Y, glrm.Y = convert(SharedArray,glrm.Y), convert(SharedArray,glrm.Y)
-    end
+    X, glrm.X = glrm.X, copy(glrm.X)
+    Y, glrm.Y = glrm.Y, copy(glrm.Y)
 
     ## a few scalars that need to be shared among all processes
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)

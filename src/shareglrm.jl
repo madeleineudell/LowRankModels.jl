@@ -4,11 +4,11 @@ import Base.BLAS: gemm!
 import ArrayViews: view, StridedView, ContiguousView
 import Base: shmem_rand, shmem_randn
 
-export ShareGLRM
+export ShareGLRM, share
 
 ### GLRM TYPE
 type ShareGLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
-    A::AbstractArray             # The data table transformed into a coded array 
+    A::SharedArray               # The data table transformed into a coded array 
     losses::Array{L,1}           # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
     ry::Array{R,1}               # Array of regularizers to be applied to each column of Y
@@ -20,9 +20,10 @@ type ShareGLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
 end
 
 function share(glrm::GLRM)
-    X = convert(SharedArray, glrm.X)
-    Y = convert(SharedArray, glrm.Y)
-    return ShareGlrm(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
+    isa(glrm.A, SharedArray) ? A = glrm.A : A = convert(SharedArray,glrm.A)
+    isa(glrm.X, SharedArray) ? X = glrm.X : X = convert(SharedArray, glrm.X)
+    isa(glrm.Y, SharedArray) ? Y = glrm.Y : Y = convert(SharedArray, glrm.Y)
+    return ShareGLRM(A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
                      glrm.observed_features, glrm.observed_examples,
                      X, Y)
 end

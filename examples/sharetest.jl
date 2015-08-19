@@ -10,6 +10,7 @@ function fit_pca(m,n,k)
 	losses = fill(quadratic(),n)
 	r = quadreg()
 	glrm = GLRM(A,losses,r,r,k, X=X, Y=Y)
+	glrm = share(glrm)
 	p = Params()
 	p.max_iter = 10
 	X,Y,ch = fit!(glrm)

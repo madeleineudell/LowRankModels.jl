@@ -15,7 +15,8 @@ glrm = GLRM(A,losses,r,r,k+2)
 
 if do_cv
     println("Computing cross validation error for each fold")
-    train_error, test_error, train_glrms, test_glrms = cross_validate(glrm, nfolds=5, params=Params(1,100,0,.001))
+    params = Params(1.0, max_iter=100, convergence_tol=0.0, min_stepsize=.001)
+    train_error, test_error, train_glrms, test_glrms = cross_validate(glrm, nfolds=5, params=params)
     df = DataFrame(train_error = train_error, test_error = test_error)
 end
 
@@ -27,8 +28,9 @@ end
 
 if do_reg_path
     println("Computing regularization path")
+    params = Params(1.0, max_iter=50, convergence_tol=.00001, min_stepsize=.01)
     train_error, test_error, train_time, model_onenorm, reg_params = 
-    regularization_path(glrm, params=Params(1,50,.00001,.01), reg_params=logspace(2,-2,15))
+    regularization_path(glrm, params=params, reg_params=logspace(2,-2,15))
     df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, model_onenorm=model_onenorm, reg_param = reg_params)
 	if do_plot 

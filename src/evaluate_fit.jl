@@ -42,6 +42,11 @@ end
 # Or just the GLRM and `objective` will use glrm.X and .Y
 objective(glrm::AbstractGLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
 
+# For shared arrays
+# TODO: compute objective in parallel
+objective(glrm::ShareGLRM, X::SharedArray{Float64,2}, Y::SharedArray{Float64,2}) =
+    objective(glrm, X.s, Y.s)
+
 # Helper function to calculate the regularization penalty for X and Y
 function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2})
     m,n = size(glrm.A)

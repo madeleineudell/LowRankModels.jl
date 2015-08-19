@@ -11,10 +11,14 @@ end
 function ProxGradParams(stepsize::Number=1.0; # initial stepsize
 				        max_iter::Int=100, # maximum number of outer iterations
 				        inner_iter::Int=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
-				        convergence_tol::Float64=0.00001, # stop if objective decrease upon one outer iteration is less than this
-				        min_stepsize::Float64=0.01*stepsize) # stop if stepsize gets this small
+				        convergence_tol::Number=0.00001, # stop if objective decrease upon one outer iteration is less than this
+				        min_stepsize::Number=0.01*stepsize) # stop if stepsize gets this small
     stepsize = convert(Float64, stepsize)
-    return ProxGradParams(stepsize, max_iter, inner_iter, convergence_tol, min_stepsize)
+    return ProxGradParams(convert(Float64, stepsize), 
+                          max_iter, 
+                          inner_iter, 
+                          convert(Float64, convergence_tol), 
+                          convert(Float64, min_stepsize))
 end
 
 ### FITTING
