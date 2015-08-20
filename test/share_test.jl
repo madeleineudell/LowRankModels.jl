@@ -20,4 +20,4 @@ end
 A,X,Y,ch = fit_pca(100,100,50)	
 
 # make sure objective went down
-@assert ch.objective[end] < ch.objective[1]
+@test ch.objective[end] < ch.objective[1]

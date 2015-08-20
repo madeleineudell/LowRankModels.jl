@@ -75,11 +75,13 @@ Losses:
 Regularizers:
 
 * quadratic regularization `quadreg`
+* constrained squared euclidean norm `constrained_quadreg`
 * l1 regularization `onereg`
 * no regularization `zeroreg`
 * nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
 * 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)
 * unit 1-sparse constraint `unitonesparse` (eg, for k-means)
+* simplex constraint `simplex`
 
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 

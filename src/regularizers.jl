@@ -11,8 +11,9 @@ import Base.scale!, Roots.fzero
 
 export Regularizer, # abstract type
        # concrete regularizers
-       quadreg, onereg, zeroreg, nonnegative, nonneg_onereg,
-       onesparse, unitonesparse, simplex, lesser_better,
+       quadreg, constrained_quadreg,
+       onereg, zeroreg, nonnegative, nonneg_onereg,
+       onesparse, unitonesparse, simplex,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
        # methods on regularizers
        prox!, prox,
@@ -48,6 +49,24 @@ prox(r::quadreg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
 prox!(r::quadreg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
 evaluate(r::quadreg,a::AbstractArray) = r.scale*sum(a.^2)
 
+## constrained quadratic regularization
+## the function r such that
+## r(x) = inf    if norm(x) > max_2norm
+##        0      otherwise
+## can be used to implement maxnorm regularization: 
+##   constraining the maxnorm of XY to be <= mu is achieved 
+##   by setting glrm.rx = constrained_quadreg(sqrt(mu)) 
+##   and the same for every element of glrm.ry
+type constrained_quadreg<:Regularizer
+    max_2norm::Float64
+end
+constrained_quadreg() = constrained_quadreg(1)
+prox(r::constrained_quadreg,u::AbstractArray,alpha::Number) = (r.max_2norm)/norm(u)*u
+prox!(r::constrained_quadreg,u::Array{Float64},alpha::Number) = scale!(u, (r.max_2norm)/norm(u))
+evaluate(r::constrained_quadreg,u::AbstractArray) = norm(u) > r.max_2norm ? Inf : 0
+scale(r::constrained_quadreg) = 1
+scale!(r::constrained_quadreg, newscale::Number) = 1
+
 ## one norm regularization
 type onereg<:Regularizer
     scale::Float64
@@ -55,21 +74,6 @@ end
 onereg() = onereg(1)
 prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
 evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
-
-## sum regularization for poisson errors
-type lesser_better<:Regularizer
-    scale::Float64
-end
-lesser_better() = lesser_better(1)
-function prox(r::lesser_better,u::AbstractArray,alpha::Number) 
-    for i in 1:length(u)
-        u[i] = fzero(x->x+r.scale*alpha*exp(x)-u[i], [-100000, 100000]) #sketchy interval.... 
-    end
-    return u
-end
-evaluate(r::lesser_better,a::AbstractArray) = r.scale*sum(exp(a))
-scale(r::lesser_better) = 1
-scale!(r::lesser_better, newscale::Number) = 1
 
 ## no regularization
 type zeroreg<:Regularizer

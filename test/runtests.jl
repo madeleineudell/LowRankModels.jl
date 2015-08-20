@@ -11,3 +11,4 @@ include("share_test.jl")
 # actual tests
 include("init_test.jl")
 include("sparse_test.jl")
+include("reg_test.jl")
