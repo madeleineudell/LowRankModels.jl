@@ -269,7 +269,13 @@ These functions should help you choose adequate regularization for your model.
 
 ## Cross validation
 
-* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds `use_folds` new GLRMs, each with one group of observations left out. (`use_folds` defaults to `nfolds`.) Trains each GLRM and returns the average loss on the test sets.
+* `cross_validate(glrm::GLRM, nfolds=5, params=Params(); verbose=false, use_folds=None, error_fn=objective, init=None)`: performs n-fold cross validation and returns average loss among all folds. More specifically, splits observations in `glrm` into `nfolds` groups, and builds new GLRMs, each with one group of observations left out. Fits each GLRM to the training set (the observations revealed to each GLRM) and returns the average loss on the test sets (the observations left out of each GLRM).
+
+    **Optional arguments:**
+    * `use_folds`: build `use_folds` new GLRMs instead of `n_folds` new GLRMs, each with `1/nfolds` of the entries left out. (`use_folds` defaults to `nfolds`.)
+    * `error_fn`: use a custom error function to evaluate the fit, rather than the objective. For example, one might use the imputation error by setting `error_fn = error_metric`.
+    * `init`: initialize the fit using a particular procedure. For example, consider `init=init_svd!`. See [Initialization](https://github.com/madeleineudell/LowRankModels.jl#initialization) for more options.
+
 * `cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)`: computes the test error and train error of the GLRM as it is trained. Splits the observations into a training set (`1-holdout_proportion` of the original observations) and a test set (`holdout_proportion` of the original observations). Performs `params.maxiter` iterations of the fitting algorithm on the training set `niters` times, and returns the test and train error as a function of iteration. 
 
 ## Regularization paths

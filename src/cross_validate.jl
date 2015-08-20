@@ -5,7 +5,8 @@ export cross_validate, cv_by_iter, regularization_path, get_train_and_test, prec
 function cross_validate(glrm::GLRM; 
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=None,
-                        A_truth=None, error_fn=objective)
+                        error_fn=objective,
+                        init=None)
     if use_folds==None use_folds = nfolds end
     if verbose println("flattening observations") end
 #    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
@@ -32,6 +33,9 @@ function cross_validate(glrm::GLRM;
                                   copy(glrm.X), copy(glrm.Y))
         # evaluate train and test error
         if verbose println("fitting train GLRM for fold $ifold") end
+        if init != None
+            init(train_glrms[ifold])
+        end
         X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
         train_error[ifold] = error_fn(train_glrms[ifold], X, Y) / ntrain
