@@ -223,14 +223,12 @@ function prox(r::simplex, u::AbstractArray, alpha::Number)
     end
     max(u - t, 0)
 end
-function evaluate(r::simplex, a::AbstractArray)
-    for ai in a
-        if ai>=1 || ai<=0
-            return Inf
-        end
-    end
-    if sum(a) != 1
-        return Inf
+function evaluate(r::simplex,a::AbstractArray)
+    # check it's a unit vector
+    abs(sum(a)-1)>1e-12 && return Inf
+    # check every entry is nonnegative
+    for i=1:length(a)
+        a[i] < 0 && return Inf
     end
     return 0
 end
