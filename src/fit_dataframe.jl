@@ -108,7 +108,7 @@ function expand_categoricals!(df::DataFrame,categoricals::Array)
     categoricalidxs = map(y->df.colindex[y], categoricals)
     # create one boolean column for each level of categorical column
     for col in categoricals
-        levels = unique(df[:,col])
+        levels = sort(unique(df[:,col]))
         for level in levels
             if !isna(level)
                 colname = symbol(string(col)*"="*string(level))

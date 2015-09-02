@@ -50,6 +50,10 @@ abstract DiffLoss<:Loss
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 
+# default number of columns
+# number of columns is higher for multidimensional losses
+embedding_dim(l::Loss) = 1
+
 # The following is the M-estimator for loss functions that don't have one defined. It's also useful
 # for checking that the analytic M_estimators are correct. To make sure this method is called instead
 # of the loss-specific method (should only be done to test), simply pass the third paramter `test`.
