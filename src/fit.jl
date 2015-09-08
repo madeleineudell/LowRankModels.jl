@@ -10,7 +10,13 @@ Params(args...; kwargs...) = ProxGradParams(args...; kwargs...)
     if :params in keys(kwdict)
         return fit!(glrm, kwdict[:params]; kwargs...)
     else
-        return fit!(glrm, ProxGradParams(); kwargs...)
+        if isa(A,SparseMatrixCSC)
+            # Default to sparse algorithm for a sparse dataset
+            return fit!(glrm, SparseProxGradParams(); kwargs...)
+        else
+            # Classic proximal gradient method for non-sparse data
+            return fit!(glrm, ProxGradParams(); kwargs...)
+        end
     end
 end
 
