@@ -82,6 +82,7 @@ Regularizers:
 * 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)
 * unit 1-sparse constraint `unitonesparse` (eg, for k-means)
 * simplex constraint `simplex`
+* l1 regularization, combined with nonnegative constraint `nonneg_onereg`
 
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 
@@ -203,6 +204,29 @@ labels outside the gender binary, if they appear in the data set.)
 You can use the model to get some intuition for the data set. For example,
 try plotting the columns of `Y` with the labels; you might see
 that similar features are close to each other!
+
+# Fitting Sparse Matrices
+
+If you have a very large, sparse dataset, then you will probably want to
+encode your data into a
+[sparse matrix](http://julia-demo.readthedocs.org/en/latest/stdlib/sparse.html).
+By default, `LowRankModels` interprets the sparse entries of a sparse
+matrix as missing entries (i.e. `NA` values). There is no need to
+pass the indices of observed entries (`obs`) -- this is done
+automatically when `GLRM(A::SparseMatrixCSC,...)` is called.
+In addition, calling `fit!(glrm)` when `glrm.A` is a sparse matrix
+will use the sparse variant of the proximal gradient descent algorithm,
+`fit!(glrm, SparseProxGradParams(); kwargs...)`.
+
+If, instead, you'd like to interpret the sparse entries as zeros, rather
+than missing or `NA` entries, use:
+```julia
+glrm = GLRM(...;sparse_na=false)
+```
+In this case, the dataset is dense in terms of observations, but sparse
+in terms of nonzero values. Thus, it may make more sense to fit the
+model with the vanilla proximal gradient descent algorithm,
+`fit!(glrm, ProxGradParams(); kwargs...)`.
 
 # Technical details
 
