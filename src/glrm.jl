@@ -34,7 +34,7 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
               offset = false, scale = false,
-              checknan = true)
+              checknan = true, sparse_na = true)
     # Check dimensions of the arguments
     m,n = size(A)
     if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
@@ -43,7 +43,7 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
     if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix. size(Y) = $(size(Y)), size(A) = $(size(A))") end
     
     # Determine observed entries of data
-    if isa(A,SparseMatrixCSC)
+    if obs==nothing && sparse_na && isa(A,SparseMatrixCSC)
         I,J = findn(A) # observed indices (vectors)
         obs = [(I[a],J[a]) for a = 1:length(I)] # observed indices (list of tuples)
     end
