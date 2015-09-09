@@ -57,7 +57,11 @@ The user may also specify
 * starting matrices X₀ and Y₀
 
 `obs` is a list of tuples of the indices of the observed entries in the matrix,
-and may be omitted if all the entries in the matrix have been observed. `X₀` and `Y₀` are initialization
+and may be omitted if all the entries in the matrix have been observed.
+If `A` is a sparse matrix, implicit zeros are interpreted 
+as missing entries by default; 
+see the discussion of [sparse matrices](https://github.com/madeleineudell/LowRankModels.jl#fitting-sparse-matrices) below for more details.
+`X₀` and `Y₀` are initialization
 matrices that represent a starting guess for the optimization.
 
 Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
@@ -207,8 +211,8 @@ that similar features are close to each other!
 
 # Fitting Sparse Matrices
 
-If you have a very large, sparse dataset, then you will probably want to
-encode your data into a
+If you have a very large, sparsely observed dataset, then you may want to
+encode your data as a
 [sparse matrix](http://julia-demo.readthedocs.org/en/latest/stdlib/sparse.html).
 By default, `LowRankModels` interprets the sparse entries of a sparse
 matrix as missing entries (i.e. `NA` values). There is no need to
