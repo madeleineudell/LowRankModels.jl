@@ -20,6 +20,9 @@ export Regularizer, # abstract type
        # utilities
        scale, scale!
 
+# numerical tolerance
+TOL = 1e-12
+
 # regularizers
 # regularizers r should have the method `prox` defined such that 
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
@@ -63,7 +66,7 @@ end
 constrained_quadreg() = constrained_quadreg(1)
 prox(r::constrained_quadreg,u::AbstractArray,alpha::Number) = (r.max_2norm)/norm(u)*u
 prox!(r::constrained_quadreg,u::Array{Float64},alpha::Number) = scale!(u, (r.max_2norm)/norm(u))
-evaluate(r::constrained_quadreg,u::AbstractArray) = norm(u) > r.max_2norm ? Inf : 0
+evaluate(r::constrained_quadreg,u::AbstractArray) = norm(u) > r.max_2norm + TOL ? Inf : 0
 scale(r::constrained_quadreg) = 1
 scale!(r::constrained_quadreg, newscale::Number) = 1
 
@@ -225,7 +228,7 @@ function prox(r::simplex, u::AbstractArray, alpha::Number)
 end
 function evaluate(r::simplex,a::AbstractArray)
     # check it's a unit vector
-    abs(sum(a)-1)>1e-12 && return Inf
+    abs(sum(a)-1)>TOL && return Inf
     # check every entry is nonnegative
     for i=1:length(a)
         a[i] < 0 && return Inf

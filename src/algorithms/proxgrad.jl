@@ -37,18 +37,9 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	X = copy(glrm.X); Y = copy(glrm.Y)
 	k = glrm.k
 
-    # find spans of loss functions (for multidimensional losses)
-    ds = map(embedding_dim, losses)
-    featurestartidxs = cumsum(ds)    
-    @assert size(Y,2) == sum(ds)
-
 	m,n = size(A)
-	XY = Array(Float64, (m, sum(ds)))
+	XY = Array(Float64, (m, n))
 	gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
-    yidxs = Array(Range{Int}, n)
-    for j = 1:n
-        yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
-    end
 
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(Y) == 0 
@@ -69,7 +60,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
     # cache views
     ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
-    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,yidxs[f]) for f=1:n]
+    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
 
     for i=1:params.max_iter
 # STEP 1: X update
@@ -82,7 +73,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
-                axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
+                axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
