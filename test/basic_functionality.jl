@@ -5,7 +5,7 @@ m,n,k,s = 1000,1000,5,1000*1000;
 # matrix to encode
 X_real, Y_real = randn(m,k), randn(k,n);
 A = X_real*Y_real;
-losses = fill(quadratic(),n)
+losses = fill(QuadLoss(),n)
 rx, ry = zeroreg(), zeroreg();
 glrm = GLRM(A,losses,rx,ry,5, scale=false, offset=false, X=randn(k,m), Y=randn(k,n));
 

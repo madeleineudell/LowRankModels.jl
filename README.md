@@ -69,16 +69,17 @@ and may be chosen from a list of supported losses and regularizers, which includ
 
 Losses:
 
-* quadratic loss `quadratic`
-* hinge loss `hinge`
-* weighted hinge loss `weighted_hinge`
-* l1 loss `l1`
-* ordinal hinge loss `ordinal_hinge`
-* periodic loss `periodic`
+* quadratic loss `QuadLoss`
+* hinge loss `HingeLoss`
+* logistic loss `LogLoss`
+* weighted hinge loss `WeightedHinge`
+* l1 loss `L1Loss`
+* ordinal hinge loss `OrdinalHinge`
+* PeriodicLoss loss `PeriodicLoss`
 
 Regularizers:
 
-* quadratic regularization `quadreg`
+* QuadLoss regularization `quadreg`
 * constrained squared euclidean norm `constrained_quadreg`
 * l1 regularization `onereg`
 * no regularization `zeroreg`
@@ -100,7 +101,7 @@ For example, the following code forms a k-means model with `k=5` on the `100`x`1
 
     using LowRankModels
     m,n,k = 100,100,5
-    losses = quadratic() # minimize squared distance to cluster centroids
+    losses = QuadLoss() # minimize squared distance to cluster centroids
     rx = unitonesparse() # each row is assigned to exactly one cluster
     ry = zeroreg() # no regularization on the cluster centroids
     glrm = GLRM(A,losses,rx,ry,k)
@@ -119,7 +120,7 @@ The `losses` argument can also be an array of loss functions,
 with one for each column (in order). For example, 
 for a data set with 3 columns, you could use 
 
-    losses = [quadratic(), logistic(), hinge()]
+    losses = [QuadLoss(), LogLoss(), HingeLoss()]
 
 [More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
@@ -189,9 +190,9 @@ Never fear! Just call
 	glrm, labels = GLRM(df,2)
 	X, Y, ch = fit!(glrm)
 
-This will fit a GLRM to your data, using a quadratic loss for real valued columns,
-hinge loss for boolean columns, and ordinal hinge loss for integer columns,
-a small amount of quadratic regularization,
+This will fit a GLRM to your data, using a QuadLoss loss for real valued columns,
+HingeLoss loss for boolean columns, and ordinal HingeLoss loss for integer columns,
+a small amount of QuadLoss regularization,
 and scaling and adding an offset to the model as described [here](#scaling).
 (You can turn off these options by calling `GLRM(df, k; scale=false, offset=false)`.)
 It returns the column labels for the columns it fit, along with the model.

@@ -43,7 +43,7 @@ function allnonneg(a::AbstractArray)
   return true
 end
 
-## quadratic regularization
+## QuadLoss regularization
 type quadreg<:Regularizer
     scale::Float64
 end
@@ -52,7 +52,7 @@ prox(r::quadreg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
 prox!(r::quadreg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
 evaluate(r::quadreg,a::AbstractArray) = r.scale*sum(a.^2)
 
-## constrained quadratic regularization
+## constrained QuadLoss regularization
 ## the function r such that
 ## r(x) = inf    if norm(x) > max_2norm
 ##        0      otherwise
@@ -209,7 +209,7 @@ scale(r::unitonesparse) = 1
 scale!(r::unitonesparse, newscale::Number) = 1
 
 ## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
-## (eg for quadratic mixtures, ie soft kmeans)
+## (eg for QuadLoss mixtures, ie soft kmeans)
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
 type simplex<:Regularizer
 end

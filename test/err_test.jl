@@ -2,13 +2,13 @@ using LowRankModels
 srand(1);
 
 test_losses = Loss[
-quadratic(), 	
-l1(), 			
+QuadLoss(), 	
+L1Loss(), 			
 huber(), 		
-periodic(1), 	
-ordinal_hinge(1,10),
-logistic(), 		
-weighted_hinge()
+PeriodicLoss(1), 	
+OrdinalHinge(1,10),
+LogLoss(), 		
+WeightedHinge()
 ]
 
 for test_iteration = 1:500

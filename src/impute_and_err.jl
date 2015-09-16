@@ -2,9 +2,9 @@
 
 # The purpose of domains is to be able to impute over different possible values of `a` regardless of
 # the loss that was used in the GLRM. The reason for doing this is to evaluate the performance of GLRMS.
-# For instance, let's say we use PCA (quadratic losses) to model a binary data frame (not the best idea).
-# In order to override the standard imputation with `impute(quadratic(), u)`, which assumes imputation over the reals,
-# we can use `impute(BoolDomain(), quadratic(), u)` and see which of {-1,1} is best. The reason we want to be able to 
+# For instance, let's say we use PCA (QuadLoss losses) to model a binary data frame (not the best idea).
+# In order to override the standard imputation with `impute(QuadLoss(), u)`, which assumes imputation over the reals,
+# we can use `impute(BoolDomain(), QuadLoss(), u)` and see which of {-1,1} is best. The reason we want to be able to 
 # do this is to compare a baseline model (e.g. PCA) with a more logical model using heterogenous losses, 
 # yet still give each model the same amount of information regarding how imputation should be done.
 
@@ -41,10 +41,10 @@ impute(l::Loss, u::Float64) = impute(l.domain, l, u)
 
 impute(D::RealDomain, l::DiffLoss, u::Float64) = u # by the properties of any DiffLoss
 impute(D::RealDomain, l::poisson, u::Float64) = exp(u)
-impute(D::RealDomain, l::ordinal_hinge, u::Float64) = roundcutoff(u, l.min, l.max)
-impute(D::RealDomain, l::logistic, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")
-function impute(D::RealDomain, l::weighted_hinge, u::Float64) 
-	warn("It doesn't make sense to use hinge to impute data that can take values in ℜ")
+impute(D::RealDomain, l::OrdinalHinge, u::Float64) = roundcutoff(u, l.min, l.max)
+impute(D::RealDomain, l::LogLoss, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")
+function impute(D::RealDomain, l::WeightedHinge, u::Float64) 
+	warn("It doesn't make sense to use HingeLoss to impute data that can take values in ℜ")
 	1/u
 end
 
@@ -70,10 +70,10 @@ end
 
 impute(D::OrdinalDomain, l::DiffLoss, u::Float64) = roundcutoff(u, D.min, D.max)
 impute(D::OrdinalDomain, l::poisson, u::Float64) = roundcutoff(exp(u), D.min , D.max)
-impute(D::OrdinalDomain, l::ordinal_hinge, u::Float64) = roundcutoff(u, D.min, D.max)
-impute(D::OrdinalDomain, l::logistic, u::Float64) = u>0 ? D.max : D.min
-function impute(D::OrdinalDomain, l::weighted_hinge, u::Float64) 
-	warn("It doesn't make sense to use hinge to impute ordinals")
+impute(D::OrdinalDomain, l::OrdinalHinge, u::Float64) = roundcutoff(u, D.min, D.max)
+impute(D::OrdinalDomain, l::LogLoss, u::Float64) = u>0 ? D.max : D.min
+function impute(D::OrdinalDomain, l::WeightedHinge, u::Float64) 
+	warn("It doesn't make sense to use HingeLoss to impute ordinals")
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))
 	roundcutoff(a_imputed, D.min, D.max)
 end

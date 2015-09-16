@@ -6,7 +6,7 @@ using LowRankModels
 # apply init_nnmf! to random dataset
 m,n,k = 10,5,3
 A = rand(m,k)*rand(k,n)
-losses = fill(quadratic(),n)
+losses = fill(QuadLoss(),n)
 r = nonnegative()
 glrm = GLRM(A,losses,r,r,k)
 init_nndsvd!(glrm)

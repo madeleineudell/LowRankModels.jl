@@ -5,7 +5,7 @@ using LowRankModels
 # from the same initial conditions for simple pca.
 m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n)
-loss = quadratic()
+loss = QuadLoss()
 r = zeroreg()
 
 glrm_1 = GLRM(A,loss,r,r,k) # solve with prox algorithm
