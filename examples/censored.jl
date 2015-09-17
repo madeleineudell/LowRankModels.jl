@@ -8,7 +8,7 @@ m,n,k,ktrue = 100,100,1,1
 A = rand(m,ktrue)*rand(ktrue,n)
 B = int(ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
 losses = fill(QuadLoss(),n)
-r = quadreg(.1)
+r = QuadReg(.1)
 obs = (Int,Int)[]
 for i=1:m
     for j=1:n

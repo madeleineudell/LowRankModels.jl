@@ -51,7 +51,7 @@ A_real = X_real*Y_real;
 A = impute(losses, A_real) 
 
 # tests all the M-estimators with scale=true
-glrm = GLRM(A, losses, zeroreg(), zeroreg(), 5, scale=true, offset=true);
+glrm = GLRM(A, losses, ZeroReg(), ZeroReg(), 5, scale=true, offset=true);
 
 # tests eval and grad
 @time X,Y,ch = fit!(glrm);

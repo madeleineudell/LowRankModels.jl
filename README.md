@@ -79,15 +79,15 @@ Losses:
 
 Regularizers:
 
-* QuadLoss regularization `quadreg`
-* constrained squared euclidean norm `constrained_quadreg`
-* l1 regularization `onereg`
-* no regularization `zeroreg`
-* nonnegative constraint `nonnegative` (eg, for nonnegative matrix factorization)
-* 1-sparse constraint `onesparse` (eg, for orthogonal NNMF)
-* unit 1-sparse constraint `unitonesparse` (eg, for k-means)
-* simplex constraint `simplex`
-* l1 regularization, combined with nonnegative constraint `nonneg_onereg`
+* quadratic regularization `QuadReg`
+* constrained squared euclidean norm `QuadConstraint`
+* l1 regularization `OneReg`
+* no regularization `ZeroReg`
+* nonnegative constraint `NonNegConstraint` (eg, for nonnegative matrix factorization)
+* 1-sparse constraint `OneSparseConstraint` (eg, for orthogonal NNMF)
+* unit 1-sparse constraint `UnitOneSparseConstraint` (eg, for k-means)
+* simplex constraint `SimplexConstraint`
+* l1 regularization, combined with nonnegative constraint `NonNegOneReg`
 
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 
@@ -102,8 +102,8 @@ For example, the following code forms a k-means model with `k=5` on the `100`x`1
     using LowRankModels
     m,n,k = 100,100,5
     losses = QuadLoss() # minimize squared distance to cluster centroids
-    rx = unitonesparse() # each row is assigned to exactly one cluster
-    ry = zeroreg() # no regularization on the cluster centroids
+    rx = UnitOneSparseConstraint() # each row is assigned to exactly one cluster
+    ry = ZeroReg() # no regularization on the cluster centroids
     glrm = GLRM(A,losses,rx,ry,k)
 
 To fit the model, call

@@ -6,7 +6,7 @@ m,n,k,s = 1000,1000,5,1000*1000;
 X_real, Y_real = randn(m,k), randn(k,n);
 A = X_real*Y_real;
 losses = fill(QuadLoss(),n)
-rx, ry = zeroreg(), zeroreg();
+rx, ry = ZeroReg(), ZeroReg();
 glrm = GLRM(A,losses,rx,ry,5, scale=false, offset=false, X=randn(k,m), Y=randn(k,n));
 
 p = Params(1, max_iter=200, convergence_tol=0.0000001, min_stepsize=0.001) 

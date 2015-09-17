@@ -6,7 +6,7 @@ using LowRankModels
 m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n)
 loss = QuadLoss()
-r = zeroreg()
+r = ZeroReg()
 
 glrm_1 = GLRM(A,loss,r,r,k) # solve with prox algorithm
 glrm_2 = deepcopy(glrm_1)   # solve with sparse prox algorithm
