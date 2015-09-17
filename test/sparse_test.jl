@@ -5,8 +5,8 @@ using LowRankModels
 # from the same initial conditions for simple pca.
 m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n)
-loss = quadratic()
-r = zeroreg()
+loss = QuadLoss()
+r = ZeroReg()
 
 glrm_1 = GLRM(A,loss,r,r,k) # solve with prox algorithm
 glrm_2 = deepcopy(glrm_1)   # solve with sparse prox algorithm

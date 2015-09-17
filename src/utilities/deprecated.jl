@@ -7,3 +7,31 @@ Base.@deprecate ProxGradParams(s::Number,m::Int,c::Float64,ms::Float64) ProxGrad
 Base.@deprecate expand_categoricals expand_categoricals!
 
 Base.@deprecate errors(g::GLRM) error_metric(g)
+
+Base.@deprecate quadratic QuadLoss
+
+Base.@deprecate logistic LogLoss
+
+Base.@deprecate l1 L1Loss
+
+Base.@deprecate ordinal_hinge OrdinalHinge
+
+Base.@deprecate periodic PeriodicLoss
+
+Base.@deprecate quadreg QuadReg
+
+Base.@deprecate constrained_quadreg QuadConstraint
+
+Base.@deprecate onereg OneReg
+
+Base.@deprecate zeroreg ZeroReg
+
+Base.@deprecate nonnegative NonNegConstraint
+
+Base.@deprecate onesparse OneSparseConstraint
+
+Base.@deprecate unitonesparse UnitOneSparseConstraint
+
+Base.@deprecate simplex SimplexConstraint
+
+Base.@deprecate nonneg_onereg NonNegOneReg

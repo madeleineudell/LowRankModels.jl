@@ -2,9 +2,9 @@
 
 # The purpose of domains is to be able to impute over different possible values of `a` regardless of
 # the loss that was used in the GLRM. The reason for doing this is to evaluate the performance of GLRMS.
-# For instance, let's say we use PCA (quadratic losses) to model a binary data frame (not the best idea).
-# In order to override the standard imputation with `impute(quadratic(), u)`, which assumes imputation over the reals,
-# we can use `impute(BoolDomain(), quadratic(), u)` and see which of {-1,1} is best. The reason we want to be able to 
+# For instance, let's say we use PCA (QuadLoss losses) to model a binary data frame (not the best idea).
+# In order to override the standard imputation with `impute(QuadLoss(), u)`, which assumes imputation over the reals,
+# we can use `impute(BoolDomain(), QuadLoss(), u)` and see which of {-1,1} is best. The reason we want to be able to 
 # do this is to compare a baseline model (e.g. PCA) with a more logical model using heterogenous losses, 
 # yet still give each model the same amount of information regarding how imputation should be done.
 

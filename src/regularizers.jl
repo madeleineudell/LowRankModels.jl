@@ -11,9 +11,9 @@ import Base.scale!, Roots.fzero
 
 export Regularizer, # abstract type
        # concrete regularizers
-       quadreg, constrained_quadreg,
-       onereg, zeroreg, nonnegative, nonneg_onereg,
-       onesparse, unitonesparse, simplex,
+       QuadReg, QuadConstraint,
+       OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
+       OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
        # methods on regularizers
        prox!, prox,
@@ -43,57 +43,57 @@ function allnonneg(a::AbstractArray)
   return true
 end
 
-## quadratic regularization
-type quadreg<:Regularizer
+## QuadLoss regularization
+type QuadReg<:Regularizer
     scale::Float64
 end
-quadreg() = quadreg(1)
-prox(r::quadreg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
-prox!(r::quadreg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
-evaluate(r::quadreg,a::AbstractArray) = r.scale*sum(a.^2)
+QuadReg() = QuadReg(1)
+prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
+prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
+evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(a.^2)
 
-## constrained quadratic regularization
+## constrained QuadLoss regularization
 ## the function r such that
 ## r(x) = inf    if norm(x) > max_2norm
 ##        0      otherwise
 ## can be used to implement maxnorm regularization: 
 ##   constraining the maxnorm of XY to be <= mu is achieved 
-##   by setting glrm.rx = constrained_quadreg(sqrt(mu)) 
+##   by setting glrm.rx = QuadConstraint(sqrt(mu)) 
 ##   and the same for every element of glrm.ry
-type constrained_quadreg<:Regularizer
+type QuadConstraint<:Regularizer
     max_2norm::Float64
 end
-constrained_quadreg() = constrained_quadreg(1)
-prox(r::constrained_quadreg,u::AbstractArray,alpha::Number) = (r.max_2norm)/norm(u)*u
-prox!(r::constrained_quadreg,u::Array{Float64},alpha::Number) = scale!(u, (r.max_2norm)/norm(u))
-evaluate(r::constrained_quadreg,u::AbstractArray) = norm(u) > r.max_2norm + TOL ? Inf : 0
-scale(r::constrained_quadreg) = 1
-scale!(r::constrained_quadreg, newscale::Number) = 1
+QuadConstraint() = QuadConstraint(1)
+prox(r::QuadConstraint,u::AbstractArray,alpha::Number) = (r.max_2norm)/norm(u)*u
+prox!(r::QuadConstraint,u::Array{Float64},alpha::Number) = scale!(u, (r.max_2norm)/norm(u))
+evaluate(r::QuadConstraint,u::AbstractArray) = norm(u) > r.max_2norm + TOL ? Inf : 0
+scale(r::QuadConstraint) = 1
+scale!(r::QuadConstraint, newscale::Number) = 1
 
 ## one norm regularization
-type onereg<:Regularizer
+type OneReg<:Regularizer
     scale::Float64
 end
-onereg() = onereg(1)
-prox(r::onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
-evaluate(r::onereg,a::AbstractArray) = r.scale*sum(abs(a))
+OneReg() = OneReg(1)
+prox(r::OneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
+evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs(a))
 
 ## no regularization
-type zeroreg<:Regularizer
+type ZeroReg<:Regularizer
 end
-prox(r::zeroreg,u::AbstractArray,alpha::Number) = u
-prox!(r::zeroreg,u::Array{Float64},alpha::Number) = u
-evaluate(r::zeroreg,a::AbstractArray) = 0
-scale(r::zeroreg) = 0
-scale!(r::zeroreg, newscale::Number) = 0
+prox(r::ZeroReg,u::AbstractArray,alpha::Number) = u
+prox!(r::ZeroReg,u::Array{Float64},alpha::Number) = u
+evaluate(r::ZeroReg,a::AbstractArray) = 0
+scale(r::ZeroReg) = 0
+scale!(r::ZeroReg, newscale::Number) = 0
 
 ## indicator of the nonnegative orthant 
 ## (enforces nonnegativity, eg for nonnegative matrix factorization)
-type nonnegative<:Regularizer
+type NonNegConstraint<:Regularizer
 end
-prox(r::nonnegative,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
-prox!(r::nonnegative,u::Array{Float64},alpha::Number) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
-function evaluate(r::nonnegative,a::AbstractArray) 
+prox(r::NonNegConstraint,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
+prox!(r::NonNegConstraint,u::Array{Float64},alpha::Number) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
+function evaluate(r::NonNegConstraint,a::AbstractArray) 
     for ai in a
         if ai<0
             return Inf
@@ -101,17 +101,17 @@ function evaluate(r::nonnegative,a::AbstractArray)
     end
     return 0
 end
-scale(r::nonnegative) = 1
-scale!(r::nonnegative, newscale::Number) = 1
+scale(r::NonNegConstraint) = 1
+scale!(r::NonNegConstraint, newscale::Number) = 1
 
 ## one norm regularization restricted to nonnegative orthant
 ## (enforces nonnegativity, in addition to one norm regularization)
-type nonneg_onereg<:Regularizer
+type NonNegOneReg<:Regularizer
     scale::Float64
 end
-nonneg_onereg() = nonneg_onereg(1)
-prox(r::nonneg_onereg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
-function evaluate(r::nonneg_onereg,a::AbstractArray)
+NonNegOneReg() = NonNegOneReg(1)
+prox(r::NonNegOneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
+function evaluate(r::NonNegOneReg,a::AbstractArray)
     for ai in a
         if ai<0
             return Inf
@@ -119,8 +119,8 @@ function evaluate(r::nonneg_onereg,a::AbstractArray)
     end
     return r.scale*sum(a)
 end
-scale(r::nonneg_onereg) = 1
-scale!(r::nonneg_onereg, newscale::Number) = 1
+scale(r::NonNegOneReg) = 1
+scale!(r::NonNegOneReg, newscale::Number) = 1
 
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
@@ -162,11 +162,11 @@ scale!(r::fixed_latent_features, newscale::Number) = (r.r.scale = newscale)
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
-type onesparse<:Regularizer
+type OneSparseConstraint<:Regularizer
 end
-prox(r::onesparse, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
-prox!(r::onesparse, u::Array, alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
-function evaluate(r::onesparse, a::AbstractArray)
+prox(r::OneSparseConstraint, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
+prox!(r::OneSparseConstraint, u::Array, alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
+function evaluate(r::OneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
         if oneflag
@@ -181,16 +181,16 @@ function evaluate(r::onesparse, a::AbstractArray)
     end
     return 0
 end
-scale(r::onesparse) = 1
-scale!(r::onesparse, newscale::Number) = 1
+scale(r::OneSparseConstraint) = 1
+scale!(r::OneSparseConstraint, newscale::Number) = 1
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
-type unitonesparse<:Regularizer
+type UnitOneSparseConstraint<:Regularizer
 end
-prox(r::unitonesparse, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
-prox!(r::unitonesparse, u::Array, alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
-function evaluate(r::unitonesparse, a::AbstractArray)
+prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+function evaluate(r::UnitOneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
         if oneflag
@@ -205,15 +205,15 @@ function evaluate(r::unitonesparse, a::AbstractArray)
     end
     return 0
 end
-scale(r::unitonesparse) = 1
-scale!(r::unitonesparse, newscale::Number) = 1
+scale(r::UnitOneSparseConstraint) = 1
+scale!(r::UnitOneSparseConstraint, newscale::Number) = 1
 
 ## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
-## (eg for quadratic mixtures, ie soft kmeans)
+## (eg for QuadLoss mixtures, ie soft kmeans)
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
-type simplex<:Regularizer
+type SimplexConstraint<:Regularizer
 end
-function prox(r::simplex, u::AbstractArray, alpha::Number)
+function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number)
     n = length(u)
     y = sort(u, rev=true)
     ysum = cumsum(y)
@@ -226,7 +226,7 @@ function prox(r::simplex, u::AbstractArray, alpha::Number)
     end
     max(u - t, 0)
 end
-function evaluate(r::simplex,a::AbstractArray)
+function evaluate(r::SimplexConstraint,a::AbstractArray)
     # check it's a unit vector
     abs(sum(a)-1)>TOL && return Inf
     # check every entry is nonnegative
@@ -235,6 +235,6 @@ function evaluate(r::simplex,a::AbstractArray)
     end
     return 0
 end
-scale(r::simplex) = 1
-scale!(r::simplex, newscale::Number) = 1
+scale(r::SimplexConstraint) = 1
+scale!(r::SimplexConstraint, newscale::Number) = 1
 

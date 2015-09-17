@@ -2,13 +2,13 @@ using LowRankModels
 srand(1);
 
 test_losses = Loss[
-quadratic(), 	
-l1(), 			
+QuadLoss(), 	
+L1Loss(), 			
 huber(), 		
-periodic(1), 	
-ordinal_hinge(1,10),
-logistic(), 		
-weighted_hinge()
+PeriodicLoss(1), 	
+OrdinalHinge(1,10),
+LogLoss(), 		
+WeightedHinge()
 ]
 
 for test_iteration = 1:500
@@ -36,7 +36,7 @@ for test_iteration = 1:500
 
 	# Create a glrm using these losses and data
 	p = Params(1e-2, max_iter=1000, convergence_tol=0.00000001, min_stepsize=1e-15)
-	rx, ry = zeroreg(), zeroreg();
+	rx, ry = ZeroReg(), ZeroReg();
 
 	k_range = [int(round(true_k/2)), true_k]
 	train_err_at_k = Dict()

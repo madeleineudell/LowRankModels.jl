@@ -10,7 +10,7 @@ do_plot = false
 m,n,k = 100,100,3
 A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
 losses = fill(huber(),n)
-r = quadreg(.1)
+r = QuadReg(.1)
 glrm = GLRM(A,losses,r,r,k+2)
 
 if do_cv

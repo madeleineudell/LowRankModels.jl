@@ -4,34 +4,34 @@ using LowRankModels
 srand(1);
 
 losses = [
-quadratic(),
-quadratic(10),
-l1(),
-l1(5.2),  
+QuadLoss(),
+QuadLoss(10),
+L1Loss(),
+L1Loss(5.2),  
 huber(), 
 huber(4),
 huber(3.1, crossover=3.2),
-periodic(2*pi), 
-periodic(2*pi, 4),
+PeriodicLoss(2*pi), 
+PeriodicLoss(2*pi, 4),
 #poisson(20),
 #poisson(22,4.1),
-ordinal_hinge(1,10), 
-ordinal_hinge(2,7,5),
-logistic(),
-logistic(0.2),
-weighted_hinge(),
-weighted_hinge(11),
-weighted_hinge(1.5, case_weight_ratio=4.3)
+OrdinalHinge(1,10), 
+OrdinalHinge(2,7,5),
+LogLoss(),
+LogLoss(0.2),
+WeightedHinge(),
+WeightedHinge(11),
+WeightedHinge(1.5, case_weight_ratio=4.3)
 ] #tests what should be successful constructions
 
 # TODO: do some bad constructions and test that they fail with catches
 bad_losses = [
-:(quadratic(1,BoolDomain())),
-:(quadratic(10,RealDomain)),
+:(QuadLoss(1,BoolDomain())),
+:(QuadLoss(10,RealDomain)),
 :(huber(3.1, 3.2)),
-:(periodic(scale=2*pi)), 
-:(periodic(2*pi, scale=4)),
-:(periodic())
+:(PeriodicLoss(scale=2*pi)), 
+:(PeriodicLoss(2*pi, scale=4)),
+:(PeriodicLoss())
 ]
 for expression in bad_losses
 	try 
@@ -51,7 +51,7 @@ A_real = X_real*Y_real;
 A = impute(losses, A_real) 
 
 # tests all the M-estimators with scale=true
-glrm = GLRM(A, losses, zeroreg(), zeroreg(), 5, scale=true, offset=true);
+glrm = GLRM(A, losses, ZeroReg(), ZeroReg(), 5, scale=true, offset=true);
 
 # tests eval and grad
 @time X,Y,ch = fit!(glrm);

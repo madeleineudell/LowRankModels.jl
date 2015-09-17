@@ -27,7 +27,7 @@ end
 # * offset and scale are *false* by default to avoid unexpected behavior
 # * convenience methods for calling are defined in utilities/conveniencemethods.jl
 function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::Int; 
-# the following tighter definition fails when you form an array of a tighter subtype than the abstract type, eg Array{quadratic,1}
+# the following tighter definition fails when you form an array of a tighter subtype than the abstract type, eg Array{QuadLoss,1}
 # function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Array{Regularizer,1}, k::Int; 
               X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]

@@ -2,13 +2,13 @@ using LowRankModels
 using Plotly
 
 test_losses = Loss[
-quadratic(), 	
-l1(), 			
+QuadLoss(), 	
+L1Loss(), 			
 huber(), 		
-periodic(1), 	
-ordinal_hinge(1,10),
-logistic(), 		
-weighted_hinge()
+PeriodicLoss(1), 	
+OrdinalHinge(1,10),
+LogLoss(), 		
+WeightedHinge()
 ]
 
 #for test_iteration = 1:5
@@ -24,7 +24,7 @@ weighted_hinge()
 	end
 	losses, doms = losses[2:end], doms[2:end]; # this is because the initialization leaves us with an #undef
 	# losses = Array(Loss, 20)
-	# fill!(losses, quadratic())
+	# fill!(losses, QuadLoss())
 	# doms = Domain[l.domain for l in losses]
 
 	# Make a low rank matrix as our data precursor
@@ -36,7 +36,7 @@ weighted_hinge()
 	A = impute(doms, losses, A_real);				# our imputed data
 
 	p = Params(1, max_iter=1000, convergence_tol=0.000001, min_stepsize=0.001);
-	rx, ry = zeroreg(), zeroreg();
+	rx, ry = ZeroReg(), ZeroReg();
 		
 	skip = 5
 	k0=skip

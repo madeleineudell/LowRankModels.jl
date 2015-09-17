@@ -6,8 +6,8 @@
 #     `scale::Float64`
 #           This field represents a scalar weight assigned to the loss function: w*l(u,a)
 #     `domain::natural_Domain`
-#           The "natural" domain that the loss function was meant to handle. E.g. BoolDomain for logistic,
-#           RealDomain for quadratic, etc.
+#           The "natural" domain that the loss function was meant to handle. E.g. BoolDomain for LogLoss,
+#           RealDomain for QuadLoss, etc.
 
 #   Other fields may be also be included to encode parameters of the loss function, encode the range or  
 #   set of possible values of the data, etc.
@@ -38,13 +38,13 @@ import Base.scale!
 import Optim.optimize
 export Loss, 
        DiffLoss, # a category of Losses
-       quadratic, weighted_hinge, hinge, logistic, poisson, ordinal_hinge, l1, huber, periodic, # concrete losses
+       QuadLoss, WeightedHinge, HingeLoss, LogLoss, poisson, OrdinalHinge, L1Loss, huber, PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!
 
 abstract Loss
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
-# for example, quadratic(u,a)=(u-a)² and we can write f(x)=x² and x=u-a
+# for example, QuadLoss(u,a)=(u-a)² and we can write f(x)=x² and x=u-a
 abstract DiffLoss<:Loss
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
@@ -81,38 +81,38 @@ end
 
 ########################################## QUADRATIC ##########################################
 # f: ℜxℜ -> ℜ
-type quadratic<:DiffLoss
+type QuadLoss<:DiffLoss
     scale::Float64
     domain::Domain
 end
-quadratic(scale=1.0::Float64; domain=RealDomain()) = quadratic(scale, domain)
+QuadLoss(scale=1.0::Float64; domain=RealDomain()) = QuadLoss(scale, domain)
 
-evaluate(l::quadratic, u::Float64, a::Number) = l.scale*(u-a)^2
+evaluate(l::QuadLoss, u::Float64, a::Number) = l.scale*(u-a)^2
 
-grad(l::quadratic, u::Float64, a::Number) = (u-a)*l.scale
+grad(l::QuadLoss, u::Float64, a::Number) = (u-a)*l.scale
 
-M_estimator(l::quadratic, a::AbstractArray) = mean(a)
+M_estimator(l::QuadLoss, a::AbstractArray) = mean(a)
 
 ########################################## L1 ##########################################
 # f: ℜxℜ -> ℜ
-type l1<:DiffLoss
+type L1Loss<:DiffLoss
     scale::Float64
     domain::Domain
 end
-l1(scale=1.0::Float64; domain=RealDomain()) = l1(scale, domain)
+L1Loss(scale=1.0::Float64; domain=RealDomain()) = L1Loss(scale, domain)
 
-evaluate(l::l1, u::Float64, a::Number) = l.scale*abs(u-a)
+evaluate(l::L1Loss, u::Float64, a::Number) = l.scale*abs(u-a)
 
-grad(l::l1, u::Float64, a::Number) = sign(u-a)*l.scale
+grad(l::L1Loss, u::Float64, a::Number) = sign(u-a)*l.scale
 
-M_estimator(l::l1, a::AbstractArray) = median(a)
+M_estimator(l::L1Loss, a::AbstractArray) = median(a)
 
 ########################################## HUBER ##########################################
 # f: ℜxℜ -> ℜ
 type huber<:DiffLoss
     scale::Float64
     domain::Domain
-    crossover::Float64 # where quadratic loss ends and linear loss begins; =1 for standard huber
+    crossover::Float64 # where QuadLoss loss ends and linear loss begins; =1 for standard huber
 end
 huber(scale=1.0::Float64; domain=RealDomain(), crossover=1.0::Float64) = huber(scale, domain, crossover)
 
@@ -128,18 +128,18 @@ grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale :
 # f: ℜxℜ -> ℜ
 # f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
 # this measures how far away u and a are on a circle of circumference T. 
-type periodic<:DiffLoss
+type PeriodicLoss<:DiffLoss
     T::Float64 # the length of the period
     scale::Float64
     domain::Domain
 end
-periodic(T, scale=1.0::Float64; domain=PeriodicDomain(T)) = periodic(T, scale, domain)
+PeriodicLoss(T, scale=1.0::Float64; domain=PeriodicDomain(T)) = PeriodicLoss(T, scale, domain)
 
-evaluate(l::periodic, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
+evaluate(l::PeriodicLoss, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
 
-grad(l::periodic, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
+grad(l::PeriodicLoss, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
 
-function M_estimator(l::periodic, a::AbstractArray)
+function M_estimator(l::PeriodicLoss, a::AbstractArray)
     (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding. 
     # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
@@ -164,15 +164,15 @@ M_estimator(l::poisson, a::AbstractArray) = log(mean(a))
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
-type ordinal_hinge<:Loss
+type OrdinalHinge<:Loss
     min::Integer
     max::Integer
     scale::Float64
     domain::Domain
 end
-ordinal_hinge(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = ordinal_hinge(m1,m2,scale,domain)
+OrdinalHinge(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = OrdinalHinge(m1,m2,scale,domain)
 
-function evaluate(l::ordinal_hinge, u::Float64, a::Number)
+function evaluate(l::OrdinalHinge, u::Float64, a::Number)
     #a = round(a)
     if u > l.max-1
         # number of levels higher than true level
@@ -194,7 +194,7 @@ function evaluate(l::ordinal_hinge, u::Float64, a::Number)
     return l.scale*loss
 end
 
-function grad(l::ordinal_hinge, u::Float64, a::Number)
+function grad(l::OrdinalHinge, u::Float64, a::Number)
     #a = round(a)
     if u > a
         # number of levels higher than true level
@@ -208,21 +208,21 @@ function grad(l::ordinal_hinge, u::Float64, a::Number)
     return l.scale*g
 end
 
-M_estimator(l::ordinal_hinge, a::AbstractArray) = median(a)
+M_estimator(l::OrdinalHinge, a::AbstractArray) = median(a)
 
 ########################################## LOGISTIC ##########################################
 # f: ℜx{-1,1}-> ℜ
-type logistic<:Loss
+type LogLoss<:Loss
     scale::Float64
     domain::Domain
 end
-logistic(scale=1.0::Float64; domain=BoolDomain()) = logistic(scale, domain)
+LogLoss(scale=1.0::Float64; domain=BoolDomain()) = LogLoss(scale, domain)
 
-evaluate(l::logistic, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
+evaluate(l::LogLoss, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
 
-grad(l::logistic, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
+grad(l::LogLoss, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
 
-function M_estimator(l::logistic, a::AbstractArray)
+function M_estimator(l::LogLoss, a::AbstractArray)
     d, N = sum(a), length(a)
     log(N + d) - log(N - d) # very satisfying
 end
@@ -231,16 +231,16 @@ end
 # f: ℜx{-1,1} -> ℜ
 # f(u,a) = {     w * max(0, u) for a = -1
 #        = { c * w * max(0,-u) for a =  1
-type weighted_hinge<:Loss
+type WeightedHinge<:Loss
     scale::Float64
     domain::Domain
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
 end
-weighted_hinge(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) = 
-    weighted_hinge(scale, domain, case_weight_ratio)
-hinge(scale=1.0::Float64; kwargs...) = weighted_hinge(scale; kwargs...) # the standard hinge is a special case of weighted hinge
+WeightedHinge(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) = 
+    WeightedHinge(scale, domain, case_weight_ratio)
+HingeLoss(scale=1.0::Float64; kwargs...) = WeightedHinge(scale; kwargs...) # the standard HingeLoss is a special case of WeightedHinge
 
-function evaluate(l::weighted_hinge, u::Float64, a::Number)
+function evaluate(l::WeightedHinge, u::Float64, a::Number)
     loss = l.scale*max(1-a*u, 0)
     if a>0 # if for whatever reason someone doesn't use properly coded variables...
         loss *= l.case_weight_ratio
@@ -248,7 +248,7 @@ function evaluate(l::weighted_hinge, u::Float64, a::Number)
     return loss
 end
 
-function grad(l::weighted_hinge, u::Float64, a::Number)
+function grad(l::WeightedHinge, u::Float64, a::Number)
     g = (a*u>=1 ? 0 : -a*l.scale)
     if a>0
         g *= l.case_weight_ratio
@@ -256,7 +256,7 @@ function grad(l::weighted_hinge, u::Float64, a::Number)
     return g
 end
 
-function M_estimator(l::weighted_hinge, a::AbstractArray)
+function M_estimator(l::WeightedHinge, a::AbstractArray)
     r = length(a)/length(filter(x->x>0, a)) - 1 
     if l.case_weight_ratio > r
         m = 1.0

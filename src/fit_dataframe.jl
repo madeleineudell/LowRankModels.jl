@@ -7,7 +7,7 @@ max_ordinal_levels = 9
 # TODO: identify categoricals automatically from PooledDataArray columns
 
 function GLRM(df::DataFrame, k::Int;
-              losses = None, rx = quadreg(.01), ry = quadreg(.01),
+              losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
               offset = true, scale = true)
     if losses == None # if losses not specified, identify ordinal, boolean and real columns
         reals, real_losses = get_reals(df)
@@ -62,7 +62,7 @@ function get_reals(df::DataFrame)
     n1 = sum(reals)
     losses = Array(Loss,n1)
     for i=1:n1
-        losses[i] = quadratic()
+        losses[i] = QuadLoss()
     end
     return reals, losses
 end
@@ -73,7 +73,7 @@ function get_bools(df::DataFrame)
     n1 = sum(bools)
     losses = Array(Loss,n1)
     for i=1:n1
-        losses[i] = hinge()
+        losses[i] = HingeLoss()
     end
     return bools, losses
 end
@@ -99,7 +99,7 @@ function get_ordinals(df::DataFrame)
     # set losses and regularizers
     losses = Array(Loss,nord)
     for i=1:nord
-        losses[i] = ordinal_hinge(mins[i],maxs[i])
+        losses[i] = OrdinalHinge(mins[i],maxs[i])
     end
     return ordinals, losses
 end

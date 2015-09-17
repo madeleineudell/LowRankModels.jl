@@ -25,7 +25,7 @@ function equilibrate_variance!(glrm::AbstractGLRM)
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
             varlossi = avgerror(glrm.losses[i], nomissing)
-            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes quadratic
+            varregi = var(nomissing) # TODO make this depend on the kind of regularization; this assumes QuadLoss
         else
             varlossi = 1
             varregi = 1

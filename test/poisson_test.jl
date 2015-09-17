@@ -6,7 +6,7 @@ m,n = 100, 50;
 k = 2;
 A = rand(Poisson(),(m,n));
 losses = convert(Array{Loss,1}, fill(poisson(10),n));
-rx, ry = zeroreg(), zeroreg();
+rx, ry = ZeroReg(), ZeroReg();
 g_pre = GLRM(A, losses, rx, ry, k, scale=false, offset=false);
 X_real, Y_real, ch = fit!(g_pre, params=Params(0.00001,min_stepsize=0.00000000001,max_iter=10000));
 
