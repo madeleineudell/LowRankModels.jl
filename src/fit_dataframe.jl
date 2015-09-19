@@ -30,12 +30,13 @@ function GLRM(df::DataFrame, k::Int;
     return glrm, labels
 end
 
-function observations(df::DataFrame)
+observations(df::DataFrame) = observations(convert(DataArray,DataFrame))
+function observations(da::DataArray)
     obs = (Int, Int)[]
-    m,n = size(df)
+    m,n = size(da)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
-            if !isna(df[i,j])
+            if !isna(da[i,j])
                 push!(obs,(i,j))
             end
         end
