@@ -89,7 +89,7 @@ QuadLoss(scale=1.0::Float64; domain=RealDomain()) = QuadLoss(scale, domain)
 
 evaluate(l::QuadLoss, u::Float64, a::Number) = l.scale*(u-a)^2
 
-grad(l::QuadLoss, u::Float64, a::Number) = (u-a)*l.scale
+grad(l::QuadLoss, u::Float64, a::Number) = 2*(u-a)*l.scale
 
 M_estimator(l::QuadLoss, a::AbstractArray) = mean(a)
 
