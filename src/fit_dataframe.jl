@@ -30,8 +30,9 @@ function GLRM(df::DataFrame, k::Int;
     return glrm, labels
 end
 
-observations(df::DataFrame) = observations(convert(DataArray,DataFrame))
-function observations(da::DataArray)
+observations(da::DataArray) = df_observations(da)
+observations(df::DataFrame) = df_observations(df)
+function df_observations(da)
     obs = (Int, Int)[]
     m,n = size(da)
     for j=1:n # follow column-major order. First element of index in innermost loop
