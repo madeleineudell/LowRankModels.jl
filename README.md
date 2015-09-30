@@ -92,8 +92,9 @@ Regularizers:
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 
 by calling `scale!(loss, newscale)`.
-Users may also implement their own losses and regularizers; 
-see `loss_and_reg.jl` for more details.
+Users may also implement their own losses and regularizers,
+or adjust internal parameters of the losses and regularizers; 
+see [losses.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/src/losses.jl) and [regularizers.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/regularizers.jl) for more details.
 
 ## Example
 
@@ -187,24 +188,37 @@ that you'd like a low rank (eg, `k=2`) model for. For example,
 
 Never fear! Just call
 
-	glrm, labels = GLRM(df,2)
+	glrm, labels = GLRM(df, k)
 	X, Y, ch = fit!(glrm)
 
-This will fit a GLRM to your data, using a QuadLoss loss for real valued columns,
-HingeLoss loss for boolean columns, and ordinal HingeLoss loss for integer columns,
+This will fit a GLRM with rank `k` to your data, 
+using a QuadLoss loss for real valued columns,
+HingeLoss loss for boolean columns, 
+and ordinal HingeLoss loss for integer columns,
 a small amount of QuadLoss regularization,
 and scaling and adding an offset to the model as described [here](#scaling).
-(You can turn off these options by calling `GLRM(df, k; scale=false, offset=false)`.)
 It returns the column labels for the columns it fit, along with the model.
+Right now, all other data types are ignored, as are `NA`s.
 
-(Right now, all other data types are ignored, as are `NA`s.
+The full call signature is
+```
+GLRM(df::DataFrame, k::Int;
+              losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
+              offset = true, scale = true, NaNs_to_NAs = false)
+```
+You can modify the losses or regularizers, or turn off offsets or scaling,
+using these keyword arguments.
+If your DataFrame has `NaN`s in it, you can turn them into `NA`s that 
+will be ignored in the fit by calling `NaNs_to_NAs!(df)`, or form your `GLRM` 
+using `GLRM(df, k, NaNs_to_NAs = true)`.
+
 To fit a data frame with categorical values, you can use the function
 `expand_categoricals!` to turn categorical columns into a Boolean column for each 
 level of the categorical variable. 
 For example, `expand_categoricals!(df, [:gender])` will replace the gender 
 column with a column corresponding to `gender=male`, 
 a column corresponding to `gender=female`, and other columns corresponding to 
-labels outside the gender binary, if they appear in the data set.)
+labels outside the gender binary, if they appear in the data set.
 
 You can use the model to get some intuition for the data set. For example,
 try plotting the columns of `Y` with the labels; you might see

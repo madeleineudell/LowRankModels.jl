@@ -1,6 +1,7 @@
-import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA
+import Base: isnan
+import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA, NAtype
 
-export GLRM, observations, expand_categoricals!, NaNs_to_NAs
+export GLRM, observations, expand_categoricals!, NaNs_to_NAs!
 
 max_ordinal_levels = 9
 
@@ -8,7 +9,11 @@ max_ordinal_levels = 9
 
 function GLRM(df::DataFrame, k::Int;
               losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
-              offset = true, scale = true)
+              offset = true, scale = true, NaNs_to_NAs = false)
+    if NaNs_to_NAs
+        df = copy(df)
+        NaNs_to_NAs!(df)
+    end
     if losses == None # if losses not specified, identify ordinal, boolean and real columns
         reals, real_losses = get_reals(df)
         bools, bool_losses = get_bools(df)
@@ -126,7 +131,9 @@ function expand_categoricals!(df::DataFrame,categoricals::Array)
 end
 
 # convert NaNs to NAs
-function NaNs_to_NAs(df::DataFrame)
+isnan(x::NAtype) = false
+isnan(x::ASCIIString) = false
+function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
