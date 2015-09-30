@@ -45,10 +45,13 @@ function df_observations(da)
     return obs
 end
 
+# NAs in the data frame will be replaced by the number `z`
 function df2array(df::DataFrame, z::Number)
     A = zeros(size(df))
     for i=1:size(A,2)
-        if typeof(df[i]) == Bool
+        if issubtype(typeof(df[:,i]), Array)
+            A[:,i] = df[:,i]
+        elseif typeof(df[i]) == Bool
             A[:,i] = convert(Array, (2*df[i]-1), z)
         else
             A[:,i] = convert(Array, df[i], z)
@@ -60,7 +63,7 @@ df2array(df::DataFrame) = df2array(df, 0)
 
 function get_reals(df::DataFrame)
     m,n = size(df)
-    reals = [typeof(df[i])<:DataArray{Float64,1} for i in 1:n]
+    reals = [typeof(df[i])<:AbstractArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -71,7 +74,7 @@ end
 
 function get_bools(df::DataFrame)
     m,n = size(df)
-    bools = [isa(df[i], DataArray{Bool,1}) for i in 1:n]
+    bools = [isa(df[i], AbstractArray{Bool,1}) for i in 1:n]
     n1 = sum(bools)
     losses = Array(Loss,n1)
     for i=1:n1
@@ -83,9 +86,9 @@ end
 function get_ordinals(df::DataFrame)
     m,n = size(df)
     # there must be a better way to check types...
-    ordinals = [(isa(df[i], DataArray{Int,1}) || 
-                 isa(df[i], DataArray{Int32,1}) || 
-                 isa(df[i], DataArray{Int64,1})) for i in 1:n]
+    ordinals = [(isa(df[i], AbstractArray{Int,1}) || 
+                 isa(df[i], AbstractArray{Int32,1}) || 
+                 isa(df[i], AbstractArray{Int64,1})) for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]
     maxs = zeros(nord,1)
