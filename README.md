@@ -203,8 +203,8 @@ Right now, all other data types are ignored, as are `NA`s.
 The full call signature is
 ```
 GLRM(df::DataFrame, k::Int;
-              losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
-              offset = true, scale = true, NaNs_to_NAs = false)
+     losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
+     offset = true, scale = true, NaNs_to_NAs = false)
 ```
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.

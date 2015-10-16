@@ -1,12 +1,14 @@
 using DataFrames, LowRankModels
 
+srand(0)
+
 println("censored data example")
 # boolean example with only entries greater than threshold t observed
 # ie, censored data
 # example with only entries greater than threshold t observed
 m,n,k,ktrue = 100,100,1,1
 A = rand(m,ktrue)*rand(ktrue,n)
-B = int(ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
+B = round(Int, ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
 losses = fill(QuadLoss(),n)
 r = QuadReg(.1)
 obs = (Int,Int)[]

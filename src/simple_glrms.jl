@@ -21,7 +21,7 @@ end
 function nnmf(A::AbstractArray, k::Int; kwargs...)
 	loss = QuadLoss()
 	r = NonNegConstraint()
-	return GLRM(A,loss,r,r,k; kwargs...)
+	GLRM(A,loss,r,r,k; kwargs...)
 end
 
 # k-means

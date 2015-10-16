@@ -13,7 +13,7 @@ WeightedHinge()
 
 for test_iteration = 1:500
 	# Create the configuration for the model (random losses)
-	config = int(abs(round(4*rand(length(test_losses)))));
+	config = round(Int, abs(round(4*rand(length(test_losses)))));
 	#config = [0 0 1 0 10 0 100]
 	losses, doms = Array(Loss,1), Array(Domain,1);
 	for (n,l) in zip(config, test_losses)
@@ -26,7 +26,7 @@ for test_iteration = 1:500
 	my_error_metric(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}) = error_metric(glrm, X, Y, doms, standardize=true) # embed the domains into the error function.
 	
 	# Make a low rank matrix as our data precursor
-	m, n, true_k = 100, length(doms), int(round(length(losses)/2))+1; 
+	m, n, true_k = 100, length(doms), round(Int, round(length(losses)/2))+1; 
 
 	X_real, Y_real = randn(true_k,m), randn(true_k,n);
 	A_real = X_real'*Y_real;
