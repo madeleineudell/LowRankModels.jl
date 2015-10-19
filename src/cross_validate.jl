@@ -4,10 +4,9 @@ export cross_validate, cv_by_iter, regularization_path, get_train_and_test, prec
 # cross_validate(glrm, error_fn = error_metric(glrm,domains,X,Y))
 function cross_validate(glrm::GLRM; 
                         nfolds=5, params=Params(),
-                        verbose=true, use_folds=None,
+                        verbose=true, use_folds=nfolds,
                         error_fn=objective,
-                        init=None)
-    if use_folds==None use_folds = nfolds end
+                        init=nothing)
     if verbose println("flattening observations") end
 #    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
     obs = flatten_observations(glrm.observed_features)
@@ -33,7 +32,7 @@ function cross_validate(glrm::GLRM;
                                   copy(glrm.X), copy(glrm.Y))
         # evaluate train and test error
         if verbose println("fitting train GLRM for fold $ifold") end
-        if init != None
+        if init != nothing
             init(train_glrms[ifold])
         end
         X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=verbose)
@@ -80,7 +79,7 @@ function get_train_and_test(obs, m, n, holdout_proportion=.1)
 end
 
 function flatten_observations(observed_features::ObsArray)
-    obs = (Int,Int)[]
+    obs = @compat Array(Tuple{Int,Int}, 0)
     for (i, features_in_example_i) in enumerate(observed_features)
         for j in features_in_example_i
             push!(obs, (i,j))
@@ -221,7 +220,7 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
     train_error = Array(Float64, length(reg_params))
     test_error = Array(Float64, length(reg_params))
     prec_at_k = Array(Float64, length(reg_params))
-    solution = Array((Float64,Float64), length(reg_params))
+    @compat solution = Array(Tuple{Float64,Float64}, length(reg_params))
     train_time = Array(Float64, length(reg_params))
     test_glrm = GLRM(train_glrm.A, train_glrm.losses, train_glrm.rx, train_glrm.ry, train_glrm.k,
                      X=copy(train_glrm.X), Y=copy(train_glrm.Y),

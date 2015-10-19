@@ -1,4 +1,4 @@
-using DataFrames, LowRankModels
+using DataFrames, LowRankModels, Compat
 
 # boolean example with only entries greater than threshold t observed
 # ie, censored data
@@ -9,7 +9,7 @@ println("max value of A is ",maximum(maximum(A))," which is less than $ktrue")
 B = round(Int, ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
 losses = fill(QuadLoss(),n)
 r = QuadReg(.1)
-obs = (Int,Int)[]
+obs = @compat Array(Tuple{Int,Int}, 0)
 for i=1:m
     for j=1:n
         if B[i,j] == 1

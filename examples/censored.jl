@@ -1,4 +1,4 @@
-using DataFrames, LowRankModels
+using DataFrames, LowRankModels, Compat
 
 srand(0)
 
@@ -11,7 +11,7 @@ A = rand(m,ktrue)*rand(ktrue,n)
 B = round(Int, ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
 losses = fill(QuadLoss(),n)
 r = QuadReg(.1)
-obs = (Int,Int)[]
+@compat obs = Array(Tuple{Int,Int}, 0)
 for i=1:m
     for j=1:n
         if B[i,j] == 1
@@ -34,7 +34,7 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
     ntest = sum(map(length, test_glrm.observed_features))
     train_error = Array(Float64, length(reg_params))
     test_error = Array(Float64, length(reg_params))
-    solution = Array((Float64,Float64), length(reg_params))
+    @compat solution = Array(Tuple{Float64,Float64}, length(reg_params))
     train_time = Array(Float64, length(reg_params))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
