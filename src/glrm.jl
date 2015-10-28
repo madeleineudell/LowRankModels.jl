@@ -7,7 +7,7 @@ abstract AbstractGLRM
 
 export AbstractGLRM, GLRM, getindex, size
 
-typealias ObsArray Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}}
+typealias ObsArray @compat(Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}})
 
 ### GLRM TYPE
 type GLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
