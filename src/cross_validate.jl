@@ -1,11 +1,15 @@
 export cross_validate, cv_by_iter, regularization_path, get_train_and_test, precision_at_k
 
+# the loss function evaluates the objective minus the regularization
+# it is the default error metric
+loss_fn(args...) = objective(args..., include_regularization=false)
+
 # to use with error_metric when we have domains in the namespace, call as:
 # cross_validate(glrm, error_fn = error_metric(glrm,domains,X,Y))
 function cross_validate(glrm::GLRM; 
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=nfolds,
-                        error_fn=objective,
+                        error_fn=loss_fn,
                         init=nothing)
     if verbose println("flattening observations") end
 #    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
