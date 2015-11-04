@@ -41,6 +41,20 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	XY = Array(Float64, (m, n))
 	gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
+    # find spans of loss functions (for multidimensional losses)
+    ds = map(embedding_dim, losses)
+    featurestartidxs = cumsum(ds)    
+    @assert size(Y,2) == sum(ds)    
+    # find which columns of Y map to which columns of A (for multidimensional losses)
+    yidxs = Array(Union{Range{Int}, Int}, n)
+    for f = 1:n
+        if ds[f] == 1
+            yidxs[f] = featurestartidxs[f]
+        else
+            yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
+        end
+    end
+
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(Y) == 0 
     	Y = .1*randn(k,n) 
@@ -59,8 +73,11 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     g = zeros(k)
 
     # cache views
+    # first a type hack
+    @compat typealias Yview Union{ContiguousView{Float64,1,Array{Float64,2}}, 
+                                  ContiguousView{Float64,2,Array{Float64,2}}}
     ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
-    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
+    vf = Yview[view(Y,:,yidxs[f]) for f=1:n]
 
     for i=1:params.max_iter
 # STEP 1: X update
@@ -73,7 +90,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
-                axpy!(grad(losses[f],XY[e,f],A[e,f]), vf[f], g)
+                axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
@@ -83,7 +100,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
             prox!(rx,ve[e],alpha/l)
         end
-    	end
+        end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new X
 # STEP 2: Y update
         for inneri=1:params.inner_iter
@@ -94,7 +111,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for e in glrm.observed_examples[f]
                 # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
-            	axpy!(grad(losses[f],XY[e,f],A[e,f]), ve[e], g)
+                axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1

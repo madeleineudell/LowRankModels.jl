@@ -83,6 +83,15 @@ function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
     squared_error(a_imputed, a)
 end
 
+########################################## CATEGORICALS ##########################################
+# Categorical data should take integer values ranging from 1 to `max`
+
+impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64,1}) = indmax(u)
+
+function error_metric(D::CategoricalDomain, l::Loss, u::Float64, a::Number)
+    a_imputed = impute(D, l, u)
+    misclassification(a_imputed, a)
+end
 
 ########################################## PERIODIC ##########################################
 # Periodic data can take values from ℜ, but given a period T, we should have error_metric(a,a+T) = 0

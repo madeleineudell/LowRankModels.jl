@@ -15,7 +15,7 @@
 # They serve as a way to evaluate the performance of the low-rank model.
 
 export Domain, # the abstract type
-	   RealDomain, BoolDomain, OrdinalDomain, PeriodicDomain, CountDomain, # the domains
+	   RealDomain, BoolDomain, OrdinalDomain, PeriodicDomain, CountDomain, CategoricalDomain, # the domains
 	   copy
 
 abstract Domain
@@ -34,6 +34,12 @@ end
 # Ordinal data should take integer values ranging from `min` to `max`
 immutable OrdinalDomain<:Domain
 	min::Int
+	max::Int
+end
+
+########################################## ORDINALS ##########################################
+# Categorical data should take integer values ranging from 1 to `max`
+immutable CategoricalDomain<:Domain
 	max::Int
 end
 
