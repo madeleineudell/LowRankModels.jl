@@ -18,9 +18,14 @@ type GLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     k::Int                       # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
-    X::AbstractArray{Float64,2}          # Representation of data in low-rank space. A ≈ X'Y
-    Y::AbstractArray{Float64,2}          # Representation of features in low-rank space. A ≈ X'Y
+    X::AbstractArray{Float64,2}  # Representation of data in low-rank space. A ≈ X'Y
+    Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
+    cache::Dict                  # cached features, for faster access of derived quantities
 end
+
+# Initialize with empty cache
+GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y) = 
+    GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y, Dict())
 
 # usage notes:
 # * providing argument `obs` overwrites arguments `observed_features` and `observed_examples`
@@ -40,7 +45,7 @@ function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::In
     if length(losses)!=n error("There must be as many losses as there are columns in the data matrix") end
     if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
     if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix. This is the transpose of the standard notation used in the paper, but it makes for better memory management. size(X) = $(size(X)), size(A) = $(size(A))") end
-    if size(Y)!=(k,n) error("Y must be of size (k,n) where n is the number of columns in the data matrix. size(Y) = $(size(Y)), size(A) = $(size(A))") end
+    if size(Y)!=(k,sum(map(embedding_dim, losses))) error("Y must be of size (k,d) where d is the sum of the embedding dimensions of all the losses. \n(1 for real-valued losses, and the number of categories for categorical losses).") end
     
     # Determine observed entries of data
     if obs==nothing && sparse_na && isa(A,SparseMatrixCSC)

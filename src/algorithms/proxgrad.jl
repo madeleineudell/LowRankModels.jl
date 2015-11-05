@@ -36,13 +36,11 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	# X and Y will be the working variables
 	X = copy(glrm.X); Y = copy(glrm.Y)
 	k = glrm.k
-
-	m,n = size(A)
-	XY = Array(Float64, (m, n))
-	gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
+    m,n = size(A)
 
     # find spans of loss functions (for multidimensional losses)
     ds = map(embedding_dim, losses)
+    d = sum(ds)
     featurestartidxs = cumsum(ds)    
     @assert size(Y,2) == sum(ds)    
     # find which columns of Y map to which columns of A (for multidimensional losses)
@@ -54,6 +52,9 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
         end
     end
+
+    XY = Array(Float64, (m, d))
+    gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
     # check that we didn't initialize to zero (otherwise we will never move)
     if norm(Y) == 0 

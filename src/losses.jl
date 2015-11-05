@@ -40,7 +40,8 @@ export Loss,
        DiffLoss, # a category of Losses
        QuadLoss, WeightedHinge, HingeLoss, LogLoss, poisson, OrdinalHinge, MultinomialLoss, L1Loss, huber, PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
-       avgerror, scale, scale!
+       avgerror, scale, scale!, 
+       embedding_dim
 
 abstract Loss
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
@@ -269,36 +270,41 @@ end
 
 ########################################## MULTINOMIAL ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
+# f computes the (negative log likelihood of the) multinomial logit,
+# often known as the softmax function
+# f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
 type MultinomialLoss<:Loss
     max::Integer
     scale::Float64
     domain::Domain
 end
 MultinomialLoss(m, scale=1.0::Float64; domain=CategoricalDomain(m)) = MultinomialLoss(m,scale,domain)
+embedding_dim(l::MultinomialLoss) = l.max
 
 function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
     invlik = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
     # and we'll pick a good big (but not too big) M
-    M = 0 # u[a] - minimum(u)
+    M = 0 # M = maximum(u) - u[a] # prevents overflow
     for j in 1:length(u)
-        invlik += exp(u[a] - u[j] - M)
+        invlik += exp(u[j] - u[a] - M)
     end
     loss = log(invlik) + M    
     return l.scale*loss
 end
 
 function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
-    #a = round(a)
-    if u > a
-        # number of levels higher than true level
-        n = min(ceil(u), l.max) - a
-        g = n
-    else
-        # number of levels lower than true level
-        n = a - max(floor(u), l.min)
-        g = -n
+    g = zeros(size(u))
+    # Using some nice algebra, you can show
+    g[a] = 1
+    # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
+    # it's ok if this over/underflows, I think: 
+    # the contribution of one observation to one entry of the gradient 
+    # is always between -1 and 0
+    sumexp = sum(map(j->exp(u[j]), St))
+    for j in 1:length(u)
+        g[j] -= exp(u[j])/sumexp
     end
     return l.scale*g
 end
