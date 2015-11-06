@@ -32,15 +32,45 @@ function init_kmeanspp!(glrm::GLRM)
 	return glrm
 end
 
-function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
+function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
+    # only offset if the glrm model is offset
+    offset = offset && typeof(glrm.rx) == lastentry1
+    # only scale if we also offset
+    scale = scale && offset
     m,n = size(glrm.A)
-    # Areal = zeros(m, s
+    k = glrm.k
+    ds = map(embedding_dim, glrm.losses)
+    d = sum(ds)
+    featurestartidxs = cumsum(append!([1], ds))
+    # find which columns of Y map to which columns of A (for multidimensional losses)
+    yidxs = Array(Union{Range{Int}, Int}, n)
+    for f = 1:n
+        if ds[f] == 1
+            yidxs[f] = featurestartidxs[f]
+        else
+            yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
+        end
+    end
+
+    # create a matrix representation of A with the same dimensions as X*Y
+    # by expanding out all data types with embedding dimension greater than 1
+    if all(ds .== 1)
+        Areal = glrm.A # save time, but in this case we'll still have a DataFrame
+    else
+        Areal = zeros(m, sum(ds))
+        for f=1:n
+            for level = 1 : ds[f]
+                Areal[glrm.observed_examples[f], featurestartidxs[f] + level - 1] = (glrm.A[glrm.observed_examples[f], f] .== level)
+            end
+        end
+    end
+
     # standardize A, respecting missing values
-    means = zeros(n)
-    stds  = zeros(n)
-    Ademeaned = zeros(size(glrm.A))
+    means = zeros(d)
+    stds  = zeros(d)
+    Astd = zeros(m, d)
     for i=1:n
-        nomissing = glrm.A[glrm.observed_examples[i],i]
+        nomissing = Areal[glrm.observed_examples[i],i]
         means[i] = mean(nomissing)
         if isnan(means[i])
             means[i] = 1
@@ -49,22 +79,19 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
         if stds[i] < TOL || isnan(stds[i])
             stds[i] = 1
         end
-        Ademeaned[glrm.observed_examples[i],i] = glrm.A[glrm.observed_examples[i],i] - means[i]
+        Astd[glrm.observed_examples[i],i] = Areal[glrm.observed_examples[i],i] - means[i]
     end
     if offset
-        k = glrm.k-1
+        k -= 1
         glrm.X[end,:] = 1
         glrm.Y[end,:] = means
-        Astd = Ademeaned*diagm(1./stds)
+        if scale
+            Astd = Astd*diagm(1./stds)
+        end
         if k <= 0
             warn("Using an offset on a rank 1 model fits *only* the offset. To fit an offset + 1 low rank component, use k=2.")
             return glrm
         end
-    else
-        # i'm not sure why you'd want to do this, unless you're sure the data was already demeaned,
-        # or possibly to cope with regularization
-        k = glrm.k
-        Astd = glrm.A*diagm(1./stds)
     end
     # options for rescaling:
     # 1) scale Astd so its mean is the same as the mean of the observations
@@ -78,7 +105,7 @@ function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     # initialize with the top k components of the SVD,
     # rescaling by the variances
     glrm.X[1:k,1:m] = diagm(sqrt(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
-    glrm.Y[1:k,1:n] = diagm(sqrt(ASVD[:S]))*ASVD[:Vt]*diagm(stds)
+    glrm.Y[1:k,1:d] = diagm(sqrt(ASVD[:S]))*ASVD[:Vt]*diagm(stds)
     return glrm
 end
 
