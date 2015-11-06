@@ -29,4 +29,4 @@ p = Params(1, max_iter=200, convergence_tol=0.0000001, min_stepsize=0.001)
 @time X,Y,ch = fit!(glrm, params=p);
 XYh = X'*Y;
 @show ch.objective
-@show vecnorm(XY - XYh)
+@show vecnorm(XY - XYh)/reduce(prod, size(XY))
