@@ -34,6 +34,7 @@ end
 
 function init_svd!(glrm::GLRM; offset=true, TOL = 1e-10)
     m,n = size(glrm.A)
+    # Areal = zeros(m, s
     # standardize A, respecting missing values
     means = zeros(n)
     stds  = zeros(n)

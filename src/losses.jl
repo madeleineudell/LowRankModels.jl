@@ -298,14 +298,14 @@ end
 function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
-    g[a] = 1
+    g[a] = -1
     # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
     # it's ok if this over/underflows, I think: 
     # the contribution of one observation to one entry of the gradient 
     # is always between -1 and 0
     sumexp = sum(map(j->exp(u[j]), 1:length(u)))
     for j in 1:length(u)
-        g[j] -= exp(u[j])/sumexp
+        g[j] = exp(u[j])/sumexp
     end
     return l.scale*g
 end
