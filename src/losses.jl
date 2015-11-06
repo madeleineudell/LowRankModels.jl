@@ -281,7 +281,8 @@ end
 MultinomialLoss(m, scale=1.0::Float64; domain=CategoricalDomain(m)) = MultinomialLoss(m,scale,domain)
 embedding_dim(l::MultinomialLoss) = l.max
 
-function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
+# argument u is a row vector (row slice of a matrix), which in julia is 2d
+function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     invlik = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
@@ -294,7 +295,7 @@ function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
     return l.scale*loss
 end
 
-function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
+function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = 1
@@ -302,7 +303,7 @@ function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
     # it's ok if this over/underflows, I think: 
     # the contribution of one observation to one entry of the gradient 
     # is always between -1 and 0
-    sumexp = sum(map(j->exp(u[j]), St))
+    sumexp = sum(map(j->exp(u[j]), 1:length(u)))
     for j in 1:length(u)
         g[j] -= exp(u[j])/sumexp
     end

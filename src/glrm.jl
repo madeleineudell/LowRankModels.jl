@@ -20,7 +20,6 @@ type GLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
     X::AbstractArray{Float64,2}  # Representation of data in low-rank space. A ≈ X'Y
     Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
-    cache::Dict                  # cached features, for faster access of derived quantities
 end
 
 # Initialize with empty cache

@@ -1,13 +1,15 @@
 export objective, error_metric, impute
 
-### OBJECTIVE FUNCTION EVALUATION
+### OBJECTIVE FUNCTION EVALUATION FOR MPCA
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
-                   XY::Array{Float64,2}; include_regularization=true)
+                   XY::Array{Float64,2}; 
+                   yidxs::Array{Union{Int64,Range{Int64}},1} = 1:size(A,2), # mapping from columns of A to columns of Y; by default, the identity
+                   include_regularization=true)
     m,n = size(glrm.A)
     err = 0.0
     for j=1:n
         for i in glrm.observed_examples[j]
-            err += evaluate(glrm.losses[j], XY[i,j], glrm.A[i,j])
+            err += evaluate(glrm.losses[j], XY[i,yidxs[j]], glrm.A[i,j])
         end
     end
     # add regularization penalty

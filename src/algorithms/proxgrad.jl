@@ -40,11 +40,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
     # find spans of loss functions (for multidimensional losses)
     ds = map(embedding_dim, losses)
-    d = sum(ds)
-    featurestartidxs = cumsum(ds)    
     @assert size(Y,2) == sum(ds)    
+    d = sum(ds)
+    featurestartidxs = cumsum(append!([1], ds))
     # find which columns of Y map to which columns of A (for multidimensional losses)
     yidxs = Array(Union{Range{Int}, Int}, n)
+    
     for f = 1:n
         if ds[f] == 1
             yidxs[f] = featurestartidxs[f]
@@ -68,7 +69,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
-    update!(ch, 0, objective(glrm))
+    update!(ch, 0, objective(glrm, X, Y, XY, yidxs=yidxs))
     t = time()
     steps_in_a_row = 0
     g = zeros(k)
@@ -83,6 +84,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     for i=1:params.max_iter
 # STEP 1: X update
         # XY = X' * Y this is computed before the first iteration and subsequently in the objective evaluation
+        g = zeros(k)
         for inneri=1:params.inner_iter
         for e=1:m # doing this means looping over XY in row-major order, but otherwise we couldn't parallelize over Xᵢs
             scale!(g, 0)# reset gradient to 0
@@ -91,7 +93,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
-                axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
+                # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
+                g += vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])'
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
@@ -106,13 +109,16 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 # STEP 2: Y update
         for inneri=1:params.inner_iter
         for f=1:n
-            scale!(g, 0) # reset gradient to 0
+            # XXX prevent excessive memory allocation!!
+            # scale!(g, 0) # reset gradient to 0
+            g = zeros(k, length(yidxs[f]))
             # compute gradient of L with respect to Yⱼ as follows:
             # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ 
             for e in glrm.observed_examples[f]
                 # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
-                axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
+                # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
+                g += ve[e] * grad(losses[f],XY[e,yidxs[f]],A[e,f])
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
@@ -125,7 +131,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new Y
 # STEP 3: Check objective
-        obj = objective(glrm, X, Y, XY) 
+        obj = objective(glrm, X, Y, XY, yidxs=yidxs) 
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
