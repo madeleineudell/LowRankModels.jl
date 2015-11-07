@@ -95,6 +95,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
                 # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
                 g += vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])'
+                # gemm!('N', 'N', 1.0, vf[f], grad(losses[f],XY[e,yidxs[f]],A[e,f])', 1.0, g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
@@ -109,7 +110,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 # STEP 2: Y update
         for inneri=1:params.inner_iter
         for f=1:n
-            # XXX prevent excessive memory allocation!!
+            # XXX can we reuse g to prevent excessive memory allocation?
             # scale!(g, 0) # reset gradient to 0
             g = zeros(k, length(yidxs[f]))
             # compute gradient of L with respect to Yⱼ as follows:
@@ -119,6 +120,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
                 # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
                 g += ve[e] * grad(losses[f],XY[e,yidxs[f]],A[e,f])
+                # gemm!('N', 'N', 1.0, ve[e], grad(losses[f],XY[e,yidxs[f]],A[e,f]), 1.0, g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
