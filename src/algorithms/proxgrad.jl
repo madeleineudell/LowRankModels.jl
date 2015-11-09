@@ -60,14 +60,21 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     update!(ch, 0, objective(glrm, X, Y, XY, yidxs=yidxs))
     t = time()
     steps_in_a_row = 0
+    # gradient wrt columns of X
     g = zeros(k)
+    # gradient wrt column-chunks of Y
+    G = zeros(k, d)
 
     # cache views
     # first a type hack
     @compat typealias Yview Union{ContiguousView{Float64,1,Array{Float64,2}}, 
                                   ContiguousView{Float64,2,Array{Float64,2}}}
+    # views of the columns of X corresponding to each example
     ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
+    # views of the column-chunks of Y corresponding to each feature
     vf = Yview[view(Y,:,yidxs[f]) for f=1:n]
+    # views of the column-chunks of G corresponding to the gradient wrt each feature
+    gf = Yview[view(G,:,yidxs[f]) for f=1:n]
 
     for i=1:params.max_iter
 # STEP 1: X update
@@ -82,7 +89,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
                 # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
-                g += vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])'
+                # g += vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])'
+                axpy!(1, vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])', g)
                 # gemm!('N', 'N', 1.0, vf[f], grad(losses[f],XY[e,yidxs[f]],A[e,f])', 1.0, g)
             end
             # take a proximal gradient step
@@ -97,24 +105,22 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new X
 # STEP 2: Y update
         for inneri=1:params.inner_iter
+        scale!(G, 0)
         for f=1:n
-            # XXX can we reuse g to prevent excessive memory allocation?
-            # scale!(g, 0) # reset gradient to 0
-            g = zeros(k, length(yidxs[f]))
             # compute gradient of L with respect to Yⱼ as follows:
             # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ 
             for e in glrm.observed_examples[f]
                 # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
                 # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
-                g += ve[e] * grad(losses[f],XY[e,yidxs[f]],A[e,f])
+                axpy!(1, ve[e] * grad(losses[f],XY[e,yidxs[f]],A[e,f]), gf[f])
                 # gemm!('N', 'N', 1.0, ve[e], grad(losses[f],XY[e,yidxs[f]],A[e,f]), 1.0, g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            scale!(g, -alpha/l)
+            scale!(gf[f], -alpha/l)
             ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
-            axpy!(1,g,vf[f]) 
+            axpy!(1,gf[f],vf[f]) 
             ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
             prox!(ry[f],vf[f],alpha/l)
         end
