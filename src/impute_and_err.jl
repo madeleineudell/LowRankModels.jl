@@ -127,7 +127,7 @@ function impute{DomainSubtype<:Domain,LossSubtype<:Loss}(
 	m, d = size(U)
 	n = length(losses)
 	yidxs = get_yidxs(losses)
-	A_imputed = Array(Float64, (m, n));
+	A_imputed = Array(Number, (m, n));
 	for f in 1:n
 		for i in 1:m
 			A_imputed[i,f] = impute(domains[f], losses[f], vec(U[i,yidxs[f]]))

@@ -21,7 +21,9 @@ LogLoss(),
 LogLoss(0.2),
 WeightedHinge(),
 WeightedHinge(11),
-WeightedHinge(1.5, case_weight_ratio=4.3)
+WeightedHinge(1.5, case_weight_ratio=4.3),
+MultinomialLoss(4),
+MultinomialLoss(6, .5)
 ] #tests what should be successful constructions
 
 # TODO: do some bad constructions and test that they fail with catches
@@ -43,16 +45,20 @@ for expression in bad_losses
 end
 
 m,n,k = 1000, length(losses), 5;
-X_real, Y_real = 2*randn(m,k), 2*randn(k,n);
-A_real = X_real*Y_real;
+d = embedding_dim(losses)
+X_real, Y_real = 2*randn(m,k), 2*randn(k,d);
+XY_real = X_real*Y_real;
 
 # tests default imputations and implicit domains
 # we can visually inspect the differences between A and A_real to make sure imputation is right
-A = impute(losses, A_real) 
+A = impute(losses, XY_real) 
 
 # tests all the M-estimators with scale=true
 glrm = GLRM(A, losses, ZeroReg(), ZeroReg(), 5, scale=true, offset=true);
 
 # tests eval and grad
 @time X,Y,ch = fit!(glrm);
+
+# tests initialization
+init_svd!(glrm)
 

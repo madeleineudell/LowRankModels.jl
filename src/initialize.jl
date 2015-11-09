@@ -68,17 +68,19 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     means = zeros(d)
     stds  = zeros(d)
     Astd = zeros(m, d)
-    for i=1:n
-        nomissing = Areal[glrm.observed_examples[i],i]
-        means[i] = mean(nomissing)
-        if isnan(means[i])
-            means[i] = 1
+    for f in 1:n
+        for j in yidxs[f]
+            nomissing = Areal[glrm.observed_examples[f],j]
+            means[j] = mean(nomissing)
+            if isnan(means[j])
+                means[j] = 1
+            end
+            stds[j] = std(nomissing)
+            if stds[j] < TOL || isnan(stds[j])
+                stds[j] = 1
+            end
+            Astd[glrm.observed_examples[f],j] = Areal[glrm.observed_examples[f],j] - means[j]
         end
-        stds[i] = std(nomissing)
-        if stds[i] < TOL || isnan(stds[i])
-            stds[i] = 1
-        end
-        Astd[glrm.observed_examples[i],i] = Areal[glrm.observed_examples[i],i] - means[i]
     end
     if offset
         k -= 1

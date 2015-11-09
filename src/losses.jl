@@ -56,6 +56,7 @@ scale(l::Loss) = l.scale
 # default number of columns
 # number of columns is higher for multidimensional losses
 embedding_dim(l::Loss) = 1
+embedding_dim{LossSubtype<:Loss}(l::Array{LossSubtype,1}) = sum(map(embedding_dim, l))
 
 # find spans of loss functions (for multidimensional losses)
 function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
