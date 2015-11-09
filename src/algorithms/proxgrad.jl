@@ -39,20 +39,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     m,n = size(A)
 
     # find spans of loss functions (for multidimensional losses)
-    ds = map(embedding_dim, losses)
-    @assert size(Y,2) == sum(ds)    
-    d = sum(ds)
-    featurestartidxs = cumsum(append!([1], ds))
-    # find which columns of Y map to which columns of A (for multidimensional losses)
-    yidxs = Array(Union{Range{Int}, Int}, n)
-    
-    for f = 1:n
-        if ds[f] == 1
-            yidxs[f] = featurestartidxs[f]
-        else
-            yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
-        end
-    end
+    yidxs = get_yidxs(losses)
+    d = maximum(yidxs[end])
 
     XY = Array(Float64, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation

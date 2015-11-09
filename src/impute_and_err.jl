@@ -120,17 +120,22 @@ end
 
 ####################################################################################
 # Use impute and error_metric over arrays
-function impute(domains::Array{Domain,1}, losses::Array{Loss,1}, U::Array{Float64,2})
-	A_imputed = Array(Float64, size(U));
-	m,n = size(U)
-	for j in 1:n
+function impute{DomainSubtype<:Domain,LossSubtype<:Loss}(
+			domains::Array{DomainSubtype,1}, 
+			losses::Array{LossSubtype,1}, 
+			U::Array{Float64,2})
+	m, d = size(U)
+	n = length(losses)
+	yidxs = get_yidxs(losses)
+	A_imputed = Array(Float64, (m, n));
+	for f in 1:n
 		for i in 1:m
-			A_imputed[i,j] = impute(domains[j], losses[j], U[i,j]) # tests imputation
+			A_imputed[i,f] = impute(domains[f], losses[f], vec(U[i,yidxs[f]]))
 		end
 	end 
 	return A_imputed
 end
-function impute(losses::Array{Loss,1}, U::Array{Float64,2})
+function impute{LossSubtype<:Loss}(losses::Array{LossSubtype,1}, U::Array{Float64,2})
 	domains = Domain[l.domain for l in losses]
 	impute(domains, losses, U)
 end

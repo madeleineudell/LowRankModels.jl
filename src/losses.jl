@@ -41,7 +41,7 @@ export Loss,
        QuadLoss, WeightedHinge, HingeLoss, LogLoss, poisson, OrdinalHinge, MultinomialLoss, L1Loss, huber, PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, 
-       embedding_dim
+       embedding_dim, get_yidxs, datalevels
 
 abstract Loss
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
@@ -51,9 +51,32 @@ abstract DiffLoss<:Loss
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 
+### embedding dimensions: mappings from losses/columns of A to columns of Y
+
 # default number of columns
 # number of columns is higher for multidimensional losses
 embedding_dim(l::Loss) = 1
+
+# find spans of loss functions (for multidimensional losses)
+function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
+    n = length(losses)
+    ds = map(embedding_dim, losses)
+    d = sum(ds)
+    featurestartidxs = cumsum(append!([1], ds))
+    # find which columns of Y map to which columns of A (for multidimensional losses)
+    yidxs = Array(Union{Range{Int}, Int}, n)
+    
+    for f = 1:n
+        if ds[f] == 1
+            yidxs[f] = featurestartidxs[f]
+        else
+            yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
+        end
+    end
+    return yidxs
+end
+
+### M-estimators
 
 # The following is the M-estimator for loss functions that don't have one defined. It's also useful
 # for checking that the analytic M_estimators are correct. To make sure this method is called instead
@@ -280,6 +303,7 @@ type MultinomialLoss<:Loss
 end
 MultinomialLoss(m, scale=1.0::Float64; domain=CategoricalDomain(m)) = MultinomialLoss(m,scale,domain)
 embedding_dim(l::MultinomialLoss) = l.max
+datalevels(l::MultinomialLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)

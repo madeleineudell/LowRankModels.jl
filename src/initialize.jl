@@ -39,28 +39,27 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     scale = scale && offset
     m,n = size(glrm.A)
     k = glrm.k
-    ds = map(embedding_dim, glrm.losses)
-    d = sum(ds)
-    featurestartidxs = cumsum(append!([1], ds))
-    # find which columns of Y map to which columns of A (for multidimensional losses)
-    yidxs = Array(Union{Range{Int}, Int}, n)
-    for f = 1:n
-        if ds[f] == 1
-            yidxs[f] = featurestartidxs[f]
-        else
-            yidxs[f] = featurestartidxs[f]:featurestartidxs[f]+ds[f]-1
-        end
-    end
+
+    # find spans of loss functions (for multidimensional losses)
+    yidxs = get_yidxs(glrm.losses)
+    d = maximum(yidxs[end])
 
     # create a matrix representation of A with the same dimensions as X*Y
     # by expanding out all data types with embedding dimension greater than 1
-    if all(ds .== 1)
+    if all(map(length, yidxs) .== 1)
         Areal = glrm.A # save time, but in this case we'll still have a DataFrame
     else
-        Areal = zeros(m, sum(ds))
+        Areal = zeros(m, d)
         for f=1:n
-            for level = 1 : ds[f]
-                Areal[glrm.observed_examples[f], featurestartidxs[f] + level - 1] = (glrm.A[glrm.observed_examples[f], f] .== level)
+            if length(yidxs[f]) == 1
+                Areal[glrm.observed_examples[f], yidxs[f]] = 
+                    glrm.A[glrm.observed_examples[f], f]
+            else
+                levels = datalevels(glrm.losses[f])
+                for ilevel in 1:length(levels)
+                    Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
+                        (glrm.A[glrm.observed_examples[f], f] .== levels[ilevel])
+                end
             end
         end
     end

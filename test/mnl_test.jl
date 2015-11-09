@@ -30,3 +30,5 @@ p = Params(1, max_iter=200, convergence_tol=0.0000001, min_stepsize=0.001)
 XYh = X'*Y;
 @show ch.objective
 @show vecnorm(XY - XYh)/prod(size(XY))
+
+impute(glrm)
