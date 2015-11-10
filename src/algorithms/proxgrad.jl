@@ -26,7 +26,6 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 			  ch::ConvergenceHistory=ConvergenceHistory("ProxGradGLRM"), 
 			  verbose=true,
 			  kwargs...)
-	println(params)
 	### initialization
 	A = glrm.A # rename these for easier local access
 	losses = glrm.losses
@@ -79,7 +78,6 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     for i=1:params.max_iter
 # STEP 1: X update
         # XY = X' * Y this is computed before the first iteration and subsequently in the objective evaluation
-        g = zeros(k)
         for inneri=1:params.inner_iter
         for e=1:m # doing this means looping over XY in row-major order, but otherwise we couldn't parallelize over Xᵢs
             scale!(g, 0)# reset gradient to 0
@@ -88,10 +86,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
-                # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), vf[f], g)
                 # g += vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])'
-                axpy!(1, vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])', g)
-                # gemm!('N', 'N', 1.0, vf[f], grad(losses[f],XY[e,yidxs[f]],A[e,f])', 1.0, g)
+                gemm!('N', 'T', 1.0, vf[f], grad(losses[f],XY[e,yidxs[f]],A[e,f]), 1.0, g)
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
@@ -113,8 +109,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
                 # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
-                axpy!(1, ve[e] * grad(losses[f],XY[e,yidxs[f]],A[e,f]), gf[f])
-                # gemm!('N', 'N', 1.0, ve[e], grad(losses[f],XY[e,yidxs[f]],A[e,f]), 1.0, g)
+                gemm!('N', 'N', 1.0, ve[e], grad(losses[f],XY[e,yidxs[f]],A[e,f]), 1.0, gf[f])
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
