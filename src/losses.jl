@@ -168,7 +168,7 @@ function M_estimator(l::PeriodicLoss, a::AbstractArray)
     (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding. 
     # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
-end 
+end
 
 ########################################## POISSON ##########################################
 # f: ℜxℕ -> ℜ

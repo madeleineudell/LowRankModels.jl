@@ -130,7 +130,11 @@ function impute{DomainSubtype<:Domain,LossSubtype<:Loss}(
 	A_imputed = Array(Number, (m, n));
 	for f in 1:n
 		for i in 1:m
-			A_imputed[i,f] = impute(domains[f], losses[f], vec(U[i,yidxs[f]]))
+			if length(yidxs[f]) > 1
+				A_imputed[i,f] = impute(domains[f], losses[f], vec(U[i,yidxs[f]]))
+			else
+				A_imputed[i,f] = impute(domains[f], losses[f], U[i,yidxs[f]])
+			end				
 		end
 	end 
 	return A_imputed

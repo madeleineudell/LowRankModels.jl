@@ -33,7 +33,7 @@ GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y) =
 function GLRM(A::AbstractArray, losses::Array, rx::Regularizer, ry::Array, k::Int; 
 # the following tighter definition fails when you form an array of a tighter subtype than the abstract type, eg Array{QuadLoss,1}
 # function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Regularizer, ry::Array{Regularizer,1}, k::Int; 
-              X = randn(k,size(A,1)), Y = randn(k,size(A,2)),
+              X = randn(k,size(A,1)), Y = randn(k,embedding_dim(losses)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]
               observed_features = fill(1:size(A,2), size(A,1)), # [1:n, 1:n, ... 1:n] m times
               observed_examples = fill(1:size(A,1), size(A,2)), # [1:m, 1:m, ... 1:m] n times
