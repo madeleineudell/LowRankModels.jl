@@ -330,7 +330,7 @@ function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     # is always between -1 and 0
     sumexp = sum(map(j->exp(u[j]), 1:length(u)))
     for j in 1:length(u)
-        g[j] = exp(u[j])/sumexp
+        g[j] += exp(u[j])/sumexp
     end
     return l.scale*g
 end
