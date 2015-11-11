@@ -3,7 +3,7 @@ export objective, error_metric, impute
 ### OBJECTIVE FUNCTION EVALUATION FOR MPCA
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
                    XY::Array{Float64,2}; 
-                   yidxs::Array{Union{Int64,Range{Int64}},1} = 1:size(A,2), # mapping from columns of A to columns of Y; by default, the identity
+                   yidxs::Array{Union{Int,Range{Int}},1} = 1:size(A,2), # mapping from columns of A to columns of Y; by default, the identity
                    include_regularization=true)
     m,n = size(glrm.A)
     err = 0.0
