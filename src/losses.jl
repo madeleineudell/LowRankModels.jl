@@ -38,7 +38,9 @@ import Base.scale!
 import Optim.optimize
 export Loss, 
        DiffLoss, # a category of Losses
-       QuadLoss, WeightedHinge, HingeLoss, LogisticLoss, PoissonLoss, OrdinalHinge, MultinomialLoss, OrdinalLoss, L1Loss, huber, PeriodicLoss, # concrete losses
+       QuadLoss, WeightedHinge, HingeLoss, LogisticLoss, PoissonLoss, 
+       OrdinalHinge, MultinomialLoss, OrdisticLoss, L1Loss, huber, 
+       PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, 
        embedding_dim, get_yidxs, datalevels
@@ -343,44 +345,43 @@ M_estimator(l::MultinomialLoss, a::AbstractArray) = mode(a)
 # f computes the (negative log likelihood of the) multinomial logit,
 # often known as the softmax function
 # f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
-type OrderedLogisticLoss<:Loss
+type OrdisticLoss<:Loss
     max::Integer
     scale::Float64
     domain::Domain
 end
-OrderedLogisticLoss(m, scale=1.0::Float64; domain=OrdinalDomain(m)) = OrderedLogisticLoss(m,scale,domain)
-embedding_dim(l::OrderedLogisticLoss) = l.max
-datalevels(l::OrderedLogisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
+OrdisticLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = OrdisticLoss(m,scale,domain)
+embedding_dim(l::OrdisticLoss) = l.max
+datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
-function evaluate(l::OrderedLogisticLoss, u::Array{Float64,2}, a::Int)
+function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     invlik = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
     # and we'll pick a good big (but not too big) M
-    M = 0 # M = maximum(u) - u[a] # prevents overflow
     for j in 1:length(u)
-        invlik += exp(u[j] - u[a] - M)
+        invlik += exp(u[a]^2 - u[j]^2)
     end
-    loss = log(invlik) + M    
+    loss = log(invlik)  
     return l.scale*loss
 end
 
 # u should always be a row vector when this function is called from proxgrad.jl
-function grad(l::OrderedLogisticLoss, u::Array{Float64,2}, a::Int)
+function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
-    g[a] = -1
+    g[a] = 2*u[a]
     # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
     # it's ok if this over/underflows, I think: 
     # the contribution of one observation to one entry of the gradient 
     # is always between -1 and 0
-    sumexp = sum(map(j->exp(u[j]), 1:length(u)))
+    sumexp = sum(map(j->exp(u[a]^2 - u[j]^2), 1:length(u)))
     for j in 1:length(u)
-        g[j] += exp(u[j])/sumexp
+        g[j] -= 2 * u[j] * exp(u[a]^2 - u[j]^2) / sumexp
     end
     return l.scale*g
 end
 
 ## XXX does this make sense?
-M_estimator(l::OrderedLogisticLoss, a::AbstractArray) = median(a)
+M_estimator(l::OrdisticLoss, a::AbstractArray) = median(a)

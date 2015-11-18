@@ -14,7 +14,7 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2},
     end
     # add regularization penalty
     if include_regularization
-        err += calc_penalty(glrm,X,Y)
+        err += calc_penalty(glrm,X,Y; yidxs = yidxs)
     end
     return err
 end
@@ -50,14 +50,15 @@ objective(glrm::ShareGLRM, X::SharedArray{Float64,2}, Y::SharedArray{Float64,2})
     objective(glrm, X.s, Y.s)
 
 # Helper function to calculate the regularization penalty for X and Y
-function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2})
+function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
+    yidxs = 1:size(Y,2))
     m,n = size(glrm.A)
     penalty = 0.0
     for i=1:m
         penalty += evaluate(glrm.rx, view(X,:,i))
     end
-    for j=1:n
-        penalty += evaluate(glrm.ry[j], view(Y,:,j))
+    for f=1:n
+        penalty += evaluate(glrm.ry[f], view(Y,:,yidxs[f]))
     end
     return penalty
 end

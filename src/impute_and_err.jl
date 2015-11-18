@@ -77,6 +77,7 @@ function impute(D::OrdinalDomain, l::WeightedHinge, u::Float64)
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))
 	roundcutoff(a_imputed, D.min, D.max)
 end
+impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
     a_imputed = impute(D, l, u)

@@ -15,6 +15,7 @@ export Regularizer, # abstract type
        OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
+       OrdisticReg,
        # methods on regularizers
        prox!, prox,
        # utilities
@@ -127,7 +128,7 @@ scale!(r::NonNegOneReg, newscale::Number) = 1
 type lastentry1<:Regularizer
     r::Regularizer
 end
-prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha), 1]
+prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha); 1]
 prox!(r::lastentry1,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1:end-1],alpha); u[end]=1; u)
 evaluate(r::lastentry1,a::AbstractArray) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 scale(r::lastentry1) = r.r.scale
@@ -238,3 +239,27 @@ end
 scale(r::SimplexConstraint) = 1
 scale!(r::SimplexConstraint, newscale::Number) = 1
 
+## ordistic regularizer
+## a block regularizer which 
+    # 1) forces the first k-1 entries of each column to be the same
+    # 2) does not regularize the last entry
+    # 3) applies an internal regularizer to the first k-1 entries of each column
+## should always be used in conjunction with lastentry1 regularization on x
+type OrdisticReg<:Regularizer
+    r::Regularizer
+end
+OrdisticReg() = OrdisticReg(ZeroReg())
+prox(r::OrdisticReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
+function prox!(r::OrdisticReg,u::Array{Float64},alpha::Number)
+    um = mean(u[1:end-1, :], 2)
+    prox!(r.r,um,alpha)
+    for i=1:size(u,1)-1
+        for j=1:size(u,2)
+            u[i,j] = um[i]
+        end
+    end
+    u
+end
+evaluate(r::OrdisticReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
+scale(r::OrdisticReg) = r.r.scale
+scale!(r::OrdisticReg, newscale::Number) = (r.r.scale = newscale)
