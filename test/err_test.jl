@@ -7,7 +7,7 @@ L1Loss(),
 huber(), 		
 PeriodicLoss(1), 	
 OrdinalHinge(1,10),
-LogLoss(), 		
+LogisticLoss(), 		
 WeightedHinge()
 ]
 

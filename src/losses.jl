@@ -6,7 +6,7 @@
 #     `scale::Float64`
 #           This field represents a scalar weight assigned to the loss function: w*l(u,a)
 #     `domain::natural_Domain`
-#           The "natural" domain that the loss function was meant to handle. E.g. BoolDomain for LogLoss,
+#           The "natural" domain that the loss function was meant to handle. E.g. BoolDomain for LogisticLoss,
 #           RealDomain for QuadLoss, etc.
 
 #   Other fields may be also be included to encode parameters of the loss function, encode the range or  
@@ -38,7 +38,7 @@ import Base.scale!
 import Optim.optimize
 export Loss, 
        DiffLoss, # a category of Losses
-       QuadLoss, WeightedHinge, HingeLoss, LogLoss, poisson, OrdinalHinge, MultinomialLoss, L1Loss, huber, PeriodicLoss, # concrete losses
+       QuadLoss, WeightedHinge, HingeLoss, LogisticLoss, PoissonLoss, OrdinalHinge, MultinomialLoss, OrdinalLoss, L1Loss, huber, PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, 
        embedding_dim, get_yidxs, datalevels
@@ -173,19 +173,19 @@ end
 ########################################## POISSON ##########################################
 # f: ℜxℕ -> ℜ
 # BEWARE: THIS LOSS MAY CAUSE MODEL INSTABLITY AND DIFFICULTY FITTING.
-type poisson<:Loss
+type PoissonLoss<:Loss
     scale::Float64
     domain::Domain
 end
-poisson(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)) = poisson(scale, domain)
+PoissonLoss(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)) = PoissonLoss(scale, domain)
 
-function evaluate(l::poisson, u::Float64, a::Number) 
+function evaluate(l::PoissonLoss, u::Float64, a::Number) 
     exp(u) - a*u # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
 end
 
-grad(l::poisson, u::Float64, a::Number) = exp(u) - a
+grad(l::PoissonLoss, u::Float64, a::Number) = exp(u) - a
 
-M_estimator(l::poisson, a::AbstractArray) = log(mean(a))
+M_estimator(l::PoissonLoss, a::AbstractArray) = log(mean(a))
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
@@ -237,17 +237,17 @@ M_estimator(l::OrdinalHinge, a::AbstractArray) = median(a)
 
 ########################################## LOGISTIC ##########################################
 # f: ℜx{-1,1}-> ℜ
-type LogLoss<:Loss
+type LogisticLoss<:Loss
     scale::Float64
     domain::Domain
 end
-LogLoss(scale=1.0::Float64; domain=BoolDomain()) = LogLoss(scale, domain)
+LogisticLoss(scale=1.0::Float64; domain=BoolDomain()) = LogisticLoss(scale, domain)
 
-evaluate(l::LogLoss, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
+evaluate(l::LogisticLoss, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
 
-grad(l::LogLoss, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
+grad(l::LogisticLoss, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
 
-function M_estimator(l::LogLoss, a::AbstractArray)
+function M_estimator(l::LogisticLoss, a::AbstractArray)
     d, N = sum(a), length(a)
     log(N + d) - log(N - d) # very satisfying
 end
@@ -337,3 +337,50 @@ end
 
 ## XXX does this make sense?
 M_estimator(l::MultinomialLoss, a::AbstractArray) = mode(a)
+
+########################################## ORDERED LOGISTIC ##########################################
+# f: ℜx{1, 2, ..., max-1, max} -> ℜ
+# f computes the (negative log likelihood of the) multinomial logit,
+# often known as the softmax function
+# f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
+type OrderedLogisticLoss<:Loss
+    max::Integer
+    scale::Float64
+    domain::Domain
+end
+OrderedLogisticLoss(m, scale=1.0::Float64; domain=OrdinalDomain(m)) = OrderedLogisticLoss(m,scale,domain)
+embedding_dim(l::OrderedLogisticLoss) = l.max
+datalevels(l::OrderedLogisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
+
+# argument u is a row vector (row slice of a matrix), which in julia is 2d
+function evaluate(l::OrderedLogisticLoss, u::Array{Float64,2}, a::Int)
+    invlik = 0 # inverse likelihood of observation
+    # computing soft max directly is numerically unstable
+    # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
+    # and we'll pick a good big (but not too big) M
+    M = 0 # M = maximum(u) - u[a] # prevents overflow
+    for j in 1:length(u)
+        invlik += exp(u[j] - u[a] - M)
+    end
+    loss = log(invlik) + M    
+    return l.scale*loss
+end
+
+# u should always be a row vector when this function is called from proxgrad.jl
+function grad(l::OrderedLogisticLoss, u::Array{Float64,2}, a::Int)
+    g = zeros(size(u))
+    # Using some nice algebra, you can show
+    g[a] = -1
+    # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
+    # it's ok if this over/underflows, I think: 
+    # the contribution of one observation to one entry of the gradient 
+    # is always between -1 and 0
+    sumexp = sum(map(j->exp(u[j]), 1:length(u)))
+    for j in 1:length(u)
+        g[j] += exp(u[j])/sumexp
+    end
+    return l.scale*g
+end
+
+## XXX does this make sense?
+M_estimator(l::OrderedLogisticLoss, a::AbstractArray) = median(a)

@@ -8,7 +8,7 @@ huber(),
 PeriodicLoss(1), 	
 OrdinalHinge(1,10),
 WeightedHinge()
-LogLoss(), 		
+LogisticLoss(), 		
 ]
 
 #for test_iteration = 1:5

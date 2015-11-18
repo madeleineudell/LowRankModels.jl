@@ -40,9 +40,9 @@ impute(l::Loss, u::Float64) = impute(l.domain, l, u)
 # Real data can take values from ℜ
 
 impute(D::RealDomain, l::DiffLoss, u::Float64) = u # by the properties of any DiffLoss
-impute(D::RealDomain, l::poisson, u::Float64) = exp(u)
+impute(D::RealDomain, l::PoissonLoss, u::Float64) = exp(u)
 impute(D::RealDomain, l::OrdinalHinge, u::Float64) = roundcutoff(u, l.min, l.max)
-impute(D::RealDomain, l::LogLoss, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")
+impute(D::RealDomain, l::LogisticLoss, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")
 function impute(D::RealDomain, l::WeightedHinge, u::Float64) 
 	warn("It doesn't make sense to use HingeLoss to impute data that can take values in ℜ")
 	1/u
@@ -69,9 +69,9 @@ end
 # Ordinal data should take integer values ranging from `min` to `max`
 
 impute(D::OrdinalDomain, l::DiffLoss, u::Float64) = roundcutoff(u, D.min, D.max)
-impute(D::OrdinalDomain, l::poisson, u::Float64) = roundcutoff(exp(u), D.min , D.max)
+impute(D::OrdinalDomain, l::PoissonLoss, u::Float64) = roundcutoff(exp(u), D.min , D.max)
 impute(D::OrdinalDomain, l::OrdinalHinge, u::Float64) = roundcutoff(u, D.min, D.max)
-impute(D::OrdinalDomain, l::LogLoss, u::Float64) = u>0 ? D.max : D.min
+impute(D::OrdinalDomain, l::LogisticLoss, u::Float64) = u>0 ? D.max : D.min
 function impute(D::OrdinalDomain, l::WeightedHinge, u::Float64) 
 	warn("It doesn't make sense to use HingeLoss to impute ordinals")
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))

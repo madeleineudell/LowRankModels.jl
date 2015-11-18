@@ -10,9 +10,11 @@ Base.@deprecate errors(g::GLRM) error_metric(g)
 
 Base.@deprecate quadratic QuadLoss
 
-Base.@deprecate logistic LogLoss
+Base.@deprecate logistic LogisticLoss
 
 Base.@deprecate l1 L1Loss
+
+Base.@deprecate poisson PoissonLoss
 
 Base.@deprecate ordinal_hinge OrdinalHinge
 

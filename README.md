@@ -72,10 +72,11 @@ Losses:
 * quadratic loss `QuadLoss`
 * hinge loss `HingeLoss`
 * logistic loss `LogLoss`
+* poisson loss `PoissonLoss`
 * weighted hinge loss `WeightedHinge`
 * l1 loss `L1Loss`
 * ordinal hinge loss `OrdinalHinge`
-* PeriodicLoss loss `PeriodicLoss`
+* periodic loss `PeriodicLoss`
 
 Regularizers:
 
