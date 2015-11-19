@@ -52,7 +52,7 @@ end
 @compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n)    
     # partition elements of obs into nfolds groups
     groups = Array(Int, size(obs))
-    rand!(1:nfolds, groups)  # fill an array with random 1 through N
+    rand!(groups, 1:nfolds)  # fill an array with random 1 through N
     # create the training and testing observations for each fold
     folds = Array(Tuple, nfolds)
     for ifold=1:nfolds

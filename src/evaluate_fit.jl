@@ -3,7 +3,7 @@ export objective, error_metric, impute
 ### OBJECTIVE FUNCTION EVALUATION FOR MPCA
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
                    XY::Array{Float64,2}; 
-                   yidxs = 1:size(A,2), # mapping from columns of A to columns of Y; by default, the identity
+                   yidxs = 1:size(glrm.A,2), # mapping from columns of A to columns of Y; by default, the identity
                    include_regularization=true)
     m,n = size(glrm.A)
     err = 0.0
@@ -20,7 +20,7 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2},
 end
 # The user can also pass in X and Y and `objective` will compute XY for them
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
-                   sparse=false, include_regularization=true)
+                   sparse=false, include_regularization=true, kwargs...)
     XY = Array(Float64, size(glrm.A)) 
     if sparse
         # Calculate X'*Y only at observed entries of A
@@ -38,7 +38,7 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
     else
         # dense calculation variant (calculate XY up front)
         gemm!('T','N',1.0,X,Y,0.0,XY)
-        return objective(glrm, X, Y, XY; include_regularization=include_regularization)
+        return objective(glrm, X, Y, XY; include_regularization=include_regularization, kwargs...)
     end
 end
 # Or just the GLRM and `objective` will use glrm.X and .Y
