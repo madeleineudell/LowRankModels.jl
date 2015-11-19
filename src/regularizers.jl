@@ -141,7 +141,7 @@ type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
 lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
-prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha), u[end]]
+prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha); u[end]]
 prox!(r::lastentry_unpenalized,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1:end-1],alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
 scale(r::lastentry_unpenalized) = r.r.scale
