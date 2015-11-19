@@ -3,7 +3,6 @@
 ## mpca changes
 
 * make updates efficient in proxgrad
-	* don't allocate excessive memory to store gradients
-	* use gemm! directly
-* make initialization work for mpca
-	* without allocating too much memory / with tight types
+	* don't form a matrix for the gradient before passing it to gemm. call axpy instead.
+* make SVD initialization work for OrdisticLoss
+	* maybe, encode levels as a number and replicate the y vector found across columns of Y?

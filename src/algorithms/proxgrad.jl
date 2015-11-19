@@ -86,8 +86,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for f in glrm.observed_features[e]
                 # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
-                # g += vf[f] * grad(losses[f],XY[e,yidxs[f]],A[e,f])'
-                gemm!('N', 'T', 1.0, vf[f], matrixme(grad(losses[f],XY[e,yidxs[f]],A[e,f])), 1.0, g)
+                curgrad = grad(losses[f],XY[e,yidxs[f]],A[e,f])
+                if isa(curgrad, Number)
+                    axpy!(curgrad, vf[f], g)
+                else
+                    gemm!('N', 'T', 1.0, vf[f], curgrad, 1.0, g)
+                end
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
@@ -108,8 +112,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             for e in glrm.observed_examples[f]
                 # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
-                # axpy!(grad(losses[f],XY[e,yidxs[f]],A[e,f]), ve[e], g)
-                gemm!('N', 'N', 1.0, ve[e], matrixme(grad(losses[f],XY[e,yidxs[f]],A[e,f])), 1.0, gf[f])
+                curgrad = grad(losses[f],XY[e,yidxs[f]],A[e,f])
+                if isa(curgrad, Number)
+                    axpy!(curgrad, ve[e], g)
+                else
+                    gemm!('N', 'N', 1.0, ve[e], curgrad, 1.0, gf[f])
+                end
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
