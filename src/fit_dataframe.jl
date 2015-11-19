@@ -8,19 +8,19 @@ max_ordinal_levels = 9
 # TODO: identify categoricals automatically from PooledDataArray columns
 
 function GLRM(df::DataFrame, k::Int;
-              losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
+              losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
               offset = true, scale = true, NaNs_to_NAs = false)
     if NaNs_to_NAs
         df = copy(df)
         NaNs_to_NAs!(df)
     end
-    if losses == None # if losses not specified, identify ordinal, boolean and real columns
+    if losses == Loss[] # if losses not specified, identify ordinal, boolean and real columns
         reals, real_losses = get_reals(df)
         bools, bool_losses = get_bools(df)
         ordinals, ordinal_losses = get_ordinals(df)
         A = [df[reals] df[bools] df[ordinals]]
-        labels = [names(df)[reals], names(df)[bools], names(df)[ordinals]]
-        losses = [real_losses, bool_losses, ordinal_losses]
+        labels = [names(df)[reals]; names(df)[bools]; names(df)[ordinals]]
+        losses = [real_losses; bool_losses; ordinal_losses]
     else # otherwise require one loss function per column
         A = df
         ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
@@ -38,7 +38,7 @@ end
 observations(da::DataArray) = df_observations(da)
 observations(df::DataFrame) = df_observations(df)
 function df_observations(da)
-    obs = (Int, Int)[]
+    obs = @compat Tuple{Int, Int}[]
     m,n = size(da)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
