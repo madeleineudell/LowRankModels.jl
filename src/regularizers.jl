@@ -128,6 +128,7 @@ scale!(r::NonNegOneReg, newscale::Number) = 1
 type lastentry1<:Regularizer
     r::Regularizer
 end
+lastentry1() = lastentry1(ZeroReg())
 prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha); 1]
 prox!(r::lastentry1,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1:end-1],alpha); u[end]=1; u)
 evaluate(r::lastentry1,a::AbstractArray) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
@@ -139,6 +140,7 @@ scale!(r::lastentry1, newscale::Number) = (r.r.scale = newscale)
 type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
+lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
 prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha), u[end]]
 prox!(r::lastentry_unpenalized,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1:end-1],alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])

@@ -20,8 +20,8 @@ function add_offset!(glrm::AbstractGLRM)
     glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
     return glrm
 end
-function equilibrate_variance!(glrm::AbstractGLRM)
-    for i=1:size(glrm.A,2)
+function equilibrate_variance!(glrm::AbstractGLRM, columns_to_regularize = 1:size(glrm.A,2))
+    for i in columns_to_regularize
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
             varlossi = avgerror(glrm.losses[i], nomissing)
