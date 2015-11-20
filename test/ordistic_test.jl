@@ -15,6 +15,9 @@ X_real = randn(m,k)
 Y_real = randn(k,n) 
 # centers of measurement
 T_real = sqrt(k)*randn(d,n) # notice x^T y has variance k, so this scales the thresholds in the same way
+for j=1:n
+	T_real[:,j] = sort(T_real[:,j])
+end
 # variance of measurement
 sigmasq = 1
 
@@ -30,7 +33,7 @@ end
 
 # and the model
 losses = fill(OrdisticLoss(d),n)
-rx, ry = lastentry1(QuadReg(.1)), OrdisticReg(QuadReg(.1));
+rx, ry = lastentry1(QuadReg(.01)), lastentry_unpenalized(QuadReg(.01));
 glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,D));
 
 # fit w/o initialization

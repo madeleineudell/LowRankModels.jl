@@ -55,10 +55,25 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
                 Areal[glrm.observed_examples[f], yidxs[f]] = 
                     glrm.A[glrm.observed_examples[f], f]
             else
-                levels = datalevels(glrm.losses[f])
-                for ilevel in 1:length(levels)
-                    Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
-                        (glrm.A[glrm.observed_examples[f], f] .== levels[ilevel])
+                if isa(glrm.losses[f].domain, CategoricalDomain)
+                    levels = datalevels(glrm.losses[f])
+                    for ilevel in 1:length(levels)
+                        Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
+                            (glrm.A[glrm.observed_examples[f], f] .== levels[ilevel])
+                    end
+                elseif isa(glrm.losses[f].domain, OrdinalDomain)
+                    levels = datalevels(glrm.losses[f])
+                    mymean = mean(glrm.A[glrm.observed_examples[f], f])
+                    for ilevel in 1:length(levels)
+                        Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
+                            # haven't yet found an initialization that does well
+                            # i've tried the following, and all performed about as well as random (but not worse!)
+                            #(glrm.A[glrm.observed_examples[f], f] .<= levels[ilevel])
+                            # glrm.A[glrm.observed_examples[f], f] + levels[ilevel] - mymean 
+                            glrm.A[glrm.observed_examples[f], f]
+                    end
+                else
+                    error("No default mapping to real valued matrix for domains of type $type(glrm.losses[f].domain)")
                 end
             end
         end
