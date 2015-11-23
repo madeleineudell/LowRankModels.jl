@@ -7,7 +7,7 @@ import StatsBase: sample, WeightVec
 srand(1);
 m,n,k = 200,50,3;
 kfit = k+1
-d = 3; # number of levels
+d = 7; # number of levels
 D = n*d;
 # coordinates of covariates
 X_real = randn(m,k)

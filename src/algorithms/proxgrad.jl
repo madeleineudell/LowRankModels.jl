@@ -40,6 +40,14 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     # find spans of loss functions (for multidimensional losses)
     yidxs = get_yidxs(losses)
     d = maximum(yidxs[end])
+    # check Y is the right size
+    if d != size(Y,2)
+        error("The width of Y should match the embedding dimension of the losses.
+            Instead, embedding_dim(glrm.losses) = $(embedding_dim(glrm.losses))
+            and size(glrm.Y, 2) = $(size(glrm.Y, 2)). 
+            Please modify Y or the embedding dimension of the losses to match,
+            eg, by setting `glrm.Y = randn(glrm.k, embedding_dim(glrm.losses))`")
+    end
 
     XY = Array(Float64, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation

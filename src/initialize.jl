@@ -68,7 +68,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
                         Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
                             # haven't yet found an initialization that does well
                             # i've tried the following, and all performed about as well as random (but not worse!)
-                            #(glrm.A[glrm.observed_examples[f], f] .<= levels[ilevel])
+                            # (glrm.A[glrm.observed_examples[f], f] .<= levels[ilevel])
                             # glrm.A[glrm.observed_examples[f], f] + levels[ilevel] - mymean 
                             glrm.A[glrm.observed_examples[f], f]
                     end

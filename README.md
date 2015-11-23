@@ -71,12 +71,14 @@ Losses:
 
 * quadratic loss `QuadLoss`
 * hinge loss `HingeLoss`
-* logistic loss `LogLoss`
+* logistic loss `LogisticLoss`
 * poisson loss `PoissonLoss`
 * weighted hinge loss `WeightedHinge`
 * l1 loss `L1Loss`
 * ordinal hinge loss `OrdinalHinge`
 * periodic loss `PeriodicLoss`
+* multinomial categorical loss `MultinomialLoss`
+* multinomial ordinal (aka ordered logit) loss `OrderedMultinomialLoss`
 
 Regularizers:
 
@@ -122,7 +124,7 @@ The `losses` argument can also be an array of loss functions,
 with one for each column (in order). For example, 
 for a data set with 3 columns, you could use 
 
-    losses = [QuadLoss(), LogLoss(), HingeLoss()]
+    losses = [QuadLoss(), LogisticLoss(), HingeLoss()]
 
 [More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
