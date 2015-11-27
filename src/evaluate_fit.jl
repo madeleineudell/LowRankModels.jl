@@ -20,7 +20,8 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2},
 end
 # The user can also pass in X and Y and `objective` will compute XY for them
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
-                   sparse=false, include_regularization=true, kwargs...)
+                   sparse=false, include_regularization=true, 
+                   yidxs = get_yidxs(glrm.losses, kwargs...)
     XY = Array(Float64, (size(X,2), size(Y,2))) 
     if sparse
         # Calculate X'*Y only at observed entries of A
@@ -28,17 +29,17 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
         err = 0.0
         for j=1:n
             for i in glrm.observed_examples[j]
-                err += evaluate(glrm.losses[j], dot(X[:,i],Y[:,j]), glrm.A[i,j])
+                err += evaluate(glrm.losses[j], dot(X[:,i],Y[:,yidxs[j]]), glrm.A[i,j])
             end
         end
         if include_regularization
-            err += calc_penalty(glrm,X,Y)
+            err += calc_penalty(glrm,X,Y; yidxs = yidxs)
         end
         return err
     else
         # dense calculation variant (calculate XY up front)
         gemm!('T','N',1.0,X,Y,0.0,XY)
-        return objective(glrm, X, Y, XY; include_regularization=include_regularization, kwargs...)
+        return objective(glrm, X, Y, XY; include_regularization=include_regularization, yidxs = yidxs, kwargs...)
     end
 end
 # Or just the GLRM and `objective` will use glrm.X and .Y
