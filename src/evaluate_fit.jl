@@ -3,7 +3,7 @@ export objective, error_metric, impute
 ### OBJECTIVE FUNCTION EVALUATION FOR MPCA
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
                    XY::Array{Float64,2}; 
-                   yidxs = 1:size(glrm.A,2), # mapping from columns of A to columns of Y; by default, the identity
+                   yidxs = get_yidxs(glrm.losses), # mapping from columns of A to columns of Y; by default, the identity
                    include_regularization=true)
     m,n = size(glrm.A)
     err = 0.0
@@ -21,7 +21,7 @@ end
 # The user can also pass in X and Y and `objective` will compute XY for them
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    sparse=false, include_regularization=true, kwargs...)
-    XY = Array(Float64, size(glrm.A)) 
+    XY = Array(Float64, (size(X,2), size(Y,2))) 
     if sparse
         # Calculate X'*Y only at observed entries of A
         m,n = size(glrm.A)
@@ -51,7 +51,7 @@ objective(glrm::ShareGLRM, X::SharedArray{Float64,2}, Y::SharedArray{Float64,2})
 
 # Helper function to calculate the regularization penalty for X and Y
 function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
-    yidxs = 1:size(Y,2))
+    yidxs = get_yidxs(glrm.losses))
     m,n = size(glrm.A)
     penalty = 0.0
     for i=1:m
@@ -64,17 +64,19 @@ function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,
 end
 
 ## ERROR METRIC EVALUATION (BASED ON DOMAINS OF THE DATA)
-function raw_error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
+function raw_error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1};
+    yidxs = get_yidxs(glrm.losses))
     m,n = size(glrm.A)
     err = 0.0
     for j=1:n
         for i in glrm.observed_examples[j]
-            err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
+            err += error_metric(domains[j], glrm.losses[j], XY[i,yidxs[j]], glrm.A[i,j])
         end
     end
     return err
 end
-function std_error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1})
+function std_error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1};
+    yidxs = get_yidxs(glrm.losses))
     m,n = size(glrm.A)
     err = 0.0
     for j=1:n
@@ -82,7 +84,7 @@ function std_error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Arr
         column_err = 0.0
         for i in glrm.observed_examples[j]
             column_mean += glrm.A[i,j]^2
-            column_err += error_metric(domains[j], glrm.losses[j], XY[i,j], glrm.A[i,j])
+            column_err += error_metric(domains[j], glrm.losses[j], XY[i,yidxs[j]], glrm.A[i,j])
         end
         column_mean = column_mean/length(glrm.observed_examples[j])
         if column_mean != 0
@@ -92,16 +94,18 @@ function std_error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Arr
     end
     return err
 end
-function error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1}; standardize=false)
+function error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1}; 
+    standardize=false,
+    yidxs = get_yidxs(glrm.losses))
     if standardize
-        return std_error_metric(glrm, XY, domains)
+        return std_error_metric(glrm, XY, domains; yidxs = yidxs)
     else
-        return raw_error_metric(glrm, XY, domains)
+        return raw_error_metric(glrm, XY, domains; yidxs = yidxs)
     end
 end
 # The user can also pass in X and Y and `error_metric` will compute XY for them
 function error_metric(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, domains::Array{Domain,1}=Domain[l.domain for l in glrm.losses]; kwargs...)
-    XY = Array(Float64, size(glrm.A)) 
+    XY = Array(Float64, (size(X,2), size(Y,2))) 
     gemm!('T','N',1.0,X,Y,0.0,XY) 
     error_metric(glrm, XY, domains; kwargs...)
 end
