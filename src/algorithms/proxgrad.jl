@@ -26,7 +26,6 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 			  ch::ConvergenceHistory=ConvergenceHistory("ProxGradGLRM"), 
 			  verbose=true,
 			  kwargs...)
-	println(params)
 	### initialization
 	A = glrm.A # rename these for easier local access
 	losses = glrm.losses
