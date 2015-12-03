@@ -358,9 +358,9 @@ datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.ma
 function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     invlik = 0 # inverse likelihood of observation
     for j in 1:length(u)
-        invlik += exp(u[a]^2 - u[j]^2)
+        invlik += exp(- u[j]^2)
     end
-    loss = log(invlik)  
+    loss = u[a]^2 + log(invlik)  
     return l.scale*loss
 end
 
@@ -369,9 +369,9 @@ function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = 2*u[a]
-    sumexp = sum(map(j->exp(u[a]^2 - u[j]^2), 1:length(u)))
+    sumexp = sum(map(j->exp(- u[j]^2), 1:length(u)))
     for j in 1:length(u)
-        g[j] -= 2 * u[j] * exp(u[a]^2 - u[j]^2) / sumexp
+        g[j] -= 2 * u[j] * exp(- u[j]^2) / sumexp
     end
     return l.scale*g
 end
