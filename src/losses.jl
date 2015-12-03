@@ -357,9 +357,6 @@ datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.ma
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     invlik = 0 # inverse likelihood of observation
-    # computing soft max directly is numerically unstable
-    # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
-    # and we'll pick a good big (but not too big) M
     for j in 1:length(u)
         invlik += exp(u[a]^2 - u[j]^2)
     end
@@ -372,10 +369,6 @@ function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = 2*u[a]
-    # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
-    # it's ok if this over/underflows, I think: 
-    # the contribution of one observation to one entry of the gradient 
-    # is always between -1 and 0
     sumexp = sum(map(j->exp(u[a]^2 - u[j]^2), 1:length(u)))
     for j in 1:length(u)
         g[j] -= 2 * u[j] * exp(u[a]^2 - u[j]^2) / sumexp

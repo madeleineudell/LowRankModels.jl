@@ -129,9 +129,12 @@ type lastentry1<:Regularizer
     r::Regularizer
 end
 lastentry1() = lastentry1(ZeroReg())
-prox(r::lastentry1,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha); 1]
-prox!(r::lastentry1,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1:end-1],alpha); u[end]=1; u)
-evaluate(r::lastentry1,a::AbstractArray) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
+prox(r::lastentry1,u::AbstractArray{Float64,1},alpha::Number) = [prox(r.r,view(u,1:length(u)-1),alpha); 1]
+prox!(r::lastentry1,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1),alpha); u[end]=1; u)
+prox(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,view(u,1:size(u,1)-1,:),alpha); ones(1, size(u,2))]
+prox!(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u[end,:]=1; u)
+evaluate(r::lastentry1,a::AbstractArray{Float64,1}) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
+evaluate(r::lastentry1,a::AbstractArray{Float64,2}) = (all(a[end,:].==1) ? evaluate(r.r,a[1:end-1,:]) : Inf)
 scale(r::lastentry1) = r.r.scale
 scale!(r::lastentry1, newscale::Number) = (r.r.scale = newscale)
 
@@ -141,9 +144,12 @@ type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
 lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
-prox(r::lastentry_unpenalized,u::AbstractArray,alpha::Number) = [prox(r.r,u[1:end-1],alpha); u[end]]
-prox!(r::lastentry_unpenalized,u::Array{Float64},alpha::Number) = (prox!(r.r,u[1:end-1],alpha); u)
-evaluate(r::lastentry_unpenalized,a::AbstractArray) = evaluate(r.r,a[1:end-1])
+prox(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = [prox(r.r,u[1:end-1],alpha); u[end]]
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1),alpha); u)
+evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,1}) = evaluate(r.r,a[1:end-1])
+prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,u[1:end-1,:],alpha); u[end,:]]
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1,:),alpha); u)
+evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[1:end-1,:])
 scale(r::lastentry_unpenalized) = r.r.scale
 scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
 

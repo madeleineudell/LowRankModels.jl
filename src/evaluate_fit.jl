@@ -21,7 +21,7 @@ end
 # The user can also pass in X and Y and `objective` will compute XY for them
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    sparse=false, include_regularization=true, 
-                   yidxs = get_yidxs(glrm.losses, kwargs...)
+                   yidxs = get_yidxs(glrm.losses), kwargs...)
     XY = Array(Float64, (size(X,2), size(Y,2))) 
     if sparse
         # Calculate X'*Y only at observed entries of A

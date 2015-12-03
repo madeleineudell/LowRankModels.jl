@@ -31,7 +31,7 @@ function GLRM(df::DataFrame, k::Int;
     X = randn(k,size(A,1))
     Y = randn(k,size(A,2))
     # form model
-    glrm = GLRM(df2array(A), losses, rx, ry, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
+    glrm = GLRM(A, losses, rx, ry, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
     return glrm, labels
 end
 

@@ -2,7 +2,7 @@ export cross_validate, cv_by_iter, regularization_path, get_train_and_test, prec
 
 # the loss function evaluates the objective minus the regularization
 # it is the default error metric
-loss_fn(args...; kwargs...) = objective(args..., include_regularization=false, kwargs...)
+loss_fn(args...; kwargs...) = objective(args...; include_regularization=false, kwargs...)
 
 # to use with error_metric when we have domains in the namespace, call as:
 # cross_validate(glrm, error_fn = error_metric(glrm,domains,X,Y))
