@@ -6,7 +6,7 @@ import StatsBase: sample, WeightVec
 srand(1);
 m,n,k = 200,50,2;
 kfit = k+1
-K = 2; # number of categories
+K = 4; # number of categories
 d = n*K;
 # matrix to encode
 X_real, Y_real = randn(m,k), randn(k,d);

@@ -314,7 +314,7 @@ function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
     # and we'll pick a good big (but not too big) M
-    M = 0 # M = maximum(u) - u[a] # prevents overflow
+    M = maximum(u) - u[a] # prevents overflow
     for j in 1:length(u)
         invlik += exp(u[j] - u[a] - M)
     end
@@ -356,11 +356,10 @@ datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.ma
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
-    invlik = 0 # inverse likelihood of observation
-    for j in 1:length(u)
-        invlik += exp(- u[j]^2)
-    end
-    loss = u[a]^2 + log(invlik)  
+    diffusquared = u[a]^2 .- u.^2
+    M = maximum(diffusquared)
+    invlik = sum(exp(diffusquared .- M))
+    loss = M + log(invlik)  
     return l.scale*loss
 end
 
@@ -371,7 +370,10 @@ function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     g[a] = 2*u[a]
     sumexp = sum(map(j->exp(- u[j]^2), 1:length(u)))
     for j in 1:length(u)
-        g[j] -= 2 * u[j] * exp(- u[j]^2) / sumexp
+        diffusquared = u[j]^2 .- u.^2
+        M = maximum(diffusquared)
+        invlik = sum(exp(diffusquared .- M))
+        g[j] -= 2 * u[j] * exp(- M) / invlik
     end
     return l.scale*g
 end
