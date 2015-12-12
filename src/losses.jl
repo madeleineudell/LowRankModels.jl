@@ -299,6 +299,7 @@ end
 # f computes the (negative log likelihood of the) multinomial logit,
 # often known as the softmax function
 # f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
+#         = 1         / (sum_{a'} exp(u[a'] - u[a]))
 type MultinomialLoss<:Loss
     max::Integer
     scale::Float64
@@ -310,15 +311,15 @@ datalevels(l::MultinomialLoss) = 1:l.max # levels are encoded as the numbers 1:l
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
-    invlik = 0 # inverse likelihood of observation
+    sumexp = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
     # and we'll pick a good big (but not too big) M
     M = maximum(u) - u[a] # prevents overflow
     for j in 1:length(u)
-        invlik += exp(u[j] - u[a] - M)
+        sumexp += exp(u[j] - u[a] - M)
     end
-    loss = log(invlik) + M    
+    loss = log(sumexp) + M    
     return l.scale*loss
 end
 
@@ -327,12 +328,15 @@ function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     # Using some nice algebra, you can show
     g[a] = -1
     # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
-    # it's ok if this over/underflows, I think: 
     # the contribution of one observation to one entry of the gradient 
     # is always between -1 and 0
-    sumexp = sum(map(j->exp(u[j]), 1:length(u)))
     for j in 1:length(u)
-        g[j] += exp(u[j])/sumexp
+        M = maximum(u) - u[j] # prevents overflow
+        sumexp = 0
+        for jp in 1:length(u)
+            sumexp += exp(u[jp] - u[j] - M)
+        end
+        g[j] += exp(-M)/sumexp
     end
     return l.scale*g
 end
