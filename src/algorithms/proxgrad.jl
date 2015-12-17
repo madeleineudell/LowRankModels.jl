@@ -170,6 +170,3 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
     return glrm.X, glrm.Y, ch
 end
-
-matrixme(a::AbstractArray) = a
-matrixme{T<:Number}(a::T) = T[a]    
