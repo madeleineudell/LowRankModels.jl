@@ -124,7 +124,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
                 curgrad = grad(losses[f],XY[e,yidxs[f]],A[e,f])
                 if isa(curgrad, Number)
-                    axpy!(curgrad, ve[e], g)
+                    axpy!(curgrad, ve[e], gf[f])
                 else
                     gemm!('N', 'N', 1.0, ve[e], curgrad, 1.0, gf[f])
                 end
