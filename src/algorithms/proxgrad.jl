@@ -31,9 +31,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	losses = glrm.losses
 	rx = glrm.rx
 	ry = glrm.ry
-	# at any time, glrm.X and glrm.Y will be the best model yet found, while
-	# X and Y will be the working variables
-	X = copy(glrm.X); Y = copy(glrm.Y)
+	X = glrm.X; Y = glrm.Y
 	k = glrm.k
     m,n = size(A)
 
@@ -113,11 +111,17 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             end
             # take a proximal gradient step to update ve[e]
             l = length(glrm.observed_features[e]) + 1 # if each loss function has lipshitz constant 1 this bounds the lipshitz constant of this example's objective
-            prevrowobj = row_objective(glrm, e, ve[e]) # previous row objective value
+            obj_by_row[e] = row_objective(glrm, e, ve[e]) # previous row objective value
             while alpharow[e] > params.min_stepsize
                 stepsize = alpharow[e]/l 
-                newx = prox(rx, ve[e] - stepsize*g, stepsize)
-                if row_objective(glrm, e, newx) < prevrowobj
+                newx = prox(rx, ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version commented out below
+                # scale!(g, -alpharow[e]/l)            
+                # ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
+                # axpy!(1,g,ve[e])
+                # ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
+                # prox!(rx,ve[e],alpha/l)
+                if row_objective(glrm, e, newx) < obj_by_row[e]
+                    # here's a convoluted way of replacing ve[e] by newx
                     scale!(ve[e], 0)
                     axpy!(1, newx, ve[e])
                     alpharow[e] *= 1.05
@@ -130,11 +134,6 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                     end                
                 end
             end
-            # scale!(g, -alpharow[e]/l)            
-            # ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
-            # axpy!(1,g,ve[e])
-            # ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
-            # prox!(rx,ve[e],alpha/l)
         end
         end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new X
@@ -156,14 +155,17 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            prevcolobj = col_objective(glrm, f, vf[f])
+            obj_by_col[f] = col_objective(glrm, f, vf[f])
             while alphacol[f] > params.min_stepsize
                 stepsize = alphacol[f]/l
                 newy = prox(ry[f], vf[f] - stepsize*gf[f], stepsize)
-                if col_objective(glrm, f, newy) < prevcolobj
+                new_obj_by_col = col_objective(glrm, f, newy)
+                if new_obj_by_col < obj_by_col[f]
+                    # here's a convoluted way of replacing vf[f] by newy
                     scale!(vf[f], 0)
                     axpy!(1, newy, vf[f])
                     alphacol[f] *= 1.05
+                    obj_by_col[f] = new_obj_by_col
                     break
                 else
                     alphacol[f] *= .7
@@ -181,12 +183,10 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         end
         end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new Y
-# STEP 3: Check objective
-        obj = objective(glrm, X, Y, XY, yidxs=yidxs) 
-        # record the best X and Y yet found
+# STEP 3: Record objective
+        obj = sum(obj_by_col)
         t = time() - t
         update!(ch, t, obj)
-        copy!(glrm.X, X); copy!(glrm.Y, Y)
         t = time()
 # STEP 4: Check stopping criterion
         if i>10 && ch.objective[end-1] - obj < tol
