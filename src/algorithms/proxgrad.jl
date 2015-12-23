@@ -105,9 +105,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
-            scale!(g, -alpha/l)
             ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
-            axpy!(1,g,ve[e])
+            axpy!(-alpha/l,g,ve[e])
             ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
             prox!(rx,ve[e],alpha/l)
         end
@@ -131,9 +130,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            scale!(gf[f], -alpha/l)
             ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
-            axpy!(1,gf[f],vf[f]) 
+            axpy!(-alpha/l,gf[f],vf[f]) 
             ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
             prox!(ry[f],vf[f],alpha/l)
         end
