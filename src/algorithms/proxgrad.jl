@@ -79,23 +79,26 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     # columnwise objective value
     obj_by_col = zeros(n)
 
-    # cache views
+    # cache views for better memory management
     # first a type hack
     @compat typealias Yview Union{ContiguousView{Float64,1,Array{Float64,2}}, 
                                   ContiguousView{Float64,2,Array{Float64,2}}}
-    # views of the columns of X corresponding to each example
+    # views of the columns of X corresponding to each example x_i
+    # ve[e] == X[:,e]
     ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
-    # views of the column-chunks of Y corresponding to each feature
+    # views of the column-chunks of Y corresponding to each feature y_j
+    # vf[f] == Y[:,f]
     vf = Yview[view(Y,:,yidxs[f]) for f=1:n]
-    # views of the column-chunks of G corresponding to the gradient wrt each feature
+    # views of the column-chunks of G corresponding to the gradient wrt each feature y_j
+    # these have the same shape as y_j
     gf = Yview[view(G,:,yidxs[f]) for f=1:n]
 
     for i=1:params.max_iter
 # STEP 1: X update
-        # XY = X' * Y this is computed before the first iteration and subsequently in the objective evaluation
+        # XY = X' * Y this is computed before the first iteration
         for inneri=1:params.inner_iter
-        for e=1:m # doing this means looping over XY in row-major order, but otherwise we couldn't parallelize over Xᵢs
-            scale!(g, 0)# reset gradient to 0
+        for e=1:m # for every example x_e == ve[e]
+            scale!(g, 0) # reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
             for f in glrm.observed_features[e]
@@ -108,17 +111,18 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                     gemm!('N', 'T', 1.0, vf[f], curgrad, 1.0, g)
                 end
             end
-            # take a proximal gradient step
-            l = length(glrm.observed_features[e]) + 1
+            # take a proximal gradient step to update ve[e]
+            l = length(glrm.observed_features[e]) + 1 # if each loss function has lipshitz constant 1 this bounds the lipshitz constant of this example's objective
+            prevrowobj = row_objective(glrm, e, ve[e]) # previous row objective value
             while alpharow[e] > params.min_stepsize
-                stepsize = alpharow[e]/l
+                stepsize = alpharow[e]/l 
                 newx = prox(rx, ve[e] - stepsize*g, stepsize)
-                if row_objective(glrm, e, newx) < row_objective(glrm, e, ve[e])
+                if row_objective(glrm, e, newx) < prevrowobj
                     scale!(ve[e], 0)
                     axpy!(1, newx, ve[e])
                     alpharow[e] *= 1.05
                     break
-                else
+                else # the stepsize was too big; try again only smaller
                     alpharow[e] *= .7
                     if alpharow[e] < params.min_stepsize
                         alpharow[e] = params.min_stepsize * 1.1
@@ -152,10 +156,11 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
+            prevcolobj = col_objective(glrm, f, vf[f])
             while alphacol[f] > params.min_stepsize
                 stepsize = alphacol[f]/l
-                newy = prox(ry[f], vf[f] - stepsize*g, stepsize)
-                if col_objective(glrm, f, newy) < col_objective(glrm, f, vf[f])
+                newy = prox(ry[f], vf[f] - stepsize*gf[f], stepsize)
+                if col_objective(glrm, f, newy) < prevcolobj
                     scale!(vf[f], 0)
                     axpy!(1, newy, vf[f])
                     alphacol[f] *= 1.05

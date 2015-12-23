@@ -36,12 +36,12 @@ end
 function col_objective(glrm::AbstractGLRM, j::Int, y::AbstractArray, X::Array{Float64,2} = glrm.X;
                    include_regularization=true)
     m,n = size(glrm.A)
-    k,d = size(y)
-    if d == 1 colind = 1 else colind = 1:d end
+    sz = size(y)
+    if length(sz) == 1 colind = 1 else colind = 1:sz[2] end
     err = 0.0
-    XY = y'*X
+    XY = X'*y
     for i in glrm.observed_examples[j]
-        err += evaluate(glrm.losses[j], XY[colind,i], glrm.A[i,j])
+        err += evaluate(glrm.losses[j], XY[i,colind], glrm.A[i,j])
     end
     # add regularization penalty
     if include_regularization
