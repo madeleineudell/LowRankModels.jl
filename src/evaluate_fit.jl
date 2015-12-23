@@ -18,6 +18,37 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2},
     end
     return err
 end
+function row_objective(glrm::AbstractGLRM, i::Int, x::AbstractArray, Y::Array{Float64,2} = glrm.Y;
+                   yidxs = get_yidxs(glrm.losses), # mapping from columns of A to columns of Y; by default, the identity
+                   include_regularization=true)
+    m,n = size(glrm.A)
+    err = 0.0
+    XY = x'*Y
+    for j in glrm.observed_features[i]
+        err += evaluate(glrm.losses[j], XY[1,yidxs[j]], glrm.A[i,j])
+    end
+    # add regularization penalty
+    if include_regularization
+        err += evaluate(glrm.rx, x)
+    end
+    return err
+end
+function col_objective(glrm::AbstractGLRM, j::Int, y::AbstractArray, X::Array{Float64,2} = glrm.X;
+                   include_regularization=true)
+    m,n = size(glrm.A)
+    k,d = size(y)
+    if d == 1 colind = 1 else colind = 1:d end
+    err = 0.0
+    XY = y'*X
+    for i in glrm.observed_examples[j]
+        err += evaluate(glrm.losses[j], XY[colind,i], glrm.A[i,j])
+    end
+    # add regularization penalty
+    if include_regularization
+        err += evaluate(glrm.ry[j], y)
+    end
+    return err
+end
 # The user can also pass in X and Y and `objective` will compute XY for them
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    sparse=false, include_regularization=true, 

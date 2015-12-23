@@ -60,7 +60,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     end
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
-    alpha = params.stepsize
+    alpharow = params.stepsize*ones(m)
+    alphacol = params.stepsize*ones(n)
     # stopping criterion: stop when decrease in objective < tol
     tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
 
@@ -73,6 +74,10 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     g = zeros(k)
     # gradient wrt column-chunks of Y
     G = zeros(k, d)
+    # rowwise objective value
+    obj_by_row = zeros(m)
+    # columnwise objective value
+    obj_by_col = zeros(n)
 
     # cache views
     # first a type hack
@@ -105,11 +110,27 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
-            scale!(g, -alpha/l)
-            ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
-            axpy!(1,g,ve[e])
-            ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
-            prox!(rx,ve[e],alpha/l)
+            while alpharow[e] > params.min_stepsize
+                stepsize = alpharow[e]/l
+                newx = prox(rx, ve[e] - stepsize*g, stepsize)
+                if row_objective(glrm, e, newx) < row_objective(glrm, e, ve[e])
+                    scale!(ve[e], 0)
+                    axpy!(1, newx, ve[e])
+                    alpharow[e] *= 1.05
+                    break
+                else
+                    alpharow[e] *= .7
+                    if alpharow[e] < params.min_stepsize
+                        alpharow[e] = params.min_stepsize * 1.1
+                        break
+                    end                
+                end
+            end
+            # scale!(g, -alpharow[e]/l)            
+            # ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
+            # axpy!(1,g,ve[e])
+            # ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
+            # prox!(rx,ve[e],alpha/l)
         end
         end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new X
@@ -124,41 +145,46 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
                 curgrad = grad(losses[f],XY[e,yidxs[f]],A[e,f])
                 if isa(curgrad, Number)
-                    axpy!(curgrad, ve[e], g)
+                    axpy!(curgrad, ve[e], gf[f])
                 else
                     gemm!('N', 'N', 1.0, ve[e], curgrad, 1.0, gf[f])
                 end
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            scale!(gf[f], -alpha/l)
-            ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
-            axpy!(1,gf[f],vf[f]) 
-            ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
-            prox!(ry[f],vf[f],alpha/l)
+            while alphacol[f] > params.min_stepsize
+                stepsize = alphacol[f]/l
+                newy = prox(ry[f], vf[f] - stepsize*g, stepsize)
+                if col_objective(glrm, f, newy) < col_objective(glrm, f, vf[f])
+                    scale!(vf[f], 0)
+                    axpy!(1, newy, vf[f])
+                    alphacol[f] *= 1.05
+                    break
+                else
+                    alphacol[f] *= .7
+                    if alphacol[f] < params.min_stepsize
+                        alphacol[f] = params.min_stepsize * 1.1
+                        break
+                    end
+                end
+            end
+            # scale!(gf[f], -alpha/l)
+            # ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
+            # axpy!(1,gf[f],vf[f]) 
+            # ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
+            # prox!(ry[f],vf[f],alpha/l)
         end
         end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new Y
 # STEP 3: Check objective
         obj = objective(glrm, X, Y, XY, yidxs=yidxs) 
         # record the best X and Y yet found
-        if obj < ch.objective[end]
-            t = time() - t
-            update!(ch, t, obj)
-            copy!(glrm.X, X); copy!(glrm.Y, Y)
-            alpha = alpha * 1.05
-            steps_in_a_row = max(1, steps_in_a_row+1)
-            t = time()
-        else
-            # if the objective went up, reduce the step size, and undo the step
-            alpha = alpha / max(1.5, -steps_in_a_row)
-            if verbose println("obj went up to $obj; reducing step size to $alpha") end
-            copy!(X, glrm.X); copy!(Y, glrm.Y)
-            steps_in_a_row = min(0, steps_in_a_row-1)
-            gemm!('T','N',1.0,X,Y,0.0,XY) # Revert back to the old XY (previous best)
-        end
+        t = time() - t
+        update!(ch, t, obj)
+        copy!(glrm.X, X); copy!(glrm.Y, Y)
+        t = time()
 # STEP 4: Check stopping criterion
-        if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
+        if i>10 && ch.objective[end-1] - obj < tol
             break
         end
         if verbose && i%10==0 
