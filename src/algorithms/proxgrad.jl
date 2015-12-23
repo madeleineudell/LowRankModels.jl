@@ -91,6 +91,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     # these have the same shape as y_j
     gf = Yview[view(G,:,yidxs[f]) for f=1:n]
 
+    # working variables
+    newX = copy(X)
+    newY = copy(Y)
+    newve = ContiguousView{Float64,1,Array{Float64,2}}[view(newX,:,e) for e=1:m]
+    newvf = Yview[view(newY,:,yidxs[f]) for f=1:n]
+
     for i=1:params.max_iter
 # STEP 1: X update
         # XY = X' * Y this is computed before the first iteration
@@ -114,19 +120,17 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             obj_by_row[e] = row_objective(glrm, e, ve[e]) # previous row objective value
             while alpharow[e] > params.min_stepsize
                 stepsize = alpharow[e]/l 
-                newx = prox(rx, ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version commented out below
-                # scale!(g, -alpharow[e]/l)            
-                # ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
-                # axpy!(1,g,ve[e])
-                # ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
-                # prox!(rx,ve[e],alpha/l)
-                if row_objective(glrm, e, newx) < obj_by_row[e]
-                    # here's a convoluted way of replacing ve[e] by newx
-                    scale!(ve[e], 0)
-                    axpy!(1, newx, ve[e])
+                # newx = prox(rx, ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version commented out below
+                ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
+                axpy!(-stepsize,g,newve[e])
+                ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
+                prox!(rx,newve[e],stepsize)
+                if row_objective(glrm, e, newve[e]) < obj_by_row[e]
+                    copy!(ve[e], newve[e])
                     alpharow[e] *= 1.05
                     break
-                else # the stepsize was too big; try again only smaller
+                else # the stepsize was too big; undo and try again only smaller
+                    copy!(newve[e], ve[e])
                     alpharow[e] *= .7
                     if alpharow[e] < params.min_stepsize
                         alpharow[e] = params.min_stepsize * 1.1
@@ -158,16 +162,19 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             obj_by_col[f] = col_objective(glrm, f, vf[f])
             while alphacol[f] > params.min_stepsize
                 stepsize = alphacol[f]/l
-                newy = prox(ry[f], vf[f] - stepsize*gf[f], stepsize)
-                new_obj_by_col = col_objective(glrm, f, newy)
+                # newy = prox(ry[f], vf[f] - stepsize*gf[f], stepsize)
+                ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
+                axpy!(-stepsize,gf[f],newvf[f]) 
+                ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
+                prox!(ry[f],newvf[f],stepsize)
+                new_obj_by_col = col_objective(glrm, f, newvf[f])
                 if new_obj_by_col < obj_by_col[f]
-                    # here's a convoluted way of replacing vf[f] by newy
-                    scale!(vf[f], 0)
-                    axpy!(1, newy, vf[f])
+                    copy!(vf[f], newvf[f])
                     alphacol[f] *= 1.05
                     obj_by_col[f] = new_obj_by_col
                     break
                 else
+                    copy!(newvf[f], vf[f])
                     alphacol[f] *= .7
                     if alphacol[f] < params.min_stepsize
                         alphacol[f] = params.min_stepsize * 1.1
@@ -175,11 +182,6 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                     end
                 end
             end
-            # scale!(gf[f], -alpha/l)
-            # ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
-            # axpy!(1,gf[f],vf[f]) 
-            # ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
-            # prox!(ry[f],vf[f],alpha/l)
         end
         end
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new Y
