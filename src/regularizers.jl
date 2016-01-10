@@ -49,8 +49,8 @@ type QuadReg<:Regularizer
     scale::Float64
 end
 QuadReg() = QuadReg(1)
-prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
-prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
+prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+2*alpha*r.scale)*u
+prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+2*alpha*r.scale))
 evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(a.^2)
 
 ## constrained QuadLoss regularization
