@@ -12,3 +12,8 @@ include("share_test.jl")
 include("init_test.jl")
 include("sparse_test.jl")
 include("reg_test.jl")
+
+# some recovery tests for multidimensional glrms
+include("mnl_test.jl")
+include("ordistic_test.jl")
+include("ordinallogit_test.jl")

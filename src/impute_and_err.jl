@@ -31,7 +31,7 @@ roundcutoff(x,a,b) = min(max(round(x),a),b)
 
 # Error metrics for general use
 squared_error(a_imputed::Float64, a::Number) = (a_imputed-a)^2
-misclassification(a_imputed::Float64, a::Number) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
+misclassification{T}(a_imputed::T, a::T) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
 
 # use the default loss domain imputation if no domain provided
 impute(l::Loss, u::Float64) = impute(l.domain, l, u) 
@@ -94,9 +94,9 @@ end
 ########################################## CATEGORICALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
 
-impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64,1}) = indmax(u)
+impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64}) = indmax(u)
 
-function error_metric(D::CategoricalDomain, l::Loss, u::Float64, a::Number)
+function error_metric(D::CategoricalDomain, l::Loss, u::Array{Float64}, a::Number)
     a_imputed = impute(D, l, u)
     misclassification(a_imputed, a)
 end

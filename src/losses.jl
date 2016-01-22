@@ -167,7 +167,7 @@ evaluate(l::PeriodicLoss, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l
 
 grad(l::PeriodicLoss, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
 
-function M_estimator(l::PeriodicLoss, a::AbstractArray)
+function M_estimator(l::PeriodicLoss, a::AbstractArray{Float64})
     (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding. 
     # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
@@ -342,8 +342,16 @@ function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     return l.scale*g
 end
 
-## XXX does this make sense?
-M_estimator(l::MultinomialLoss, a::AbstractArray) = mode(a)
+## we'll compute it via a stochastic gradient method
+## with fixed step size
+function M_estimator(l::MultinomialLoss, a::AbstractArray)
+    u = zeros(l.max)'
+    for i = 1:length(a)
+        ai = a[i]
+        u -= .1*grad(l, u, ai)
+    end
+    return u
+end
 
 ########################################## ORDERED LOGISTIC ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
