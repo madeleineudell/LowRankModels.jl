@@ -78,6 +78,13 @@ function impute(D::OrdinalDomain, l::WeightedHinge, u::Float64)
 	roundcutoff(a_imputed, D.min, D.max)
 end
 impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
+function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
+    diffs = zeros(l.max)
+    for i=1:l.max
+        diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
+    end
+    return indmin(diffs)
+end
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
     a_imputed = impute(D, l, u)

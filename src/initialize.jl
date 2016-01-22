@@ -62,9 +62,9 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
                             (glrm.A[glrm.observed_examples[f], f] .== levels[ilevel])
                     end
                 elseif isa(glrm.losses[f].domain, OrdinalDomain)
-                    levels = datalevels(glrm.losses[f])
+                    embed_dim = embedding_dim(glrm.losses[f])
                     mymean = mean(glrm.A[glrm.observed_examples[f], f])
-                    for ilevel in 1:length(levels)
+                    for ilevel in 1:embed_dim
                         Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
                             # haven't yet found an initialization that does well
                             # i've tried the following, and all performed about as well as random (but not worse!)

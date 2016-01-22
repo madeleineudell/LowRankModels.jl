@@ -39,7 +39,8 @@ import Optim.optimize
 export Loss, 
        DiffLoss, # a category of Losses
        QuadLoss, WeightedHinge, HingeLoss, LogisticLoss, PoissonLoss, 
-       OrdinalHinge, MultinomialLoss, OrdisticLoss, L1Loss, huber, 
+       OrdinalHinge, MultinomialLoss, MultinomialOrdinalLoss,
+       OrdisticLoss, L1Loss, huber, 
        PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, 
@@ -384,3 +385,51 @@ end
 
 ## XXX does this make sense?
 M_estimator(l::OrdisticLoss, a::AbstractArray) = median(a)
+
+
+########################################## Multinomial Ordinal Logit ##########################################
+# f: ℜx{1, 2, ..., max-1, max} -> ℜ
+# f computes the (negative log likelihood of the) multinomial logit,
+# often known as the softmax function
+# f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
+type MultinomialOrdinalLoss<:Loss
+    max::Integer
+    scale::Float64
+    domain::Domain
+end
+MultinomialOrdinalLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = MultinomialOrdinalLoss(m,scale,domain)
+embedding_dim(l::MultinomialOrdinalLoss) = l.max - 1
+datalevels(l::MultinomialOrdinalLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
+
+# argument u is a row vector (row slice of a matrix), which in julia is 2d
+# todo: increase numerical stability
+function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
+    diffs = zeros(l.max)
+    for i=1:l.max
+        diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
+    end
+    expdiffs = exp(diffs)
+    loss = diffs[a] + log(sum(expdiffs))
+    return l.scale*loss
+end
+
+# argument u is a row vector (row slice of a matrix), which in julia is 2d
+function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
+    signedsums = Array(Float64, l.max-1, l.max)
+    for i=1:l.max-1
+        for j=1:l.max
+            signedsums[i,j] = i<j ? 1 : -1
+        end
+    end
+    g = signedsums[:,a]
+    diffs = u * signedsums
+    expdiffs = exp(diffs)
+    sumexpdiffs = sum(expdiffs)
+    for i=1:l.max
+        g += expdiffs[i]/sumexpdiffs*signedsums[:,i]
+    end
+    return l.scale*g'
+end
+
+## XXX does this make sense?
+M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray) = median(a)
