@@ -391,9 +391,16 @@ function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     return l.scale*g
 end
 
-## XXX does this make sense?
-M_estimator(l::OrdisticLoss, a::AbstractArray) = median(a)
-
+## we'll compute it via a stochastic gradient method
+## with fixed step size
+function M_estimator(l::OrdisticLoss, a::AbstractArray)
+    u = zeros(l.max)'
+    for i = 1:length(a)
+        ai = a[i]
+        u -= .1*grad(l, u, ai)
+    end
+    return u
+end
 
 ########################################## Multinomial Ordinal Logit ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
@@ -439,5 +446,13 @@ function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
     return l.scale*g'
 end
 
-## XXX does this make sense?
-M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray) = median(a)
+## we'll compute it via a stochastic gradient method
+## with fixed step size
+function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
+    u = zeros(l.max-1)'
+    for i = 1:length(a)
+        ai = a[i]
+        u -= .1*grad(l, u, ai)
+    end
+    return u
+end

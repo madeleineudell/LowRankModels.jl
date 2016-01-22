@@ -13,8 +13,8 @@ huber(4),
 huber(3.1, crossover=3.2),
 PeriodicLoss(2*pi), 
 PeriodicLoss(2*pi, 4),
-#PoissonLoss(20),
-#PoissonLoss(22,4.1),
+PoissonLoss(20),
+PoissonLoss(22,4.1),
 OrdinalHinge(1,10), 
 OrdinalHinge(2,7,5),
 LogisticLoss(),
@@ -23,12 +23,13 @@ WeightedHinge(),
 WeightedHinge(11),
 WeightedHinge(1.5, case_weight_ratio=4.3),
 MultinomialLoss(4),
-MultinomialLoss(6, .5)
+MultinomialLoss(6, .5),
+OrdisticLoss(5),
+MultinomialOrdinalLoss(5)
 ] #tests what should be successful constructions
 
 # TODO: do some bad constructions and test that they fail with catches
 bad_losses = [
-:(QuadLoss(1,BoolDomain())),
 :(QuadLoss(10,RealDomain)),
 :(huber(3.1, 3.2)),
 :(PeriodicLoss(scale=2*pi)), 
@@ -54,7 +55,7 @@ XY_real = X_real*Y_real;
 A = impute(losses, XY_real) 
 
 # tests all the M-estimators with scale=true
-glrm = GLRM(A, losses, ZeroReg(), ZeroReg(), 5, scale=true, offset=true);
+glrm = GLRM(A, losses, QuadReg(1), QuadReg(1), 5, scale=true, offset=true);
 
 # tests eval and grad
 @time X,Y,ch = fit!(glrm);
