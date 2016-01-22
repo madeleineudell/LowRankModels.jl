@@ -430,8 +430,9 @@ end
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
-    signedsums = Array(Float64, l.max-1, l.max)
-    for i=1:l.max-1
+    @assert(size(u,2) == embedding_dim(l))
+    signedsums = Array(Float64, embedding_dim(l), l.max)
+    for i=1:embedding_dim(l)
         for j=1:l.max
             signedsums[i,j] = i<j ? 1 : -1
         end
@@ -449,7 +450,7 @@ end
 ## we'll compute it via a stochastic gradient method
 ## with fixed step size
 function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
-    u = zeros(l.max-1)'
+    u = zeros(embedding_dim(l))'
     for i = 1:length(a)
         ai = a[i]
         u -= .1*grad(l, u, ai)

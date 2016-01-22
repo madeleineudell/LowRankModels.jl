@@ -24,7 +24,7 @@ WeightedHinge(11),
 WeightedHinge(1.5, case_weight_ratio=4.3),
 MultinomialLoss(4),
 MultinomialLoss(6, .5),
-OrdisticLoss(5),
+# OrdisticLoss(5),
 MultinomialOrdinalLoss(5)
 ] #tests what should be successful constructions
 
