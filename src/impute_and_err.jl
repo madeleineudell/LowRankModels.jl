@@ -78,12 +78,25 @@ function impute(D::OrdinalDomain, l::WeightedHinge, u::Float64)
 	roundcutoff(a_imputed, D.min, D.max)
 end
 impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
+
+# MultinomialOrdinalLoss
+# l(u, a) = -log(p(u, a)) 
+#            = u[1] + ... + u[a-1] - u[a] - ... - u[end] + 
+#              log(sum_{a'}(exp(u[1] + ... + u[a'-1] - u[a'] - ... - u[end])))
+#
+# so given u,
+# the most probable value a is the index of the first 
+# positive entry of u
 function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
-    diffs = zeros(l.max)
-    for i=1:l.max
-        diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
+    try assert(all(diff(u) .>= -1e-10))
+    catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing")
+	end
+    for i=1:length(u)
+    	if u[i] > 0
+    		return i
+    	end
     end
-    return indmin(diffs)
+    return length(u) + 1
 end
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)

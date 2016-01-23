@@ -404,9 +404,28 @@ end
 
 ########################################## Multinomial Ordinal Logit ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
-# f computes the (negative log likelihood of the) multinomial logit,
-# often known as the softmax function
-# f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
+# f computes the (negative log likelihood of the) multinomial ordinal logit,
+# p(u, a > i) ~ exp(-u[i]), so
+# p(u, a)     ~ exp(-u[1]) * ... * exp(-u[a-1]) * exp(u[a]) * ... * exp(u[end])
+#             = exp(- u[1] - ... - u[a-1] + u[a] + ... + u[end])
+# and normalizing,
+# p(u, a)     = p(u, a) / sum_i p(u, i)
+# 
+# notice the length of u is one less than the number of levels of a,
+# since the entries of u correspond to the division between each level
+# and the one above it
+# 
+# to yield a sensible pdf, the entries of u should be increasing
+# (b/c they're basically the -log of the cdf at the boundary between each level)
+# 
+# so l(u, a) = -log(p(u, a)) 
+#            = u[1] + ... + u[a-1] - u[a] - ... - u[end] + 
+#              log(sum_{a'}(exp(u[1] + ... + u[a'-1] - u[a'] - ... - u[end])))
+#
+# inspection of this loss function confirms that given u,
+# the most probable value a is the index of the first 
+# positive entry of u
+
 type MultinomialOrdinalLoss<:Loss
     max::Integer
     scale::Float64
@@ -448,6 +467,7 @@ end
 
 ## we'll compute it via a stochastic gradient method
 ## with fixed step size
+## (we don't need a hyper accurate estimate for this)
 function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
     u = zeros(l.max-1)'
     for i = 1:length(a)

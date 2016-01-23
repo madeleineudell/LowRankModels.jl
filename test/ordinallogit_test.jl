@@ -41,7 +41,7 @@ end
 
 # and the model
 losses = fill(MultinomialOrdinalLoss(nlevels),n)
-rx, ry = lastentry1(QuadReg(.1)), OrdisticReg(QuadReg(.1)) #lastentry_unpenalized(QuadReg(10));
+rx, ry = lastentry1(QuadReg(.1)), OrdinalReg(QuadReg(.1)) #lastentry_unpenalized(QuadReg(10));
 glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,D));
 
 # fit w/o initialization
