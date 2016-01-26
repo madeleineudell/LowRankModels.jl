@@ -402,27 +402,30 @@ function M_estimator(l::OrdisticLoss, a::AbstractArray)
     return u
 end
 
-########################################## Multinomial Ordinal Logit ##########################################
-# f: ℜx{1, 2, ..., max-1, max} -> ℜ
-# f computes the (negative log likelihood of the) multinomial ordinal logit,
+#################### Multinomial Ordinal Logit #####################
+# l: ℜ^{max-1} x {1, 2, ..., max-1, max} -> ℜ
+# l computes the (negative log likelihood of the) multinomial ordinal logit.
+#
+# the length of the first argument u is one less than 
+# the number of levels of the second argument a,
+# since the entries of u correspond to the division between each level
+# and the one above it.
+#
+# To yield a sensible pdf, the entries of u should be increasing
+# (b/c they're basically the -log of the cdf at the boundary between each level)
+# 
+# The multinomial ordinal logit corresponds to a likelihood p with
 # p(u, a > i) ~ exp(-u[i]), so
 # p(u, a)     ~ exp(-u[1]) * ... * exp(-u[a-1]) * exp(u[a]) * ... * exp(u[end])
 #             = exp(- u[1] - ... - u[a-1] + u[a] + ... + u[end])
 # and normalizing,
-# p(u, a)     = p(u, a) / sum_i p(u, i)
+# p(u, a)     = p(u, a) / sum_{a'} p(u, a')
 # 
-# notice the length of u is one less than the number of levels of a,
-# since the entries of u correspond to the division between each level
-# and the one above it
-# 
-# to yield a sensible pdf, the entries of u should be increasing
-# (b/c they're basically the -log of the cdf at the boundary between each level)
-# 
-# so l(u, a) = -log(p(u, a)) 
+# So l(u, a) = -log(p(u, a)) 
 #            = u[1] + ... + u[a-1] - u[a] - ... - u[end] + 
 #              log(sum_{a'}(exp(u[1] + ... + u[a'-1] - u[a'] - ... - u[end])))
-#
-# inspection of this loss function confirms that given u,
+# 
+# Inspection of this loss function confirms that given u,
 # the most probable value a is the index of the first 
 # positive entry of u
 
