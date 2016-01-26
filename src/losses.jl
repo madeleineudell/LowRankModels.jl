@@ -199,6 +199,8 @@ type OrdinalHinge<:Loss
     domain::Domain
 end
 OrdinalHinge(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = OrdinalHinge(m1,m2,scale,domain)
+# this method should never be called directly but is needed to support copying
+OrdinalHinge() = OrdinalHinge(1, 10, 1.0, OrdinalDomain(1,10))
 
 function evaluate(l::OrdinalHinge, u::Float64, a::Number)
     #a = round(a)
