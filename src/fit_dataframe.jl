@@ -3,7 +3,7 @@ import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA,
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!
 
-probabilistic_losses = Dict{Symbol, Type{Loss}}(
+probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
     :bool        => LogisticLoss,
     :ord         => MultinomialOrdinalLoss,
