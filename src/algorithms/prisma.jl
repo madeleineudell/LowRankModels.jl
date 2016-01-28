@@ -14,9 +14,9 @@ export GFRM
 
 type GFRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     A                            # The data table
-    losses::Array{L,1}           # array of loss functions
+    losses::Array{L,1}           # Array of loss functions
     r::Regularizer               # The regularization to be applied to U
-    k::Int                       # Desired rank 
+    k::Int                       # Estimated rank of solution U
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed
     U::AbstractArray{Float64,2}  # Representation of data in numerical space. A ≈ U = X'Y
@@ -50,10 +50,9 @@ function fit!(glrm::GLRM, params::PrismaParams = PrismaParams(PrismaStepsize(1),
     prox_g(W, alpha) = prox(glrm.r, W, alpha)
 
     ## Prox of h
-    # we're going to use a closure over prevrank
+    # we're going to use a closure over glrm.k
     # to remember what the rank of prox_h(W) was the last time we computed it
     # in order to avoid calculating too many eigentuples of W
-    prevrank = PrevRank(k)
     function prox_h(W, alpha=0; TOL=1e-10)
         while prevrank.r < size(W,1)
             l,v = eigs(Symmetric(W), nev = prevrank.r+1, which=:LR) # v0 = [v zeros(size(W,1), prevrank.r+1 - size(v,2))]
@@ -87,7 +86,7 @@ function fit!(glrm::GLRM, params::PrismaParams = PrismaParams(PrismaStepsize(1),
 
     # initialize
     W = zeros(m+n,m+n)
-    # lipshitz constant for f (right now a wild guess)
+    # lipshitz constant for f (XXX right now a wild guess that makes sense for unscaled quadratic loss)
     L_f = 2
     # orabona starts stepsize at
     # beta = lambda/sqrt((m+n)^2*mean(A.^2))
