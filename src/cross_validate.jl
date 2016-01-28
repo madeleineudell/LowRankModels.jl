@@ -5,7 +5,7 @@ export cross_validate, cv_by_iter, regularization_path, get_train_and_test, prec
 loss_fn(args...; kwargs...) = objective(args...; include_regularization=false, kwargs...)
 
 # to use with error_metric when we have domains in the namespace, call as:
-# cross_validate(glrm, error_fn = error_metric(glrm,domains,X,Y))
+# cross_validate(glrm, error_fn = error_metric(glrm,domains,glrm.X,glrm.Y))
 function cross_validate(glrm::GLRM; 
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=nfolds,
@@ -55,15 +55,31 @@ end
     rand!(groups, 1:nfolds)  # fill an array with random 1 through N
     # create the training and testing observations for each fold
     folds = Array(Tuple, nfolds)
-    for ifold=1:nfolds
-        train = obs[filter(i->groups[i]!=ifold, 1:length(obs))] # all the obs that didn't get the ifold label
-        train_observed_features, train_observed_examples = sort_observations(train,m,n) 
-        test = obs[filter(i->groups[i]==ifold, 1:length(obs))] # all the obs that did
-        test_observed_features, test_observed_examples = sort_observations(test,m,n,check_empty=false)
-        folds[ifold] = (train_observed_features, train_observed_examples,
-                    test_observed_features,  test_observed_examples)
+    for itrial = 1:ntrials
+        enough_observations = 0
+        for ifold=1:nfolds
+            train = obs[filter(i->groups[i]!=ifold, 1:length(obs))] # all the obs that didn't get the ifold label
+            train_observed_features, train_observed_examples = sort_observations(train,m,n) 
+            if check_enough_observations(train_observed_features) && check_enough_observations(train_observed_examples)
+                enough_observations += 1
+            else
+                warn("Not enough data to cross validate; one of the cross validation folds has no observations in one row or column. Trying again...")
+                break
+            end
+            test = obs[filter(i->groups[i]==ifold, 1:length(obs))] # all the obs that did
+            test_observed_features, test_observed_examples = sort_observations(test,m,n,check_empty=false)
+            folds[ifold] = (train_observed_features, train_observed_examples,
+                        test_observed_features,  test_observed_examples)
+        end
+        if enough_observations == nfolds
+            return folds
+        end
     end
-    return folds
+    error("Not enough data to cross validate automatically.")      
+end
+
+function check_enough_observations(observed_examples_or_features)
+    all(map(length, observed_examples_or_features) .> 0)
 end
 
 function get_train_and_test(obs, m, n, holdout_proportion=.1)    
