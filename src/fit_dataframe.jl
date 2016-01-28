@@ -3,7 +3,7 @@ import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA,
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!
 
-probabilistic_losses = Dict{Symbol, Type{Loss}}(
+probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
     :bool        => LogisticLoss,
     :ord         => MultinomialOrdinalLoss,
@@ -249,6 +249,7 @@ end
 # convert NaNs to NAs
 isnan(x::NAtype) = false
 isnan(x::ASCIIString) = false
+isnan(x::AbstractString) = false
 function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop
