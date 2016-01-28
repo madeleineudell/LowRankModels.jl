@@ -26,4 +26,4 @@ println("imputing")
 impute(glrm)
 
 println("crossvalidating")
-cross_validate(glrm)
+cross_validate(glrm, do_obs_check=false, init=init_svd!)

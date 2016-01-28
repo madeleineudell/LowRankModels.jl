@@ -10,12 +10,13 @@ function cross_validate(glrm::GLRM;
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=nfolds,
                         error_fn=loss_fn,
-                        init=nothing)
+                        init=nothing,
+                        do_obs_check = false)
     if verbose println("flattening observations") end
 #    obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
     obs = flatten_observations(glrm.observed_features)
     if verbose println("computing CV folds") end
-    folds = getfolds(obs, nfolds, size(glrm.A)...)
+    folds = getfolds(obs, nfolds, size(glrm.A)..., do_check = do_obs_check)
     train_glrms = Array(GLRM, nfolds)
     test_glrms = Array(GLRM, nfolds)
     train_error = Array(Float64, nfolds)
@@ -49,7 +50,7 @@ function cross_validate(glrm::GLRM;
     return train_error, test_error, train_glrms, test_glrms
 end
 
-@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n)    
+@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)    
     # partition elements of obs into nfolds groups
     groups = Array(Int, size(obs))
     rand!(groups, 1:nfolds)  # fill an array with random 1 through N
@@ -60,8 +61,9 @@ end
         for ifold=1:nfolds
             train = obs[filter(i->groups[i]!=ifold, 1:length(obs))] # all the obs that didn't get the ifold label
             train_observed_features, train_observed_examples = sort_observations(train,m,n) 
-            if check_enough_observations(train_observed_features) && check_enough_observations(train_observed_examples)
-                enough_observations += 1
+            if !do_check || 
+                (check_enough_observations(train_observed_features) && check_enough_observations(train_observed_examples))
+                    enough_observations += 1
             else
                 warn("Not enough data to cross validate; one of the cross validation folds has no observations in one row or column. Trying again...")
                 break
