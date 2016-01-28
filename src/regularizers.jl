@@ -296,7 +296,7 @@ function evaluate(r::MaxNormReg, W::AbstractArray)
     r.scale*maximum(diag(W))
 end
 
-function prox!(r::MaxNormReg, W::AbstractArray, alpha)
+function prox!(r::MaxNormReg, W::AbstractArray, alpha::Number)
     oldmax = maximum(diag(W))
     newmax = oldmax - r.scale*alpha/2
     for i=1:size(W,1)
@@ -320,7 +320,7 @@ end
 
 # note: this prox does *not* project onto the PSD cone
 # that's ok in prisma, b/c the other regularizer does it
-function prox!(r::TraceNormReg, W::AbstractArray, alpha)
+function prox!(r::TraceNormReg, W::AbstractArray, alpha::Number)
     for i=1:size(W,1)
         W[i,i] -= r.scale*alpha/2
     end
