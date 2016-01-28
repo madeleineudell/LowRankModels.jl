@@ -60,7 +60,7 @@ function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if typeof(glrm.losses[i]) == QuadLoss && length(nomissing) > 0
             varlossi = var(nomissing) # estimate the variance
-            scale!(glrm.losses[i], 1/varlossi) # this is the correct -loglik of gaussian with variance fixed at estimate
+            scale!(glrm.losses[i], 1/(2*varlossi)) # this is the correct -loglik of gaussian with variance fixed at estimate
         else # none of the other distributions have any free parameters to estimate, so this is the correct -loglik
             scale!(glrm.losses[i], 1)
         end
