@@ -278,3 +278,27 @@ end
 evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
 scale(r::OrdinalReg) = r.r.scale
 scale!(r::OrdinalReg, newscale::Number) = (r.r.scale = newscale)
+
+######### Full rank regularizers ##########
+
+type MaxNormReg
+    scale::Float64
+end
+scale(r::NonNegOneReg) = 1
+scale!(r::NonNegOneReg, newscale::Number) = 1
+
+function evaluate(r::MaxNormReg, W::AbstractArray)
+    r.scale*maximum(diag(W))
+end
+
+function prox!(r::MaxNormReg, W::AbstractArray, alpha)
+    oldmax = maximum(diag(W))
+    newmax = oldmax - r.scale*alpha/2
+    for i=1:size(W,1)
+        if W[i,i] > newmax 
+            W[i,i] = newmax
+        end
+    end
+    W
+end
+prox(r::MaxNormReg,W::AbstractArray,alpha::Number) = (Wc = copy(W); prox!(r,Wc,alpha))

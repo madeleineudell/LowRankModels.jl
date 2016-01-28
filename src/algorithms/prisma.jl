@@ -2,22 +2,30 @@
 import FirstOrderMethods: prisma, PrismaParams, PrismaStepsize
 
 export PrismaParams, PrismaStepsize, fit!
-# export GFRM
 
-# type GFRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
-#     A                            # The data table
-#     losses::Array{L,1}           # array of loss functions
-#     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
-#     ry::Array{R,1}               # Array of regularizers to be applied to each column of Y
-#     k::Int                       # Desired rank 
-#     observed_features::ObsArray  # for each example, an array telling which features were observed
-#     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
-#     X::AbstractArray{Float64,2}  # Representation of data in low-rank space. A ≈ X'Y
-#     Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
-# end
+export GFRM
+
+# todo
+# * check syntactic correctness
+# * estimate lipshitz constant more reasonably
+# * map GFRM to GLRM and back
+# * implement trace norm
+# * check that PRISMA code calculates the right thing via SDP
+
+type GFRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
+    A                            # The data table
+    losses::Array{L,1}           # array of loss functions
+    r::Regularizer               # The regularization to be applied to U
+    k::Int                       # Desired rank 
+    observed_features::ObsArray  # for each example, an array telling which features were observed
+    observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
+    X::AbstractArray{Float64,2}  # Representation of data in low-rank space. A ≈ X'Y
+    Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
+    U::AbstractArray{Float64,2}  # Representation of data in numerical space. A ≈ U = X'Y
+end
 
 ### FITTING
-function fit!(glrm::GLRM, params::PrismaParams;
+function fit!(glrm::GLRM, params::PrismaParams = PrismaParams(PrismaStepsize(1), 100, 1);
 			  ch::ConvergenceHistory=ConvergenceHistory("ProxGradGLRM"), 
 			  verbose=true,
 			  kwargs...)
@@ -41,17 +49,7 @@ function fit!(glrm::GLRM, params::PrismaParams;
     end
 
     ## Prox of g
-    function prox_g(W, alpha)
-        Z = copy(W)
-        oldmax = maximum(diag(W))
-        newmax = oldmax - lambda*alpha/2
-        for i=1:size(Z,1)
-            if Z[i,i] > newmax 
-                Z[i,i] = newmax
-            end
-        end
-        Z
-    end
+    prox_g(W, alpha) = prox(glrm.r, W, alpha)
 
     ## Prox of h
     # we're going to use a closure over prevrank
@@ -85,19 +83,17 @@ function fit!(glrm::GLRM, params::PrismaParams;
                 err += evaluate(glrm.losses[j], W[i,yidxs[j]], glrm.A[i,j])
             end
         end
-        err += lambda*maximum(diag(W))
+        err += evaluate(glrm.r, W)
         return err
     end
 
     # initialize
     W = zeros(m+n,m+n)
-    # lipshitz constant for f
+    # lipshitz constant for f (right now a wild guess)
     L_f = 2
     # orabona starts stepsize at
     # beta = lambda/sqrt((m+n)^2*mean(A.^2))
-    beta   = lambda/sqrt(obj(W))
-    ssr    = PrismaStepsize(beta)
-    params = PrismaParams(ssr, 100, 1)
+    params.stepsizerule.initial_stepsize = glrm.r.scale/sqrt(obj(W))
 
     # recover
     W = PRISMA(W, L_f,
