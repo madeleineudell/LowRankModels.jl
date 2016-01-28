@@ -1,4 +1,5 @@
-export sort_observations, add_offset!, equilibrate_variance!, fix_latent_features!
+export sort_observations, add_offset!, fix_latent_features!,
+       equilibrate_variance!, prob_scale!
 
 ### OBSERVATION TUPLES TO ARRAYS
 @compat function sort_observations(obs::Array{Tuple{Int,Int},1}, m::Int, n::Int; check_empty=false)
@@ -15,13 +16,22 @@ export sort_observations, add_offset!, equilibrate_variance!, fix_latent_feature
     return observed_features, observed_examples
 end
 
-## SCALINGS AND OFFSETS ON GLRM
+### SCALINGS AND OFFSETS ON GLRM
 function add_offset!(glrm::AbstractGLRM)
     glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
     return glrm
 end
-function equilibrate_variance!(glrm::AbstractGLRM, columns_to_regularize = 1:size(glrm.A,2))
-    for i in columns_to_regularize
+function fix_latent_features!(glrm::AbstractGLRM, n)
+    glrm.ry = Regularizer[fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) 
+                            for i in 1:length(glrm.ry)]
+    return glrm
+end
+
+## equilibrate variance
+# scale all columns inversely proportional to mean value of loss function
+# makes sense when all loss functions used are nonnegative
+function equilibrate_variance!(glrm::AbstractGLRM, columns_to_scale = 1:size(glrm.A,2))
+    for i in columns_to_scale
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if length(nomissing)>0
             varlossi = avgerror(glrm.losses[i], nomissing)
@@ -40,8 +50,20 @@ function equilibrate_variance!(glrm::AbstractGLRM, columns_to_regularize = 1:siz
     end
     return glrm
 end
-function fix_latent_features!(glrm::AbstractGLRM, n)
-    glrm.ry = Regularizer[fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) 
-                            for i in 1:length(glrm.ry)]
+
+## probabilistic scaling
+# scale loss function to fit -loglik of joint distribution
+# makes sense when all functions used are -logliks of sensible distributions
+# todo: option to scale to account for nonuniform sampling in rows or columns or both
+function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
+    for i in columns_to_scale
+        nomissing = glrm.A[glrm.observed_examples[i],i]
+        if typeof(glrm.losses[i]) == QuadLoss && length(nomissing) > 0
+            varlossi = var(nomissing) # estimate the variance
+            scale!(glrm.losses[i], 1/varlossi) # this is the correct -loglik of gaussian with variance fixed at estimate
+        else # none of the other distributions have any free parameters to estimate, so this is the correct -loglik
+            scale!(glrm.losses[i], 1)
+        end
+    end
     return glrm
 end

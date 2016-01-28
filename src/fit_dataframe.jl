@@ -20,7 +20,7 @@ probabilistic_losses = Dict{Symbol, Type{Loss}}(
 function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
               loss_map = probabilistic_losses, 
               rx = QuadReg(.01), ry = QuadReg(.01),
-              offset = true, scale = true, 
+              offset = true, scale = false, prob_scale = true,
               transform_data_to_numbers = true, NaNs_to_NAs = true)
 
     # check input
@@ -51,7 +51,20 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     obs = observations(df)
 
     # form model
-    glrm = GLRM(A, losses, rx, ry, k, obs=obs, offset=offset, scale=scale)
+    rys = Array(Regularizer, length(losses))
+    for i=1:length(losses)
+        if isa(losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
+            rys[i] = OrdinalReg(copy(ry))
+        else
+            rys[i] = copy(ry)
+        end
+    end
+    glrm = GLRM(A, losses, rx, rys, k, obs=obs, offset=offset, scale=scale)
+    
+    # scale model so it really computes the MAP estimator of the parameters
+    if prob_scale
+        prob_scale!(glrm)
+    end
 
     return glrm
 end
