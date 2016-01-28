@@ -18,9 +18,7 @@ type GFRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     r::Regularizer               # The regularization to be applied to U
     k::Int                       # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
-    observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  
-    X::AbstractArray{Float64,2}  # Representation of data in low-rank space. A ≈ X'Y
-    Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
+    observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed
     U::AbstractArray{Float64,2}  # Representation of data in numerical space. A ≈ U = X'Y
 end
 
@@ -117,5 +115,5 @@ function fit!(glrm::GLRM, params::PrismaParams = PrismaParams(PrismaStepsize(1),
         end
     end    
 
-    return glrm.X, glrm.Y, ch
+    return glrm.U, ch
 end
