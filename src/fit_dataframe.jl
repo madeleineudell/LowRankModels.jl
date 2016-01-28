@@ -249,6 +249,7 @@ end
 # convert NaNs to NAs
 isnan(x::NAtype) = false
 isnan(x::ASCIIString) = false
+isnan(x::AbstractString) = false
 function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop

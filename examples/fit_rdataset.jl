@@ -12,10 +12,18 @@ datatypes = [:real, :cat, :ord, :bool]
 
 # fit it!
 glrm = GLRM(dd, 2, datatypes)
+
+println("initializing")
+init_svd!(glrm)
+
+println("fitting")
 X, Y, ch = fit!(glrm)
 
 # print results
 println(ch.objective)
-println(Y)
 
+println("imputing")
 impute(glrm)
+
+println("crossvalidating")
+cross_validate(glrm)
