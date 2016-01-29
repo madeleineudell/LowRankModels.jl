@@ -20,20 +20,21 @@ type GFRM{L<:Loss, R<:ProductRegularizer}<:AbstractGLRM
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed
     U::AbstractArray{Float64,2}  # Representation of data in numerical space. A ≈ U = X'Y
+    W::AbstractArray{Float64,2}  # Representation of data in symmetric space. W = [? U; U' ?]
 end
 
 ### FITTING
-function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(1), 100, 1);
+function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(Inf), 100, 1);
 			  ch::ConvergenceHistory=ConvergenceHistory("PrismaGFRM"), 
 			  verbose=true,
 			  kwargs...)
 
-    # W will be the symmetric parameter; U is the upper right block
-    U(W) = W[1:m, m+1:end]
-
     # we're closing over yidxs and gfrm and m and n
     yidxs = get_yidxs(gfrm.losses)
     m,n = size(gfrm.A)
+
+    # W will be the symmetric parameter; U is the upper right block
+    U(W) = W[1:m, m+1:end]
 
     ## Grad of f
     function grad_f(W)
@@ -41,6 +42,7 @@ function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(1),
         Umat = U(W)
         for j=1:n
             for i in gfrm.observed_examples[j]
+                # there's a 1/2 b/c 1/2 is coming from the upper right block and 1/2 from the lower left block
                 G[i,yidxs[j]] = .5*grad(gfrm.losses[j], Umat[i,yidxs[j]], gfrm.A[i,j])
             end
         end
@@ -70,33 +72,19 @@ function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(1),
         return v*diagm(max(l,0))*v'
     end
 
-    ## Objective evaluation
-    # we're not going to bother checking whether W is psd or not
-    # when evaluating the objective; in the course of the prisma
-    # algo this makes no difference
-    function obj(W)
-        Umat = U(W)
-        err = 0.0
-        for j=1:n
-            for i in gfrm.observed_examples[j]
-                err += evaluate(gfrm.losses[j], Umat[i,yidxs[j]], gfrm.A[i,j])
-            end
-        end
-        err += evaluate(gfrm.r, W)
-        return err
-    end
+    obj(W) = objective(gfrm, W, yidxs=yidxs)
 
     # initialize
-    W = zeros(m+n,m+n)
     # lipshitz constant for f (XXX right now a wild guess that makes sense for unscaled quadratic loss)
-    L_f = 2
-    # orabona starts stepsize at
-    # beta = lambda/sqrt((m+n)^2*mean(A.^2))
-    params.stepsizerule.initial_stepsize = gfrm.r.scale/sqrt(obj(W))
+    Lf = 2
+    if params.stepsizerule.initial_stepsize == Inf
+        R = sqrt(obj(gfrm.W)*m*n/sum(map(length, gfrm.observed_examples)))/max(gfrm.r.scale,1) # estimate of distance to solution
+        params.stepsizerule.initial_stepsize = 2*R/Lf
+    end
 
     # recover
     t = time()
-    W = PRISMA(W, L_f,
+    gfrm.W = PRISMA(gfrm.W, Lf,
            grad_f,
            prox_g,
            prox_h,
@@ -104,7 +92,31 @@ function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(1),
            params)
 
     # t = time() - t
-    # update!(ch, t, obj(W)) 
+    # update!(ch, t, obj(W))
+
+    gfrm.U = U(gfrm.W) 
 
     return gfrm.U, ch
+end
+
+## Objective evaluation
+# we're not going to bother checking whether W is psd or not
+# when evaluating the objective; in the course of the prisma
+# algo this makes no difference
+function objective(gfrm::GFRM, W::Array{Float64,2}; yidxs=get_yidxs(gfrm.losses))
+    # W is the symmetric parameter; U is the upper right block
+    m,n = size(gfrm.A)
+    UW = W[1:m, m+1:end]
+    err = 0.0
+    for j=1:n
+        for i in gfrm.observed_examples[j]
+            err += evaluate(gfrm.losses[j], UW[i,yidxs[j]], gfrm.A[i,j])
+        end
+    end
+    err += evaluate(gfrm.r, W)
+    return err
+end
+function objective(gfrm::GFRM)
+    m,n = size(gfrm.A)
+    objective(gfrm::GFRM, gfrm.W)
 end

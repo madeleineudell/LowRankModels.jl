@@ -315,7 +315,7 @@ scale(r::TraceNormReg) = 1
 scale!(r::TraceNormReg, newscale::Number) = 1
 
 function evaluate(r::TraceNormReg, W::AbstractArray)
-    r.scale*maximum(diag(W))
+    r.scale*sum(diag(W))/2
 end
 
 # note: this prox does *not* project onto the PSD cone
