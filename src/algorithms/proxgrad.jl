@@ -34,6 +34,10 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	# at any time, glrm.X and glrm.Y will be the best model yet found, while
 	# X and Y will be the working variables
 	X = copy(glrm.X); Y = copy(glrm.Y)
+        # check that we didn't initialize to zero (otherwise we will never move)
+        if vecnorm(Y) == 0 
+        	Y = .1*randn(k,d) 
+        end
 	k = glrm.k
     m,n = size(A)
 
@@ -48,16 +52,11 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             Reinitializing Y as randn(glrm.k, embedding_dim(glrm.losses).")
             # Please modify Y or the embedding dimension of the losses to match,
             # eg, by setting `glrm.Y = randn(glrm.k, embedding_dim(glrm.losses))`")
-        glrm.Y = randn(glrm.k, embedding_dim(glrm.losses))
+        glrm.Y = randn(glrm.k, d)
     end
 
     XY = Array(Float64, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
-
-    # check that we didn't initialize to zero (otherwise we will never move)
-    if norm(Y) == 0 
-    	Y = .1*randn(k,n) 
-    end
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
@@ -78,6 +77,9 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     # first a type hack
     @compat typealias Yview Union{ContiguousView{Float64,1,Array{Float64,2}}, 
                                   ContiguousView{Float64,2,Array{Float64,2}}}
+    # make sure we don't try to access memory not allocated to us
+    @assert(size(Y) == (k,d))
+    @assert(size(X) == (k,m))
     # views of the columns of X corresponding to each example
     ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
     # views of the column-chunks of Y corresponding to each feature
@@ -163,7 +165,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             println("Iteration $i: objective value = $(ch.objective[end])") 
         end
     end
-    t = time() - t
+    t = time() - t    
     update!(ch, t, ch.objective[end])
 
     return glrm.X, glrm.Y, ch

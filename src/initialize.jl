@@ -120,6 +120,10 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     ASVD = rsvd(Astd, k)
     # initialize with the top k components of the SVD,
     # rescaling by the variances
+    @assert(size(glrm.X, 1) >= k)
+    @assert(size(glrm.X, 2) >= m)
+    @assert(size(glrm.Y, 1) >= k)
+    @assert(size(glrm.Y, 2) >= d)
     glrm.X[1:k,1:m] = diagm(sqrt(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
     glrm.Y[1:k,1:d] = diagm(sqrt(ASVD[:S]))*ASVD[:Vt]*diagm(stds)
     return glrm
