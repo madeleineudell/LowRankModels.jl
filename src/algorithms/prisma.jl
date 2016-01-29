@@ -6,10 +6,8 @@ export PrismaParams, PrismaStepsize, fit!
 export GFRM
 
 # todo
-# * check syntactic correctness
 # * estimate lipshitz constant more reasonably
 # * map GFRM to GLRM and back
-# * implement trace norm
 # * check that PRISMA code calculates the right thing via SDP
 
 type GFRM{L<:Loss, R<:ProductRegularizer}<:AbstractGLRM
@@ -22,6 +20,14 @@ type GFRM{L<:Loss, R<:ProductRegularizer}<:AbstractGLRM
     U::AbstractArray{Float64,2}  # Representation of data in numerical space. A ≈ U = X'Y
     W::AbstractArray{Float64,2}  # Representation of data in symmetric space. W = [? U; U' ?]
 end
+
+### From GFRMs to GLRMs and back
+
+# function GFRM(glrm::GLRM)
+#     if isa(glrm.rx, QuadReg) && isa(glrm.y, QuadReg)
+#         r = TraceNormReg()
+#     end
+# end
 
 ### FITTING
 function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(Inf), 100, 1);
