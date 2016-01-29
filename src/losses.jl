@@ -447,8 +447,9 @@ function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
     for i=1:l.max
         diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
     end
-    expdiffs = exp(diffs)
-    loss = diffs[a] + log(sum(expdiffs))
+    M = maximum(diffs) # enhanced numerical stability: exp of small numbers only
+    expdiffs = exp(diffs .- M)
+    loss = diffs[a] + M + log(sum(expdiffs))
     return l.scale*loss
 end
 
@@ -462,7 +463,8 @@ function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
     end
     g = signedsums[:,a]
     diffs = u * signedsums
-    expdiffs = exp(diffs)
+    M = maximum(diffs) # enhanced numerical stability: exp of small numbers only
+    expdiffs = exp(diffs .- M)
     sumexpdiffs = sum(expdiffs)
     for i=1:l.max
         g += expdiffs[i]/sumexpdiffs*signedsums[:,i]
