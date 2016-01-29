@@ -1,7 +1,7 @@
 import Base: isnan
 import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA, NAtype
 
-export GLRM, observations, expand_categoricals!, NaNs_to_NAs!
+export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!
 
 probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
@@ -248,7 +248,6 @@ end
 
 # convert NaNs to NAs
 isnan(x::NAtype) = false
-isnan(x::ASCIIString) = false
 isnan(x::AbstractString) = false
 function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
@@ -256,6 +255,18 @@ function NaNs_to_NAs!(df::DataFrame)
         for i=1:m
             if isnan(df[i,j])
                 df[i,j] = NA
+            end
+        end
+    end
+    return df
+end
+
+function NAs_to_0s!(df::DataFrame)
+    m,n = size(df)
+    for j=1:n # follow column-major order. First element of index in innermost loop
+        for i=1:m
+            if isna(df[i,j])
+                df[i,j] = 0
             end
         end
     end
