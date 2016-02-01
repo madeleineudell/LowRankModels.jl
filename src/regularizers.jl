@@ -145,10 +145,10 @@ type lastentry_unpenalized<:Regularizer
 end
 lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
 prox(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = [prox(r.r,u[1:end-1],alpha); u[end]]
-prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1),alpha); u)
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,1}) = evaluate(r.r,a[1:end-1])
 prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,u[1:end-1,:],alpha); u[end,:]]
-prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1,:),alpha); u)
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[1:end-1,:])
 scale(r::lastentry_unpenalized) = r.r.scale
 scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
