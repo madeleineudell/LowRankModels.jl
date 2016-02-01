@@ -26,7 +26,7 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    sparse=false, include_regularization=true, 
                    yidxs = get_yidxs(glrm.losses), kwargs...)
     @assert(size(Y)==(glrm.k,yidxs[end][end]))
-    @assert(size(X)==(glrm.k,m))
+    @assert(size(X)==(glrm.k,size(glrm.A,1)))
     XY = Array(Float64, (size(X,2), size(Y,2))) 
     if sparse
         # Calculate X'*Y only at observed entries of A
