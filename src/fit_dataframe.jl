@@ -10,13 +10,6 @@ probabilistic_losses = Dict{Symbol, Any}(
     :cat         => MultinomialLoss
 )
 
-# function guess_types(df::DataFrame)
-#     types = Array(Symbol, ncol(df))
-#     for j=1:ncol(df)
-#         if typeof(df[j]) == DataArrays.DataArray{Int32,1}
-#             if all(entry in [0, 1]df[j])
-# end
-
 function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
               loss_map = probabilistic_losses, 
               rx = QuadReg(.01), ry = QuadReg(.01),
@@ -42,7 +35,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     for j=1:ncol(df)
         loss = loss_map[datatypes[j]]
         if transform_data_to_numbers
-            map_to_numbers!(A, j, loss)
+            map_to_numbers!(A, j, datatypes[j])
         end
         losses[j] = pick_loss(loss, A[j])
     end
@@ -70,6 +63,38 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
 end
 
 ## transform data to numbers
+
+function map_to_numbers!(df, j::Int, datatype::Symbol)
+    # easy case
+    if datatype == :real
+        if all(xi -> isa(xi, Number), df[j][!isna(df[j])])
+            return df[j]
+        else
+            error("column contains non-numerical values")
+        end
+    end
+    
+    # harder cases
+    col = copy(df[j])
+    levels = Set(col[!isna(col)])
+    if datatype == :bool
+        if length(levels)>2
+            error("Boolean variable should have at most two levels")
+        end
+        colmap = Dict{Any,Int}(zip(sort(collect(levels)), [-1,1][1:length(levels)]))
+    elseif datatype == :cat || datatype == :ord
+        colmap = Dict{Any,Int}(zip(sort(collect(levels)), 1:length(levels)))
+    else
+        error("datatype $datatype not recognized")
+    end
+    df[j] = DataArray(Int, length(df[j]))
+    for i in 1:length(col)
+        if !isna(col[i])
+            df[j][i] = colmap[col[i]]
+        end
+    end
+    return df[j]
+end
 
 function map_to_numbers!(df, j::Int, loss::Type{QuadLoss})
     if all(xi -> isa(xi, Number), df[j][!isna(df[j])])
