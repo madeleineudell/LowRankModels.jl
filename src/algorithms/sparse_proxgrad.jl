@@ -5,16 +5,16 @@ type SparseProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
-    convergence_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
+    abs_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
     min_stepsize::Float64 # use a decreasing stepsize, stop when reaches min_stepsize
 end
 function SparseProxGradParams(stepsize::Number=1.0; # initial stepsize
 				              max_iter::Int=100, # maximum number of outer iterations
 				              inner_iter::Int=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
-				              convergence_tol::Float64=0.00001, # stop if objective decrease upon one outer iteration is less than this
+				              abs_tol::Float64=0.00001, # stop if objective decrease upon one outer iteration is less than this
 				              min_stepsize::Float64=0.01*stepsize) # stop if stepsize gets this small
     stepsize = convert(Float64, stepsize)
-    return SparseProxGradParams(stepsize, max_iter, inner_iter, convergence_tol, min_stepsize)
+    return SparseProxGradParams(stepsize, max_iter, inner_iter, abs_tol, min_stepsize)
 end
 
 ### FITTING
@@ -43,7 +43,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpha = params.stepsize
     # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
+    tol = params.abs_tol * mapreduce(length,+,glrm.observed_features)
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end

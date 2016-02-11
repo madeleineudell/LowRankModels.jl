@@ -322,8 +322,8 @@ Small step sizes will slow convergence, while large ones will cause
 divergence. `stepsize` should be of order 1;
 `autoencode` scales it by the maximum number of entries per column or row
 so that step *lengths* remain of order 1.
-* `convergence_tol`: The algorithm stops when the decrease in the
-objective per iteration is less than `convergence_tol*length(obs)`, 
+* `abs_tol`: The algorithm stops when the decrease in the
+objective per iteration is less than `abs_tol*length(obs)`, 
 * `max_iter`: The algorithm also stops if maximum number of rounds
 `max_iter` has been reached.
 * `min_stepsize`: The algorithm also stops if `stepsize` decreases below 
@@ -331,7 +331,7 @@ this limit.
 * `inner_iter`: specifies how many proximal gradient steps to take on `X`
 before moving on to `Y` (and vice versa).
 
-The default parameters are: `ProxGradParams(stepsize=1.0;max_iter=100,inner_iter=1,convergence_tol=0.00001,min_stepsize=0.01*stepsize)` 
+The default parameters are: `ProxGradParams(stepsize=1.0;max_iter=100,inner_iter=1,abs_tol=0.00001,min_stepsize=0.01*stepsize)` 
 
 ### Convergence
 `ch` gives the convergence history so that the success of the optimization can be monitored;

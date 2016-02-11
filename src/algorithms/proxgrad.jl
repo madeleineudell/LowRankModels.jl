@@ -203,8 +203,6 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             println("Iteration $i: objective value = $(ch.objective[end])") 
         end
     end
-    t = time() - t    
-    update!(ch, t, ch.objective[end])
 
     return glrm.X, glrm.Y, ch
 end

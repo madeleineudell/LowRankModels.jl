@@ -37,7 +37,7 @@ rx, ry = QuadReg(), QuadReg();
 glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,d));
 
 # fit w/o initialization
-p = Params(1, max_iter=10, convergence_tol=0.0000001, min_stepsize=0.000001) 
+p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
 @time X,Y,ch = fit!(glrm, params=p);
 XYh = X'*Y;
 @show ch.objective
@@ -55,7 +55,7 @@ println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A
 println("(Picking randomly, $((K-1)/K*100)\% of entries would be wrong.)\n")
 
 # fit w/ initialization
-p = Params(1, max_iter=10, convergence_tol=0.0000001, min_stepsize=0.000001) 
+p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
 @time X,Y,ch = fit!(glrm, params=p);
 XYh = X'*Y;
 @show ch.objective
