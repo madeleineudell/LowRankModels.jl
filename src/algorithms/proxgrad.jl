@@ -5,19 +5,22 @@ type ProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
-    convergence_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
+    abs_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
+    rel_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
     min_stepsize::Float64 # use a decreasing stepsize, stop when reaches min_stepsize
 end
 function ProxGradParams(stepsize::Number=1.0; # initial stepsize
 				        max_iter::Int=100, # maximum number of outer iterations
 				        inner_iter::Int=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
-				        convergence_tol::Number=0.00001, # stop if objective decrease upon one outer iteration is less than this
+                        abs_tol::Number=0.00001, # stop if objective decrease upon one outer iteration is less than this
+                        rel_tol::Number=0.0001, # stop if objective decrease upon one outer iteration is less than this
 				        min_stepsize::Number=0.01*stepsize) # stop if stepsize gets this small
     stepsize = convert(Float64, stepsize)
     return ProxGradParams(convert(Float64, stepsize), 
                           max_iter, 
                           inner_iter, 
-                          convert(Float64, convergence_tol), 
+                          convert(Float64, abs_tol), 
+                          convert(Float64, rel_tol), 
                           convert(Float64, min_stepsize))
 end
 
@@ -32,6 +35,10 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	rx = glrm.rx
 	ry = glrm.ry
 	X = glrm.X; Y = glrm.Y
+    # check that we didn't initialize to zero (otherwise we will never move)
+    if vecnorm(Y) == 0 
+    	Y = .1*randn(k,d) 
+    end
 	k = glrm.k
     m,n = size(A)
 
@@ -46,22 +53,17 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             Reinitializing Y as randn(glrm.k, embedding_dim(glrm.losses).")
             # Please modify Y or the embedding dimension of the losses to match,
             # eg, by setting `glrm.Y = randn(glrm.k, embedding_dim(glrm.losses))`")
-        glrm.Y = randn(glrm.k, embedding_dim(glrm.losses))
+        glrm.Y = randn(glrm.k, d)
     end
 
     XY = Array(Float64, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
-    # check that we didn't initialize to zero (otherwise we will never move)
-    if norm(Y) == 0 
-    	Y = .1*randn(k,n) 
-    end
-
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
     alpharow = params.stepsize*ones(m)
     alphacol = params.stepsize*ones(n)
-    # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
+    # stopping criterion: stop when decrease in objective < tol, scaled by the number of observations
+    scaled_abs_tol = params.abs_tol * mapreduce(length,+,glrm.observed_features)
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
@@ -81,8 +83,10 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     # first a type hack
     @compat typealias Yview Union{ContiguousView{Float64,1,Array{Float64,2}}, 
                                   ContiguousView{Float64,2,Array{Float64,2}}}
-    # views of the columns of X corresponding to each example x_i
-    # ve[e] == X[:,e]
+    # make sure we don't try to access memory not allocated to us
+    @assert(size(Y) == (k,d))
+    @assert(size(X) == (k,m))
+    # views of the columns of X corresponding to each example
     ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
     # views of the column-chunks of Y corresponding to each feature y_j
     # vf[f] == Y[:,f]
@@ -120,7 +124,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             obj_by_row[e] = row_objective(glrm, e, ve[e]) # previous row objective value
             while alpharow[e] > params.min_stepsize
                 stepsize = alpharow[e]/l 
-                # newx = prox(rx, ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version commented out below
+                # newx = prox(rx, ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version with linesearch below
                 ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
                 axpy!(-stepsize,g,newve[e])
                 ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
@@ -191,14 +195,15 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         update!(ch, t, obj)
         t = time()
 # STEP 4: Check stopping criterion
-        if i>10 && ch.objective[end-1] - obj < tol
+        obj_decrease = ch.objective[end-1] - obj
+        if i>10 && (obj_decrease < scaled_abs_tol || obj_decrease/obj < params.rel_tol)
             break
         end
         if verbose && i%10==0 
             println("Iteration $i: objective value = $(ch.objective[end])") 
         end
     end
-    t = time() - t
+    t = time() - t    
     update!(ch, t, ch.objective[end])
 
     return glrm.X, glrm.Y, ch

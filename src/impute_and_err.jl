@@ -31,7 +31,7 @@ roundcutoff(x,a,b) = min(max(round(x),a),b)
 
 # Error metrics for general use
 squared_error(a_imputed::Float64, a::Number) = (a_imputed-a)^2
-misclassification(a_imputed::Float64, a::Number) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
+misclassification{T}(a_imputed::T, a::T) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
 
 # use the default loss domain imputation if no domain provided
 impute(l::Loss, u::Float64) = impute(l.domain, l, u) 
@@ -79,6 +79,26 @@ function impute(D::OrdinalDomain, l::WeightedHinge, u::Float64)
 end
 impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
 
+# MultinomialOrdinalLoss
+# l(u, a) = -log(p(u, a)) 
+#            = u[1] + ... + u[a-1] - u[a] - ... - u[end] + 
+#              log(sum_{a'}(exp(u[1] + ... + u[a'-1] - u[a'] - ... - u[end])))
+#
+# so given u,
+# the most probable value a is the index of the first 
+# positive entry of u
+function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
+    try assert(all(diff(u) .>= -1e-10))
+    catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing")
+	end
+    for i=1:length(u)
+    	if u[i] > 0
+    		return i
+    	end
+    end
+    return length(u) + 1
+end
+
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
     a_imputed = impute(D, l, u)
     squared_error(a_imputed, a)
@@ -87,9 +107,9 @@ end
 ########################################## CATEGORICALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
 
-impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64,1}) = indmax(u)
+impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64}) = indmax(u)
 
-function error_metric(D::CategoricalDomain, l::Loss, u::Float64, a::Number)
+function error_metric(D::CategoricalDomain, l::Loss, u::Array{Float64}, a::Number)
     a_imputed = impute(D, l, u)
     misclassification(a_imputed, a)
 end

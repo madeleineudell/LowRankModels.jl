@@ -1,14 +1,29 @@
 import RDatasets
+import DataFrames: DataFrame
 using LowRankModels
 
 # pick a data set
 df = RDatasets.dataset("psych", "msq")
 
+# just fit four of the columns, to try out all four data types
+dd = DataFrame([df[s] for s in [:TOD, :Scale, :Vigorous, :Wakeful]])
+dd[end] = (dd[end].==1)
+datatypes = [:real, :cat, :ord, :bool]
+
 # fit it!
-glrm, labels = GLRM(df, 2, NaNs_to_NAs = true)
+glrm = GLRM(dd, 2, datatypes)
+
+println("initializing")
+init_svd!(glrm)
+
+println("fitting")
 X, Y, ch = fit!(glrm)
 
 # print results
-println(ch)
-println(labels)
-println(Y)
+println(ch.objective)
+
+println("imputing")
+impute(glrm)
+
+println("crossvalidating")
+cross_validate(glrm, do_obs_check=false, init=init_svd!)

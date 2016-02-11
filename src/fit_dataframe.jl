@@ -1,38 +1,183 @@
 import Base: isnan
 import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA, NAtype
 
-export GLRM, observations, expand_categoricals!, NaNs_to_NAs!
+export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!
 
-max_ordinal_levels = 9
+probabilistic_losses = Dict{Symbol, Any}(
+    :real        => QuadLoss,
+    :bool        => LogisticLoss,
+    :ord         => MultinomialOrdinalLoss,
+    :cat         => MultinomialLoss
+)
 
-# TODO: identify categoricals automatically from PooledDataArray columns
+function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
+              loss_map = probabilistic_losses, 
+              rx = QuadReg(.01), ry = QuadReg(.01),
+              offset = true, scale = false, prob_scale = true,
+              transform_data_to_numbers = true, NaNs_to_NAs = true)
 
-function GLRM(df::DataFrame, k::Int;
-              losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
-              offset = true, scale = true, NaNs_to_NAs = false)
-    if NaNs_to_NAs
-        df = copy(df)
-        NaNs_to_NAs!(df)
+    # check input
+    if ncol(df)!=length(datatypes)
+        error("third argument (datatypes) must have one entry for each column of data frame.")
     end
-    if losses == Loss[] # if losses not specified, identify ordinal, boolean and real columns
-        reals, real_losses = get_reals(df)
-        bools, bool_losses = get_bools(df)
-        ordinals, ordinal_losses = get_ordinals(df)
-        A = [df[reals] df[bools] df[ordinals]]
-        labels = [names(df)[reals]; names(df)[bools]; names(df)[ordinals]]
-        losses = [real_losses; bool_losses; ordinal_losses]
-    else # otherwise require one loss function per column
-        A = df
-        ncol(df)==length(losses) ? labels = names(df) : error("please input one loss per column of dataframe")
+    # validate input
+    # XXX check for undefined entry?
+    for dt in datatypes
+        if !(dt in keys(loss_map))
+            error("data types must be either :real, :bool, :ord, or :cat, not $dt")
+        end
     end
+
+    # clean up dataframe if needed
+    A = copy(df)
+    if NaNs_to_NAs    
+        NaNs_to_NAs!(A)
+    end
+
+    # define loss functions for each column
+    losses = Array(Loss, ncol(A))
+    for j=1:ncol(df)
+        loss = loss_map[datatypes[j]]
+        if transform_data_to_numbers
+            map_to_numbers!(A, j, datatypes[j])
+        end
+        losses[j] = pick_loss(loss, A[j])
+    end
+
     # identify which entries in data frame have been observed (ie are not N/A)
-    obs = observations(A)
-    # initialize X and Y
-    X = randn(k,size(A,1))
-    Y = randn(k,size(A,2))
+    obs = observations(df)
+
     # form model
-    glrm = GLRM(A, losses, rx, ry, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
-    return glrm, labels
+    rys = Array(Regularizer, length(losses))
+    for i=1:length(losses)
+        if isa(losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
+            rys[i] = OrdinalReg(copy(ry))
+        else
+            rys[i] = copy(ry)
+        end
+    end
+    glrm = GLRM(A, losses, rx, rys, k, obs=obs, offset=offset, scale=scale)
+    
+    # scale model so it really computes the MAP estimator of the parameters
+    if prob_scale
+        prob_scale!(glrm)
+    end
+
+    return glrm
+end
+
+## transform data to numbers
+
+function map_to_numbers!(df, j::Int, datatype::Symbol)
+    # easy case
+    if datatype == :real
+        if all(xi -> isa(xi, Number), df[j][!isna(df[j])])
+            return df[j]
+        else
+            error("column contains non-numerical values")
+        end
+    end
+    
+    # harder cases
+    col = copy(df[j])
+    levels = Set(col[!isna(col)])
+    if datatype == :bool
+        if length(levels)>2
+            error("Boolean variable should have at most two levels")
+        end
+        colmap = Dict{Any,Int}(zip(sort(collect(levels)), [-1,1][1:length(levels)]))
+    elseif datatype == :cat || datatype == :ord
+        colmap = Dict{Any,Int}(zip(sort(collect(levels)), 1:length(levels)))
+    else
+        error("datatype $datatype not recognized")
+    end
+    df[j] = DataArray(Int, length(df[j]))
+    for i in 1:length(col)
+        if !isna(col[i])
+            df[j][i] = colmap[col[i]]
+        end
+    end
+    return df[j]
+end
+
+function map_to_numbers!(df, j::Int, loss::Type{QuadLoss})
+    if all(xi -> isa(xi, Number), df[j][!isna(df[j])])
+        return df[j]
+    else
+        error("column contains non-numerical values")
+    end
+end
+
+function map_to_numbers!(df, j::Int, loss::Type{LogisticLoss})
+    col = copy(df[j])
+    levels = Set(col[!isna(col)])
+    if length(levels)>2
+        error("Boolean variable should have at most two levels")
+    end
+    colmap = Dict{Any,Int}(zip(sort(collect(levels)), [-1,1][1:length(levels)]))
+    df[j] = DataArray(Int, length(df[j]))
+    for i in 1:length(col)
+        if !isna(col[i])
+            df[j][i] = colmap[col[i]]
+        end
+    end
+    return df[j]
+end
+
+function map_to_numbers!(df, j::Int, loss::Type{MultinomialLoss})
+    col = copy(df[j])
+    levels = Set(col[!isna(col)])
+    colmap = Dict{Any,Int}(zip(sort(collect(levels)), 1:length(levels)))
+    df[j] = DataArray(Int, length(df[j]))
+    for i in 1:length(col)
+        if !isna(col[i])
+            df[j][i] = colmap[col[i]]
+        end
+    end
+    return df[j]
+end
+
+function map_to_numbers!(df, j::Int, loss::Type{MultinomialOrdinalLoss})
+    col = copy(df[j])
+    levels = Set(col[!isna(col)])
+    colmap = Dict{Any,Int}(zip(sort(collect(levels)), 1:length(levels)))
+    df[j] = DataArray(Int, length(df[j]))
+    for i in 1:length(col)
+        if !isna(col[i])
+            df[j][i] = colmap[col[i]]
+        end
+    end
+    return df[j]
+end
+
+## sanity check the choice of loss
+
+function pick_loss(l::Type{QuadLoss}, col)
+    return l()
+end
+
+function pick_loss(l::Type{LogisticLoss}, col)
+    if all(xi -> isna(xi) || xi in [-1,1], col)
+        return l()
+    else
+        error("LogisticLoss can only be used on data taking values in {-1, 1}")
+    end
+end
+
+function pick_loss(l::Type{MultinomialLoss}, col)
+    if all(xi -> isna(xi) || (isa(xi, Int) && xi >= 1), col)
+        return l(maximum(col[!isna(col)]))
+    else
+        error("MultinomialLoss can only be used on data taking positive integer values")
+    end
+end
+
+function pick_loss(l::Type{MultinomialOrdinalLoss}, col)
+    if all(xi -> isna(xi) || (isa(xi, Int) && xi >= 1), col)
+        return l(maximum(col[!isna(col)]))
+    else
+        error("MultinomialOrdinalLoss can only be used on data taking positive integer values")
+    end
 end
 
 observations(da::DataArray) = df_observations(da)
@@ -132,13 +277,25 @@ end
 
 # convert NaNs to NAs
 isnan(x::NAtype) = false
-isnan(x::ASCIIString) = false
+isnan(x::AbstractString) = false
 function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
             if isnan(df[i,j])
                 df[i,j] = NA
+            end
+        end
+    end
+    return df
+end
+
+function NAs_to_0s!(df::DataFrame)
+    m,n = size(df)
+    for j=1:n # follow column-major order. First element of index in innermost loop
+        for i=1:m
+            if isna(df[i,j])
+                df[i,j] = 0
             end
         end
     end

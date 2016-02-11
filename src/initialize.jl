@@ -62,15 +62,16 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
                             (glrm.A[glrm.observed_examples[f], f] .== levels[ilevel])
                     end
                 elseif isa(glrm.losses[f].domain, OrdinalDomain)
-                    levels = datalevels(glrm.losses[f])
+                    embed_dim = embedding_dim(glrm.losses[f])
                     mymean = mean(glrm.A[glrm.observed_examples[f], f])
-                    for ilevel in 1:length(levels)
+                    levels = datalevels(glrm.losses[f])
+                    for ilevel in 1:embed_dim
                         Areal[glrm.observed_examples[f], yidxs[f][ilevel]] = 
                             # haven't yet found an initialization that does well
                             # i've tried the following, and all performed about as well as random (but not worse!)
-                            # (glrm.A[glrm.observed_examples[f], f] .<= levels[ilevel])
+                            (glrm.A[glrm.observed_examples[f], f] .<= levels[ilevel])
                             # glrm.A[glrm.observed_examples[f], f] + levels[ilevel] - mymean 
-                            glrm.A[glrm.observed_examples[f], f]
+                            # glrm.A[glrm.observed_examples[f], f]
                     end
                 else
                     error("No default mapping to real valued matrix for domains of type $type(glrm.losses[f].domain)")
@@ -120,6 +121,10 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     ASVD = rsvd(Astd, k)
     # initialize with the top k components of the SVD,
     # rescaling by the variances
+    @assert(size(glrm.X, 1) >= k)
+    @assert(size(glrm.X, 2) >= m)
+    @assert(size(glrm.Y, 1) >= k)
+    @assert(size(glrm.Y, 2) >= d)
     glrm.X[1:k,1:m] = diagm(sqrt(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
     glrm.Y[1:k,1:d] = diagm(sqrt(ASVD[:S]))*ASVD[:Vt]*diagm(stds)
     return glrm

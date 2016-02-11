@@ -15,7 +15,7 @@ export Regularizer, # abstract type
        OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
        lastentry1, lastentry_unpenalized, fixed_latent_features,
-       OrdisticReg,
+       OrdinalReg,
        # methods on regularizers
        prox!, prox,
        # utilities
@@ -49,8 +49,8 @@ type QuadReg<:Regularizer
     scale::Float64
 end
 QuadReg() = QuadReg(1)
-prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+alpha*r.scale/2)*u
-prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+alpha*r.scale/2))
+prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+2*alpha*r.scale)*u
+prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+2*alpha*r.scale))
 evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(a.^2)
 
 ## constrained QuadLoss regularization
@@ -145,10 +145,10 @@ type lastentry_unpenalized<:Regularizer
 end
 lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
 prox(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = [prox(r.r,u[1:end-1],alpha); u[end]]
-prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1),alpha); u)
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,1}) = evaluate(r.r,a[1:end-1])
 prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,u[1:end-1,:],alpha); u[end,:]]
-prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1,:),alpha); u)
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[1:end-1,:])
 scale(r::lastentry_unpenalized) = r.r.scale
 scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
@@ -247,18 +247,18 @@ end
 scale(r::SimplexConstraint) = 1
 scale!(r::SimplexConstraint, newscale::Number) = 1
 
-## ordistic regularizer
+## ordinal regularizer
 ## a block regularizer which 
     # 1) forces the first k-1 entries of each column to be the same
-    # 2) does not regularize the last entry
+    # 2) forces the last entry of each column to be increasing
     # 3) applies an internal regularizer to the first k-1 entries of each column
 ## should always be used in conjunction with lastentry1 regularization on x
-type OrdisticReg<:Regularizer
+type OrdinalReg<:Regularizer
     r::Regularizer
 end
-OrdisticReg() = OrdisticReg(ZeroReg())
-prox(r::OrdisticReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
-function prox!(r::OrdisticReg,u::Array{Float64},alpha::Number)
+OrdinalReg() = OrdinalReg(ZeroReg())
+prox(r::OrdinalReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
+function prox!(r::OrdinalReg,u::Array{Float64},alpha::Number)
     um = mean(u[1:end-1, :], 2)
     prox!(r.r,um,alpha)
     for i=1:size(u,1)-1
@@ -266,8 +266,15 @@ function prox!(r::OrdisticReg,u::Array{Float64},alpha::Number)
             u[i,j] = um[i]
         end
     end
+    # this enforces rule 2) (increasing last row of u), but isn't exactly the prox function
+    for j=2:size(u,2)
+        if u[end,j-1] > u[end,j]
+            m = (u[end,j-1] + u[end,j])/2
+            u[end,j-1:j] = m
+        end
+    end
     u
 end
-evaluate(r::OrdisticReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
-scale(r::OrdisticReg) = r.r.scale
-scale!(r::OrdisticReg, newscale::Number) = (r.r.scale = newscale)
+evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
+scale(r::OrdinalReg) = r.r.scale
+scale!(r::OrdinalReg, newscale::Number) = (r.r.scale = newscale)

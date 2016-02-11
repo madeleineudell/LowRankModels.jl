@@ -6,6 +6,9 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2},
                    yidxs = get_yidxs(glrm.losses), # mapping from columns of A to columns of Y; by default, the identity
                    include_regularization=true)
     m,n = size(glrm.A)
+    @assert(size(XY)==(m,yidxs[end][end]))
+    @assert(size(Y)==(glrm.k,yidxs[end][end]))
+    @assert(size(X)==(glrm.k,m))
     err = 0.0
     for j=1:n
         for i in glrm.observed_examples[j]
@@ -53,6 +56,8 @@ end
 function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    sparse=false, include_regularization=true, 
                    yidxs = get_yidxs(glrm.losses), kwargs...)
+    @assert(size(Y)==(glrm.k,yidxs[end][end]))
+    @assert(size(X)==(glrm.k,size(glrm.A,1)))
     XY = Array(Float64, (size(X,2), size(Y,2))) 
     if sparse
         # Calculate X'*Y only at observed entries of A
@@ -85,6 +90,8 @@ objective(glrm::ShareGLRM, X::SharedArray{Float64,2}, Y::SharedArray{Float64,2})
 function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
     yidxs = get_yidxs(glrm.losses))
     m,n = size(glrm.A)
+    @assert(size(Y)==(glrm.k,yidxs[end][end]))
+    @assert(size(X)==(glrm.k,m))
     penalty = 0.0
     for i=1:m
         penalty += evaluate(glrm.rx, view(X,:,i))
@@ -129,6 +136,8 @@ end
 function error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{Domain,1}; 
     standardize=false,
     yidxs = get_yidxs(glrm.losses))
+    m,n = size(glrm.A)
+    @assert(size(XY)==(m,yidxs[end][end]))
     if standardize
         return std_error_metric(glrm, XY, domains; yidxs = yidxs)
     else
