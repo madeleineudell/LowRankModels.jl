@@ -20,8 +20,12 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     if ncol(df)!=length(datatypes)
         error("third argument (datatypes) must have one entry for each column of data frame.")
     end
-    if !all(map(dt -> dt in keys(loss_map), datatypes))
-        error("data types must be either :real, :bool, :ord, or :cat")
+    # validate input
+    # XXX check for undefined entry?
+    for dt in datatypes
+        if !(dt in keys(loss_map))
+            error("data types must be either :real, :bool, :ord, or :cat, not $dt")
+        end
     end
 
     # clean up dataframe if needed
