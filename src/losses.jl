@@ -39,7 +39,8 @@ import Optim.optimize
 export Loss, 
        DiffLoss, # a category of Losses
        QuadLoss, WeightedHinge, HingeLoss, LogisticLoss, PoissonLoss, 
-       OrdinalHinge, MultinomialLoss, OrdisticLoss, L1Loss, huber, 
+       OrdinalHinge, MultinomialLoss, MultinomialOrdinalLoss,
+       OrdisticLoss, L1Loss, huber, 
        PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, 
@@ -166,7 +167,7 @@ evaluate(l::PeriodicLoss, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l
 
 grad(l::PeriodicLoss, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
 
-function M_estimator(l::PeriodicLoss, a::AbstractArray)
+function M_estimator(l::PeriodicLoss, a::AbstractArray{Float64})
     (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding. 
     # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
@@ -198,6 +199,8 @@ type OrdinalHinge<:Loss
     domain::Domain
 end
 OrdinalHinge(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = OrdinalHinge(m1,m2,scale,domain)
+# this method should never be called directly but is needed to support copying
+OrdinalHinge() = OrdinalHinge(1, 10, 1.0, OrdinalDomain(1,10))
 
 function evaluate(l::OrdinalHinge, u::Float64, a::Number)
     #a = round(a)
@@ -341,8 +344,16 @@ function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     return l.scale*g
 end
 
-## XXX does this make sense?
-M_estimator(l::MultinomialLoss, a::AbstractArray) = mode(a)
+## we'll compute it via a stochastic gradient method
+## with fixed step size
+function M_estimator(l::MultinomialLoss, a::AbstractArray)
+    u = zeros(l.max)'
+    for i = 1:length(a)
+        ai = a[i]
+        u -= .1*grad(l, u, ai)
+    end
+    return u
+end
 
 ########################################## ORDERED LOGISTIC ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
@@ -382,5 +393,91 @@ function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     return l.scale*g
 end
 
-## XXX does this make sense?
-M_estimator(l::OrdisticLoss, a::AbstractArray) = median(a)
+## we'll compute it via a stochastic gradient method
+## with fixed step size
+function M_estimator(l::OrdisticLoss, a::AbstractArray)
+    u = zeros(l.max)'
+    for i = 1:length(a)
+        ai = a[i]
+        u -= .1*grad(l, u, ai)
+    end
+    return u
+end
+
+#################### Multinomial Ordinal Logit #####################
+# l: ℜ^{max-1} x {1, 2, ..., max-1, max} -> ℜ
+# l computes the (negative log likelihood of the) multinomial ordinal logit.
+#
+# the length of the first argument u is one less than 
+# the number of levels of the second argument a,
+# since the entries of u correspond to the division between each level
+# and the one above it.
+#
+# To yield a sensible pdf, the entries of u should be increasing
+# (b/c they're basically the -log of the cdf at the boundary between each level)
+# 
+# The multinomial ordinal logit corresponds to a likelihood p with
+# p(u, a > i) ~ exp(-u[i]), so
+# p(u, a)     ~ exp(-u[1]) * ... * exp(-u[a-1]) * exp(u[a]) * ... * exp(u[end])
+#             = exp(- u[1] - ... - u[a-1] + u[a] + ... + u[end])
+# and normalizing,
+# p(u, a)     = p(u, a) / sum_{a'} p(u, a')
+# 
+# So l(u, a) = -log(p(u, a)) 
+#            = u[1] + ... + u[a-1] - u[a] - ... - u[end] + 
+#              log(sum_{a'}(exp(u[1] + ... + u[a'-1] - u[a'] - ... - u[end])))
+# 
+# Inspection of this loss function confirms that given u,
+# the most probable value a is the index of the first 
+# positive entry of u
+
+type MultinomialOrdinalLoss<:Loss
+    max::Integer
+    scale::Float64
+    domain::Domain
+end
+MultinomialOrdinalLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = MultinomialOrdinalLoss(m,scale,domain)
+embedding_dim(l::MultinomialOrdinalLoss) = l.max - 1
+datalevels(l::MultinomialOrdinalLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
+
+# argument u is a row vector (row slice of a matrix), which in julia is 2d
+# todo: increase numerical stability
+function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
+    diffs = zeros(l.max)
+    for i=1:l.max
+        diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
+    end
+    expdiffs = exp(diffs)
+    loss = diffs[a] + log(sum(expdiffs))
+    return l.scale*loss
+end
+
+# argument u is a row vector (row slice of a matrix), which in julia is 2d
+function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
+    signedsums = Array(Float64, l.max-1, l.max)
+    for i=1:l.max-1
+        for j=1:l.max
+            signedsums[i,j] = i<j ? 1 : -1
+        end
+    end
+    g = signedsums[:,a]
+    diffs = u * signedsums
+    expdiffs = exp(diffs)
+    sumexpdiffs = sum(expdiffs)
+    for i=1:l.max
+        g += expdiffs[i]/sumexpdiffs*signedsums[:,i]
+    end
+    return l.scale*g'
+end
+
+## we'll compute it via a stochastic gradient method
+## with fixed step size
+## (we don't need a hyper accurate estimate for this)
+function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
+    u = zeros(l.max-1)'
+    for i = 1:length(a)
+        ai = a[i]
+        u -= .1*grad(l, u, ai)
+    end
+    return u
+end
