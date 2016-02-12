@@ -14,7 +14,8 @@ export Regularizer, # abstract type
        QuadReg, QuadConstraint,
        OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
-       lastentry1, lastentry_unpenalized, fixed_latent_features,
+       lastentry1, lastentry_unpenalized, 
+       fixed_latent_features, FixedLatentFeaturesConstraint,
        OrdinalReg,
        # methods on regularizers
        prox!, prox,
@@ -153,12 +154,17 @@ evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[
 scale(r::lastentry_unpenalized) = r.r.scale
 scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
 
+## fixes the values of the first n elements of the column to be y
+## optionally regularizes the last k-n elements with regularizer r
 type fixed_latent_features<:Regularizer
     r::Regularizer
     y::Array{Float64,1} # the values of the fixed latent features 
     n::Int # length of y
 end
 fixed_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_latent_features(r,y,length(y))
+# standalone use without another regularizer
+FixedLatentFeaturesConstraint(y::Array{Float64, 1}) = fixed_latent_features(ZeroReg(),y,length(y))
+
 prox(r::fixed_latent_features,u::AbstractArray,alpha::Number) = [r.y, prox(r.r,u[(r.n+1):end],alpha)]
 function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
   	prox!(r.r,u[(r.n+1):end],alpha)
