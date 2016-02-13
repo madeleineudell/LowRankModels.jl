@@ -37,11 +37,11 @@ It is fine if only some of the entries have been observed
 (i.e., the others are missing or `NA`); the GLRM will only be fit on the observed entries `obs`.
 The desired model is specified by choosing a rank `k` for the model,
 an array of loss functions `losses`, and two regularizers, `rx` and `ry`.
-The data is modeled as `XY`, where `X` is a `m`x`k` matrix and `Y` is a `k`x`n` matrix.
+The data is modeled as `X'*Y`, where `X` is a `k`x`m` matrix and `Y` is a `k`x`n` matrix.
 `X` and `Y` are found by solving the optimization problem
 <!--``\mbox{minimize} \quad \sum_{(i,j) \in \Omega} L_{ij}(x_i y_j, A_{ij}) + \sum_{i=1}^m r_i(x_i) + \sum_{j=1}^n \tilde r_j(y_j)``-->
 
-    minimize sum_{(i,j) in obs} losses[j](x[i,:] y[:,j], A[i,j]) + sum_i rx(x[i,:]) + sum_j ry(y[:,j])
+    minimize sum_{(i,j) in obs} losses[j]((X'*Y)[i,j], A[i,j]) + sum_i rx(X[:,i]) + sum_j ry(Y[:,j])
 
 The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
@@ -91,6 +91,7 @@ Regularizers:
 * unit 1-sparse constraint `UnitOneSparseConstraint` (eg, for k-means)
 * simplex constraint `SimplexConstraint`
 * l1 regularization, combined with nonnegative constraint `NonNegOneReg`
+* fix features at values `y0` FixedLatentFeaturesConstraint(y0)`
 
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 
@@ -124,7 +125,16 @@ The `losses` argument can also be an array of loss functions,
 with one for each column (in order). For example, 
 for a data set with 3 columns, you could use 
 
-    losses = [QuadLoss(), LogisticLoss(), HingeLoss()]
+    losses = Loss[QuadLoss(), LogisticLoss(), HingeLoss()]
+
+Similiarly, the `ry` argument can be an array of regularizers, 
+with one for each column (in order). For example, 
+for a data set with 3 columns, you could use 
+
+    ry = Regularizer[QuadReg(1), QuadReg(10), FixedLatentFeatureConstraint([1,2,3])]
+
+This regularizes the first to columns of `Y` with `||Y[:,1]||^2 + 10||Y[:,2]||^2`
+and constrains the third (and last) column of `Y` to be equal to `[1,2,3]`.
 
 [More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
 
