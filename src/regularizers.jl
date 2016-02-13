@@ -165,7 +165,7 @@ fixed_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_latent_featur
 # standalone use without another regularizer
 FixedLatentFeaturesConstraint(y::Array{Float64, 1}) = fixed_latent_features(ZeroReg(),y,length(y))
 
-prox(r::fixed_latent_features,u::AbstractArray,alpha::Number) = [r.y, prox(r.r,u[(r.n+1):end],alpha)]
+prox(r::fixed_latent_features,u::AbstractArray,alpha::Number) = [r.y; prox(r.r,u[(r.n+1):end],alpha)]
 function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
   	prox!(r.r,u[(r.n+1):end],alpha)
   	u[1:r.n]=y
