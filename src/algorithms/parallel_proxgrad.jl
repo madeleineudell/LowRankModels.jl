@@ -86,7 +86,7 @@ function fit!(glrm::ShareGLRM, params::ProxGradParams;
     end
 
     # stopping criterion: stop when decrease in objective < tol
-    tol = params.convergence_tol * mapreduce(length,+,glrm.observed_features)
+    tol = params.abs_tol * mapreduce(length,+,glrm.observed_features)
 
     # alternating updates of X and Y
     if verbose println("fitting GLRM") end

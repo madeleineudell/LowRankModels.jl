@@ -35,7 +35,7 @@ for test_iteration = 1:500
 	A = impute(doms, losses, A_real);				# our data with noise
 
 	# Create a glrm using these losses and data
-	p = Params(1e-2, max_iter=1000, convergence_tol=0.00000001, min_stepsize=1e-15)
+	p = Params(1e-2, max_iter=1000, abs_tol=0.00000001, min_stepsize=1e-15)
 	rx, ry = ZeroReg(), ZeroReg();
 
 	k_range = [int(round(true_k/2)), true_k]

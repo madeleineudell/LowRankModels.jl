@@ -35,7 +35,7 @@ LogisticLoss(),
 	# Impute over the low rank-precursor to make our heterogenous dataset
 	A = impute(doms, losses, A_real);				# our imputed data
 
-	p = Params(1, max_iter=1000, convergence_tol=0.000001, min_stepsize=0.001);
+	p = Params(1, max_iter=1000, abs_tol=0.000001, min_stepsize=0.001);
 	rx, ry = ZeroReg(), ZeroReg();
 		
 	skip = 5

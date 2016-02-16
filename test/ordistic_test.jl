@@ -37,7 +37,7 @@ rx, ry = lastentry1(QuadReg(.01)), lastentry_unpenalized(QuadReg(.01));
 glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,D));
 
 # fit w/o initialization
-p = Params(1, max_iter=10, convergence_tol=0.0000001, min_stepsize=0.000001) 
+p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
 @time X,Y,ch = fit!(glrm, params=p);
 XYh = X'*Y[:,1:d:D];
 @show ch.objective
@@ -57,7 +57,7 @@ println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / p
 println("(Picking randomly, $((d-1)/d*100)\% of entries would be wrong.)\n")
 
 # fit w/ initialization
-p = Params(1, max_iter=10, convergence_tol=0.0000001, min_stepsize=0.000001) 
+p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
 @time X,Y,ch = fit!(glrm, params=p);
 XYh = X'*Y[:,1:d:D];
 @show ch.objective
