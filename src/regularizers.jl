@@ -9,7 +9,7 @@
 
 import Base.scale!, Roots.fzero
 
-export Regularizer, # abstract type
+export Regularizer, ProductRegularizer, # abstract types
        # concrete regularizers
        QuadReg, QuadConstraint,
        OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
@@ -17,6 +17,7 @@ export Regularizer, # abstract type
        lastentry1, lastentry_unpenalized, 
        fixed_latent_features, FixedLatentFeaturesConstraint,
        OrdinalReg,
+       MaxNormReg, TraceNormReg,
        # methods on regularizers
        prox!, prox,
        # utilities
@@ -284,3 +285,50 @@ end
 evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
 scale(r::OrdinalReg) = r.r.scale
 scale!(r::OrdinalReg, newscale::Number) = (r.r.scale = newscale)
+
+######### Product regularizers ##########
+
+abstract ProductRegularizer<:Regularizer
+prox(r::ProductRegularizer,W::AbstractArray,alpha::Number) = (Wc = copy(W); prox!(r,Wc,alpha))
+
+# Max norm
+type MaxNormReg<:ProductRegularizer
+    scale::Float64
+end
+scale(r::MaxNormReg) = 1
+scale!(r::MaxNormReg, newscale::Number) = 1
+
+function evaluate(r::MaxNormReg, W::AbstractArray)
+    r.scale*maximum(diag(W))
+end
+
+function prox!(r::MaxNormReg, W::AbstractArray, alpha::Number)
+    oldmax = maximum(diag(W))
+    newmax = oldmax - r.scale*alpha/2
+    for i=1:size(W,1)
+        if W[i,i] > newmax 
+            W[i,i] = newmax
+        end
+    end
+    W
+end
+
+# Trace norm
+type TraceNormReg<:ProductRegularizer
+    scale::Float64
+end
+scale(r::TraceNormReg) = 1
+scale!(r::TraceNormReg, newscale::Number) = 1
+
+function evaluate(r::TraceNormReg, W::AbstractArray)
+    r.scale*sum(diag(W))/2
+end
+
+# note: this prox does *not* project onto the PSD cone
+# that's ok in prisma, b/c the other regularizer does it
+function prox!(r::TraceNormReg, W::AbstractArray, alpha::Number)
+    for i=1:size(W,1)
+        W[i,i] -= r.scale*alpha/2
+    end
+    W
+end
