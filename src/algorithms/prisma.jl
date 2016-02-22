@@ -3,32 +3,6 @@ import FirstOrderOptimization: PRISMA, PrismaParams, PrismaStepsize
 
 export PrismaParams, PrismaStepsize, fit!
 
-export GFRM
-
-# todo
-# * estimate lipshitz constant more reasonably
-# * map GFRM to GLRM and back
-# * check that PRISMA code calculates the right thing via SDP
-
-type GFRM{L<:Loss, R<:ProductRegularizer}<:AbstractGLRM
-    A                            # The data table
-    losses::Array{L,1}           # Array of loss functions
-    r::R                         # The regularization to be applied to U
-    k::Int                       # Estimated rank of solution U
-    observed_features::ObsArray  # for each example, an array telling which features were observed
-    observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed
-    U::AbstractArray{Float64,2}  # Representation of data in numerical space. A ≈ U = X'Y
-    W::AbstractArray{Float64,2}  # Representation of data in symmetric space. W = [? U; U' ?]
-end
-
-### From GFRMs to GLRMs and back
-
-# function GFRM(glrm::GLRM)
-#     if isa(glrm.rx, QuadReg) && isa(glrm.y, QuadReg)
-#         r = TraceNormReg()
-#     end
-# end
-
 ### FITTING
 function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(Inf), 100, 1);
 			  ch::ConvergenceHistory=ConvergenceHistory("PrismaGFRM"), 
