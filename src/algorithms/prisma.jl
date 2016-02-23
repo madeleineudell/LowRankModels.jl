@@ -1,16 +1,22 @@
 ### Fit a full rank model with PRISMA
 import FirstOrderOptimization: PRISMA, PrismaParams, PrismaStepsize
 
-export PrismaParams, PrismaStepsize, fit!
+export PrismaParams, PrismaStepsize, fit!, PrismaParams
+
+defaultPrismaParams = PrismaParams(stepsize=PrismaStepsize(Inf), 
+                                   maxiter=100, 
+                                   verbose=1,
+                                   reltol=1e-5)
 
 ### FITTING
-function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(Inf), 100, 1);
+function fit!(gfrm::GFRM, params::PrismaParams = defaultPrismaParams;
 			  ch::ConvergenceHistory=ConvergenceHistory("PrismaGFRM"), 
 			  verbose=true,
 			  kwargs...)
 
     # we're closing over yidxs and gfrm and m and n
     yidxs = get_yidxs(gfrm.losses)
+    d = maximum(yidxs[end])
     m,n = size(gfrm.A)
 
     # W will be the symmetric parameter; U is the upper right block
@@ -18,7 +24,7 @@ function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(Inf
 
     ## Grad of f
     function grad_f(W)
-        G = zeros(m,n)
+        G = zeros(m,d)
         Umat = U(W)
         for j=1:n
             for i in gfrm.observed_examples[j]
@@ -26,7 +32,7 @@ function fit!(gfrm::GFRM, params::PrismaParams = PrismaParams(PrismaStepsize(Inf
                 G[i,yidxs[j]] = .5*grad(gfrm.losses[j], Umat[i,yidxs[j]], gfrm.A[i,j])
             end
         end
-        return [zeros(m,m) G; G' zeros(n,n)]
+        return [zeros(m,m) G; G' zeros(d,d)]
     end
 
     ## Prox of g
@@ -97,6 +103,5 @@ function objective(gfrm::GFRM, W::Array{Float64,2}; yidxs=get_yidxs(gfrm.losses)
     return err
 end
 function objective(gfrm::GFRM)
-    m,n = size(gfrm.A)
     objective(gfrm::GFRM, gfrm.W)
 end

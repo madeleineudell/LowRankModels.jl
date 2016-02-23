@@ -317,6 +317,7 @@ end
 type TraceNormReg<:ProductRegularizer
     scale::Float64
 end
+TraceNormReg() = TraceNormReg(1)
 scale(r::TraceNormReg) = 1
 scale!(r::TraceNormReg, newscale::Number) = 1
 
