@@ -260,7 +260,7 @@ function get_ordinals(df::DataFrame)
 end
 
 function expand_categoricals!(df::DataFrame,categoricals::Array)
-    categoricalidxs = map(y->df.colindex[y], categoricals)
+    # map from names to indices; not used: categoricalidxs = map(y->df.colindex[y], categoricals)
     # create one boolean column for each level of categorical column
     for col in categoricals
         levels = sort(unique(df[:,col]))
