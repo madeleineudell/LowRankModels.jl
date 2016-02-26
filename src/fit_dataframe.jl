@@ -273,7 +273,10 @@ function expand_categoricals!(df::DataFrame,categoricals::Array{Int,1})
         end
     end
     # remove the original categorical columns
-    return df[:, filter(x->(!(x in categoricals)), 1:ncol(df))]
+    for cat in sort(categoricals, rev=true)
+        delete!(df, cat)
+    end
+    return df
 end
 
 function expand_categoricals!(df::DataFrame,categoricals::Array)

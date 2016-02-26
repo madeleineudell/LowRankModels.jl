@@ -6,7 +6,7 @@ loss_fn(args...; kwargs...) = objective(args...; include_regularization=false, k
 
 # to use with error_metric when we have domains in the namespace, call as:
 # cross_validate(glrm, error_fn = error_metric(glrm,domains,glrm.X,glrm.Y))
-function cross_validate(glrm::GLRM; 
+function cross_validate(glrm::AbstractGLRM; 
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=nfolds,
                         error_fn=loss_fn,
@@ -28,13 +28,13 @@ function cross_validate(glrm::GLRM;
     	ntest = sum(map(length, test_observed_features))
 	    if verbose println("training model on $ntrain samples and testing on $ntest") end
         # form glrm on training dataset 
-        train_glrms[ifold] = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
-                                  train_observed_features, train_observed_examples, 
-                                  copy(glrm.X), copy(glrm.Y))
+        train_glrms[ifold] = copy_estimate(glrm)
+        train_glrms[ifold].observed_examples = train_observed_examples
+        train_glrms[ifold].observed_features = train_observed_features
         # form glrm on testing dataset
-        test_glrms[ifold] = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
-                                  test_observed_features, test_observed_examples, 
-                                  copy(glrm.X), copy(glrm.Y))
+        test_glrms[ifold] = copy_estimate(glrm)
+        test_glrms[ifold].observed_examples = test_observed_examples
+        test_glrms[ifold].observed_features = test_observed_features
         # evaluate train and test error
         if verbose println("fitting train GLRM for fold $ifold") end
         if init != nothing
@@ -136,7 +136,7 @@ function flattenarray(x, y)
 end
 flattenarray{T}(x::Array{T})=flattenarray(x,Array(T, 0))
 
-function cv_by_iter(glrm::GLRM, holdout_proportion=.1, 
+function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1, 
                     params=Params(1,max_iter=1,abs_tol=.01,min_stepsize=.01), 
                     niters=30; verbose=true)
     if verbose println("flattening observations") end
@@ -149,14 +149,14 @@ function cv_by_iter(glrm::GLRM, holdout_proportion=.1,
     
     if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
-    train_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
-                                  train_observed_features, train_observed_examples, 
-                                  copy(glrm.X), copy(glrm.Y))
+    train_glrms = copy_estimate(glrm)
+    train_glrms.observed_examples = train_observed_examples
+    train_glrms.observed_features = train_observed_features
     # form glrm on testing dataset
-    test_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
-                                  test_observed_features, test_observed_examples, 
-                                  copy(glrm.X), copy(glrm.Y))
-
+    test_glrms = copy_estimate(glrm)
+    test_glrms.observed_examples = test_observed_examples
+    test_glrms.observed_features = test_observed_features
+        
     train_error = Array(Float64, niters)
     test_error = Array(Float64, niters)
     for iter=1:niters
@@ -172,7 +172,7 @@ function cv_by_iter(glrm::GLRM, holdout_proportion=.1,
     return train_error, test_error
 end
 
-function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
+function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5), 
                                          holdout_proportion=.1, verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     if verbose println("flattening observations") end
@@ -185,13 +185,13 @@ function regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,
     
     if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
-    train_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
-                                  train_observed_features, train_observed_examples, 
-                                  copy(glrm.X), copy(glrm.Y))
+    train_glrms = copy_estimate(glrm)
+    train_glrms.observed_examples = train_observed_examples
+    train_glrms.observed_features = train_observed_features
     # form glrm on testing dataset
-    test_glrm = GLRM(glrm.A, glrm.losses, glrm.rx, glrm.ry, glrm.k, 
-                                  test_observed_features, test_observed_examples, 
-                                  copy(glrm.X), copy(glrm.Y))
+    test_glrms = copy_estimate(glrm)
+    test_glrms.observed_examples = test_observed_examples
+    test_glrms.observed_features = test_observed_features
 
     return regularization_path(train_glrm, test_glrm; params=params, reg_params=reg_params, 
                                          verbose=verbose,
