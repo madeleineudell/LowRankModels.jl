@@ -259,20 +259,27 @@ function get_ordinals(df::DataFrame)
     return ordinals, losses
 end
 
-function expand_categoricals!(df::DataFrame,categoricals::Array)
+function expand_categoricals!(df::DataFrame,categoricals::Array{Int,1})
     # map from names to indices; not used: categoricalidxs = map(y->df.colindex[y], categoricals)
     # create one boolean column for each level of categorical column
+    colnames = names(df)
     for col in categoricals
         levels = sort(unique(df[:,col]))
         for level in levels
             if !isna(level)
-                colname = symbol(string(col)*"="*string(level))
+                colname = symbol(string(colnames[col])*"="*string(level))
                 df[colname] = (df[:,col] .== level)
             end
         end
     end
     # remove the original categorical columns
-    return df[:, filter(x->(!(x in categoricals)), names(df))]
+    return df[:, filter(x->(!(x in categoricals)), 1:ncol(df))]
+end
+
+function expand_categoricals!(df::DataFrame,categoricals::Array)
+    # map from names to indices
+    categoricalidxs = map(y->df.colindex[y], categoricals)
+    return expand_categoricals!(df, categoricalidxs)
 end
 
 # convert NaNs to NAs
