@@ -22,9 +22,8 @@ type GLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
 end
 
-# Initialize with empty cache
-GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y) = 
-    GLRM(A,losses,rx,ry,k, observed_features, observed_examples, X,Y, Dict())
+# Initialize with nothing; could be useful for copying
+# GLRM{L<:Loss, R<:Regularizer}() = GLRM([],Loss[],ZeroReg(),Regularizer[],0,UnitRange{Int}[],UnitRange{Int}[],Array(Float64,(0,0)),Array(Float64,(0,0)))
 
 # usage notes:
 # * providing argument `obs` overwrites arguments `observed_features` and `observed_examples`

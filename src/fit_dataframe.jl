@@ -152,7 +152,7 @@ end
 
 ## sanity check the choice of loss
 
-function pick_loss(l::Type{QuadLoss}, col)
+function pick_loss{L<:Loss}(l::Type{L}, col)
     return l()
 end
 

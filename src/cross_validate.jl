@@ -17,8 +17,8 @@ function cross_validate(glrm::AbstractGLRM;
     obs = flatten_observations(glrm.observed_features)
     if verbose println("computing CV folds") end
     folds = getfolds(obs, nfolds, size(glrm.A)..., do_check = do_obs_check)
-    train_glrms = Array(GLRM, nfolds)
-    test_glrms = Array(GLRM, nfolds)
+    train_glrms = Array(typeof(glrm), nfolds)
+    test_glrms = Array(typeof(glrm), nfolds)
     train_error = Array(Float64, nfolds)
     test_error = Array(Float64, nfolds)
     for ifold=1:use_folds
@@ -40,11 +40,13 @@ function cross_validate(glrm::AbstractGLRM;
         if init != nothing
             init(train_glrms[ifold])
         end
-        X, Y, ch = fit!(train_glrms[ifold]; params=params, verbose=verbose)
+        fit!(train_glrms[ifold]; params=params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
-        train_error[ifold] = error_fn(train_glrms[ifold], X, Y) / ntrain
+        train_error[ifold] = error_fn(train_glrms[ifold], 
+            parameter_estimate(train_glrms[ifold])...) / ntrain
         if verbose println("\ttrain error: $(train_error[ifold])") end
-        test_error[ifold] = error_fn(test_glrms[ifold], X, Y) / ntest
+        test_error[ifold] = error_fn(test_glrms[ifold], 
+            parameter_estimate(train_glrms[ifold])...) / ntest
         if verbose println("\ttest error:  $(test_error[ifold])") end
     end
     return train_error, test_error, train_glrms, test_glrms
@@ -149,13 +151,17 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
     
     if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
-    train_glrms = copy_estimate(glrm)
-    train_glrms.observed_examples = train_observed_examples
-    train_glrms.observed_features = train_observed_features
+    train_glrm = copy_estimate(glrm)
+    train_glrm.observed_examples = train_observed_examples
+    train_glrm.observed_features = train_observed_features
+
     # form glrm on testing dataset
-    test_glrms = copy_estimate(glrm)
-    test_glrms.observed_examples = test_observed_examples
-    test_glrms.observed_features = test_observed_features
+    test_glrm = copy_estimate(glrm)
+    test_glrm.observed_examples = test_observed_examples
+    test_glrm.observed_features = test_observed_features
+
+    ntrain = sum(map(length, train_glrm.observed_features))
+    ntest = sum(map(length, test_glrm.observed_features))
         
     train_error = Array(Float64, niters)
     test_error = Array(Float64, niters)
@@ -164,9 +170,9 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
         if verbose println("fitting train GLRM") end
         X, Y, ch = fit!(train_glrm, params=params, verbose=false)
         if verbose println("computing train and test error for iter $iter:") end
-        train_error[iter] = objective(train_glrm, X, Y, include_regularization=false)
+        train_error[iter] = objective(train_glrm, X, Y, include_regularization=false)/ntrain
         if verbose println("\ttrain error: $(train_error[iter])") end
-        test_error[iter] = objective(test_glrm, X, Y, include_regularization=false)
+        test_error[iter] = objective(test_glrm, X, Y, include_regularization=false)/ntest
         if verbose println("\ttest error:  $(test_error[iter])") end
     end
     return train_error, test_error
@@ -185,13 +191,14 @@ function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=log
     
     if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
-    train_glrms = copy_estimate(glrm)
-    train_glrms.observed_examples = train_observed_examples
-    train_glrms.observed_features = train_observed_features
+    train_glrm = copy_estimate(glrm)
+    train_glrm.observed_examples = train_observed_examples
+    train_glrm.observed_features = train_observed_features
+
     # form glrm on testing dataset
-    test_glrms = copy_estimate(glrm)
-    test_glrms.observed_examples = test_observed_examples
-    test_glrms.observed_features = test_observed_features
+    test_glrm = copy_estimate(glrm)
+    test_glrm.observed_examples = test_observed_examples
+    test_glrm.observed_features = test_observed_features
 
     return regularization_path(train_glrm, test_glrm; params=params, reg_params=reg_params, 
                                          verbose=verbose,

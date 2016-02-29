@@ -18,7 +18,7 @@ end
 
 ### From GFRMs to GLRMs and back
 
-function GFRM(glrm::GLRM; force=false, scale=true)
+function GFRM(glrm::GLRM; force=false, use_reg_scale=true)
     if !force # error check unless we force a conversion
     	if !isa(glrm.rx, QuadReg)
     		error("I don't know how to convert the regularization on X, $(typeof(glrm.rx)), into a regularizer for a GFRM")
@@ -28,7 +28,7 @@ function GFRM(glrm::GLRM; force=false, scale=true)
     	end
     end
 
-    if scale
+    if use_reg_scale
     	minscale = minimum(map(scale,glrm.ry))
         maxscale = maximum(map(scale,glrm.ry))
         @assert(minscale == maxscale && minscale == scale(glrm.rx),
@@ -67,3 +67,6 @@ function GLRM(gfrm::GFRM, k::Int=0; tol=1e-5)
 		    	observed_examples = gfrm.observed_examples,
 		    	X = X, Y = Y)
 end
+
+parameter_estimate(glrm::GLRM) = (glrm.X, glrm.Y)
+parameter_estimate(gfrm::GFRM) = gfrm.W
