@@ -16,6 +16,11 @@ glrm = GLRM(dd, 2, datatypes; scale=false, offset=false)
 
 # full rank model
 gfrm = GFRM(glrm; force=true, use_reg_scale = false)
+
+# XXX for now...
+train_error, test_error, train_glrms, test_glrms = cross_validate(gfrm, nfolds=5, params=PrismaParams(maxiter = 3))
+
+
 U, ch = fit!(gfrm, PrismaParams(maxiter = 3))
 
 # fit it!
@@ -35,8 +40,7 @@ do_plot = false
 
 if do_cv && do_cv_tests
     println("Computing cross validation error for each fold")
-    params = Params(1.0, max_iter=100, abs_tol=0.0, min_stepsize=.001)
-    train_error, test_error, train_glrms, test_glrms = cross_validate(gfrm, nfolds=5, params=params)
+	train_error, test_error, train_glrms, test_glrms = cross_validate(gfrm, nfolds=5, params=PrismaParams(maxiter = 3))
     df = DataFrame(train_error = train_error, test_error = test_error)
 end
 
