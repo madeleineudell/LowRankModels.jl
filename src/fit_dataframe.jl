@@ -83,7 +83,7 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
     levels = Set(col[!isna(col)])
     if datatype == :bool
         if length(levels)>2
-            error("Boolean variable should have at most two levels")
+            error("Boolean variable should have at most two levels; instead, got:\n$levels")
         end
         colmap = Dict{Any,Int}(zip(sort(collect(levels)), [-1,1][1:length(levels)]))
     elseif datatype == :cat || datatype == :ord

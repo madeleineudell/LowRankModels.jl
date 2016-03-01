@@ -1,4 +1,4 @@
-using DataFrames, LowRankModels, Gadfly
+using DataFrames, LowRankModels
 
 println("cross validation example")
 srand(5)
@@ -6,9 +6,8 @@ srand(5)
 do_cv = true
 do_cv_by_iter = true
 do_reg_path = true
-do_plot = false
 
-m,n,k = 500,500,3
+m,n,k = 50,50,3
 A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
 losses = fill(huber(),n)
 r = QuadReg(.1)
