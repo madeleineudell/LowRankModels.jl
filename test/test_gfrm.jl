@@ -20,7 +20,7 @@ reg = MaxNormReg(lambda)
 gfrm = GFRM(A, losses, reg, k, observed_features, observed_examples, 
 	zeros(m,n), zeros(m+n,m+n))
 
-fit!(gfrm, PrismaParams(PrismaStepsize(Inf), 100, 1))
+fit!(gfrm, PrismaParams(maxiter=100))
 
 # compare with SDP solver
 using Convex
@@ -34,3 +34,6 @@ solve!(p)
 println("mean square error is ", vecnorm(W.value - gfrm.W) / vecnorm(W.value))
 W.value = gfrm.W
 println("objective of Convex problem evaluated at prisma solution is $(Convex.evaluate(obj))")
+
+# switch out regularizer
+gfrm.r = MaxNormReg(1)

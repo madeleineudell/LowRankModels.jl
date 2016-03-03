@@ -37,11 +37,11 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     # define loss functions for each column
     losses = Array(Loss, ncol(A))
     for j=1:ncol(df)
-        loss = loss_map[datatypes[j]]
+        losstype = loss_map[datatypes[j]]
         if transform_data_to_numbers
             map_to_numbers!(A, j, datatypes[j])
         end
-        losses[j] = pick_loss(loss, A[j])
+        losses[j] = pick_loss(losstype, A[j])
     end
 
     # identify which entries in data frame have been observed (ie are not N/A)
@@ -152,7 +152,8 @@ end
 
 ## sanity check the choice of loss
 
-function pick_loss{L<:Loss}(l::Type{L}, col)
+# this default definition could be tighter: only needs to be defined for arguments of types that subtype Loss
+function pick_loss(l, col)
     return l()
 end
 
@@ -259,6 +260,7 @@ function get_ordinals(df::DataFrame)
     return ordinals, losses
 end
 
+# expand categorical columns, given as column indices, into one boolean column for each level
 function expand_categoricals!(df::DataFrame,categoricals::Array{Int,1})
     # map from names to indices; not used: categoricalidxs = map(y->df.colindex[y], categoricals)
     # create one boolean column for each level of categorical column
@@ -278,7 +280,10 @@ function expand_categoricals!(df::DataFrame,categoricals::Array{Int,1})
     end
     return df
 end
-
+function expand_categoricals!(df::DataFrame,categoricals::UnitRange{Int})
+    expand_categoricals!(df, Int[i for i in categoricals])
+end
+# expand categoricals given as names of columns rather than column indices
 function expand_categoricals!(df::DataFrame,categoricals::Array)
     # map from names to indices
     categoricalidxs = map(y->df.colindex[y], categoricals)
