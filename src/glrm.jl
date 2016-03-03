@@ -10,11 +10,11 @@ export AbstractGLRM, GLRM, getindex, size
 typealias ObsArray @compat(Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}})
 
 ### GLRM TYPE
-type GLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
+type GLRM<:AbstractGLRM
     A                            # The data table
-    losses::Array{L,1}           # array of loss functions
+    losses::Array{Loss,1}        # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)
-    ry::Array{R,1}               # Array of regularizers to be applied to each column of Y
+    ry::Array{Regularizer,1}     # Array of regularizers to be applied to each column of Y
     k::Int                       # Desired rank 
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed  

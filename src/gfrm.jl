@@ -5,10 +5,10 @@ export GFRM
 # * map GFRM to GLRM and back
 # * check that PRISMA code calculates the right thing via SDP
 
-type GFRM{L<:Loss, R<:ProductRegularizer}<:AbstractGLRM
+type GFRM<:AbstractGLRM
     A                            # The data table
-    losses::Array{L,1}           # Array of loss functions
-    r::R                         # The regularization to be applied to U
+    losses::Array{Loss,1}        # Array of loss functions
+    r::ProductRegularizer        # The regularization to be applied to U
     k::Int                       # Estimated rank of solution U (used to improve performance of PRISMA algorithm)
     observed_features::ObsArray  # for each example, an array telling which features were observed
     observed_examples::ObsArray  # for each feature, an array telling in which examples the feature was observed
