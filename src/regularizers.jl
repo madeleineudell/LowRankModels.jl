@@ -295,8 +295,8 @@ prox(r::ProductRegularizer,W::AbstractArray,alpha::Number) = (Wc = copy(W); prox
 type MaxNormReg<:ProductRegularizer
     scale::Float64
 end
-scale(r::MaxNormReg) = 1
-scale!(r::MaxNormReg, newscale::Number) = 1
+scale(r::MaxNormReg) = r.scale
+scale!(r::MaxNormReg, newscale::Number) = (r.scale = newscale)
 
 function evaluate(r::MaxNormReg, W::AbstractArray)
     r.scale*maximum(diag(W))
@@ -318,8 +318,8 @@ type TraceNormReg<:ProductRegularizer
     scale::Float64
 end
 TraceNormReg() = TraceNormReg(1)
-scale(r::TraceNormReg) = 1
-scale!(r::TraceNormReg, newscale::Number) = 1
+scale(r::TraceNormReg) = r.scale
+scale!(r::TraceNormReg, newscale::Number) = (r.scale = newscale)
 
 function evaluate(r::TraceNormReg, W::AbstractArray)
     r.scale*sum(diag(W))/2
