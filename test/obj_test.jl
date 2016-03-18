@@ -4,10 +4,10 @@ using Plotly
 test_losses = Loss[
 QuadLoss(), 	
 L1Loss(), 			
-huber(), 		
+HuberLoss(), 		
 PeriodicLoss(1), 	
-OrdinalHinge(1,10),
-WeightedHinge()
+OrdinalHingeLoss(1,10),
+WeightedHingeLoss()
 LogisticLoss(), 		
 ]
 

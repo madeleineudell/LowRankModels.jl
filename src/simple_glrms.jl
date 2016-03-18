@@ -34,9 +34,9 @@ function kmeans(A::AbstractArray, k::Int; kwargs...)
 end
 
 # robust PCA
-# minimize huber(A - XY) + scale*||X||^2 + scale*||Y||^2
+# minimize HuberLoss(A - XY) + scale*||X||^2 + scale*||Y||^2
 function rpca(A::AbstractArray, k::Int; scale=1.0::Float64, kwargs...)
-	loss = huber()
+	loss = HuberLoss()
 	r = QuadReg(scale)
 	return GLRM(A,loss,r,r,k; kwargs...)
 end

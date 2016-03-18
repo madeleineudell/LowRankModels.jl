@@ -137,8 +137,8 @@ prox(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,view(u
 prox!(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u[end,:]=1; u)
 evaluate(r::lastentry1,a::AbstractArray{Float64,1}) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 evaluate(r::lastentry1,a::AbstractArray{Float64,2}) = (all(a[end,:].==1) ? evaluate(r.r,a[1:end-1,:]) : Inf)
-scale(r::lastentry1) = r.r.scale
-scale!(r::lastentry1, newscale::Number) = (r.r.scale = newscale)
+scale(r::lastentry1) = scale(r.r)
+scale!(r::lastentry1, newscale::Number) = scale!(r.r, newscale)
 
 ## makes the last entry unpenalized
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry1)
@@ -152,8 +152,8 @@ evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,1}) = evaluate(r.r,a[
 prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,u[1:end-1,:],alpha); u[end,:]]
 prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[1:end-1,:])
-scale(r::lastentry_unpenalized) = r.r.scale
-scale!(r::lastentry_unpenalized, newscale::Number) = (r.r.scale = newscale)
+scale(r::lastentry_unpenalized) = scale(r.r)
+scale!(r::lastentry_unpenalized, newscale::Number) = scale!(r.r, newscale)
 
 ## fixes the values of the first n elements of the column to be y
 ## optionally regularizes the last k-n elements with regularizer r
@@ -173,8 +173,8 @@ function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
   	u
 end
 evaluate(r::fixed_latent_features, a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
-scale(r::fixed_latent_features) = r.r.scale
-scale!(r::fixed_latent_features, newscale::Number) = (r.r.scale = newscale)
+scale(r::fixed_latent_features) = scale(r.r)
+scale!(r::fixed_latent_features, newscale::Number) = scale!(r.r, newscale)
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
@@ -283,8 +283,8 @@ function prox!(r::OrdinalReg,u::Array{Float64},alpha::Number)
     u
 end
 evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
-scale(r::OrdinalReg) = r.r.scale
-scale!(r::OrdinalReg, newscale::Number) = (r.r.scale = newscale)
+scale(r::OrdinalReg) = scale(r.r)
+scale!(r::OrdinalReg, newscale::Number) = scale!(r.r, newscale)
 
 ######### Product regularizers ##########
 

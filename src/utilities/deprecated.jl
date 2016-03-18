@@ -12,13 +12,17 @@ Base.@deprecate quadratic QuadLoss
 
 Base.@deprecate logistic LogisticLoss
 
+Base.@deprecate huber HuberLoss
+
 Base.@deprecate LogLoss LogisticLoss
 
 Base.@deprecate l1 L1Loss
 
 Base.@deprecate poisson PoissonLoss
 
-Base.@deprecate ordinal_hinge OrdinalHinge
+Base.@deprecate ordinal_hinge OrdinalHingeLoss
+
+Base.@deprecate WeightedHinge WeightedHingeLoss
 
 Base.@deprecate periodic PeriodicLoss
 

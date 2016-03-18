@@ -73,9 +73,9 @@ Losses:
 * hinge loss `HingeLoss`
 * logistic loss `LogisticLoss`
 * poisson loss `PoissonLoss`
-* weighted hinge loss `WeightedHinge`
+* weighted hinge loss `WeightedHingeLoss`
 * l1 loss `L1Loss`
-* ordinal hinge loss `OrdinalHinge`
+* ordinal hinge loss `OrdinalHingeLoss`
 * periodic loss `PeriodicLoss`
 * multinomial categorical loss `MultinomialLoss`
 * multinomial ordinal (aka ordered logit) loss `OrderedMultinomialLoss`

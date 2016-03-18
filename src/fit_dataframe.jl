@@ -255,7 +255,7 @@ function get_ordinals(df::DataFrame)
     # set losses and regularizers
     losses = Array(Loss,nord)
     for i=1:nord
-        losses[i] = OrdinalHinge(mins[i],maxs[i])
+        losses[i] = OrdinalHingeLoss(mins[i],maxs[i])
     end
     return ordinals, losses
 end

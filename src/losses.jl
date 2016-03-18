@@ -38,9 +38,9 @@ import Base.scale!
 import Optim.optimize
 export Loss, 
        DiffLoss, # a category of Losses
-       QuadLoss, WeightedHinge, HingeLoss, LogisticLoss, PoissonLoss, 
-       OrdinalHinge, MultinomialLoss, MultinomialOrdinalLoss,
-       OrdisticLoss, L1Loss, huber, 
+       QuadLoss, WeightedHingeLoss, HingeLoss, LogisticLoss, PoissonLoss, 
+       OrdinalHingeLoss, MultinomialLoss, MultinomialOrdinalLoss,
+       OrdisticLoss, L1Loss, HuberLoss, 
        PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, 
@@ -137,20 +137,20 @@ M_estimator(l::L1Loss, a::AbstractArray) = median(a)
 
 ########################################## HUBER ##########################################
 # f: ℜxℜ -> ℜ
-type huber<:DiffLoss
+type HuberLoss<:DiffLoss
     scale::Float64
     domain::Domain
-    crossover::Float64 # where QuadLoss loss ends and linear loss begins; =1 for standard huber
+    crossover::Float64 # where QuadLoss loss ends and linear loss begins; =1 for standard HuberLoss
 end
-huber(scale=1.0::Float64; domain=RealDomain(), crossover=1.0::Float64) = huber(scale, domain, crossover)
+HuberLoss(scale=1.0::Float64; domain=RealDomain(), crossover=1.0::Float64) = HuberLoss(scale, domain, crossover)
 
-function evaluate(l::huber, u::Float64, a::Number)
+function evaluate(l::HuberLoss, u::Float64, a::Number)
     abs(u-a) > l.crossover ? (abs(u-a) - l.crossover + l.crossover^2)*l.scale : (u-a)^2*l.scale
 end
 
-grad(l::huber,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
+grad(l::HuberLoss,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
 
-# M_estimator(l::huber, a::AbstractArray) = median(a) # a heuristic, not the true estimator.
+# M_estimator(l::HuberLoss, a::AbstractArray) = median(a) # a heuristic, not the true estimator.
 
 ########################################## PERIODIC ##########################################
 # f: ℜxℜ -> ℜ
@@ -183,26 +183,26 @@ end
 PoissonLoss(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)) = PoissonLoss(scale, domain)
 
 function evaluate(l::PoissonLoss, u::Float64, a::Number) 
-    exp(u) - a*u # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
+    l.scale*(exp(u) - a*u) # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
 end
 
-grad(l::PoissonLoss, u::Float64, a::Number) = exp(u) - a
+grad(l::PoissonLoss, u::Float64, a::Number) = l.scale*(exp(u) - a)
 
 M_estimator(l::PoissonLoss, a::AbstractArray) = log(mean(a))
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
-type OrdinalHinge<:Loss
+type OrdinalHingeLoss<:Loss
     min::Integer
     max::Integer
     scale::Float64
     domain::Domain
 end
-OrdinalHinge(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = OrdinalHinge(m1,m2,scale,domain)
+OrdinalHingeLoss(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = OrdinalHingeLoss(m1,m2,scale,domain)
 # this method should never be called directly but is needed to support copying
-OrdinalHinge() = OrdinalHinge(1, 10, 1.0, OrdinalDomain(1,10))
+OrdinalHingeLoss() = OrdinalHingeLoss(1, 10, 1.0, OrdinalDomain(1,10))
 
-function evaluate(l::OrdinalHinge, u::Float64, a::Number)
+function evaluate(l::OrdinalHingeLoss, u::Float64, a::Number)
     #a = round(a)
     if u > l.max-1
         # number of levels higher than true level
@@ -224,7 +224,7 @@ function evaluate(l::OrdinalHinge, u::Float64, a::Number)
     return l.scale*loss
 end
 
-function grad(l::OrdinalHinge, u::Float64, a::Number)
+function grad(l::OrdinalHingeLoss, u::Float64, a::Number)
     #a = round(a)
     if u > a
         # number of levels higher than true level
@@ -238,7 +238,7 @@ function grad(l::OrdinalHinge, u::Float64, a::Number)
     return l.scale*g
 end
 
-M_estimator(l::OrdinalHinge, a::AbstractArray) = median(a)
+M_estimator(l::OrdinalHingeLoss, a::AbstractArray) = median(a)
 
 ########################################## LOGISTIC ##########################################
 # f: ℜx{-1,1}-> ℜ
@@ -261,16 +261,16 @@ end
 # f: ℜx{-1,1} -> ℜ
 # f(u,a) = {     w * max(0, u) for a = -1
 #        = { c * w * max(0,-u) for a =  1
-type WeightedHinge<:Loss
+type WeightedHingeLoss<:Loss
     scale::Float64
     domain::Domain
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
 end
-WeightedHinge(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) = 
-    WeightedHinge(scale, domain, case_weight_ratio)
-HingeLoss(scale=1.0::Float64; kwargs...) = WeightedHinge(scale; kwargs...) # the standard HingeLoss is a special case of WeightedHinge
+WeightedHingeLoss(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) = 
+    WeightedHingeLoss(scale, domain, case_weight_ratio)
+HingeLoss(scale=1.0::Float64; kwargs...) = WeightedHingeLoss(scale; kwargs...) # the standard HingeLoss is a special case of WeightedHingeLoss
 
-function evaluate(l::WeightedHinge, u::Float64, a::Number)
+function evaluate(l::WeightedHingeLoss, u::Float64, a::Number)
     loss = l.scale*max(1-a*u, 0)
     if a>0 # if for whatever reason someone doesn't use properly coded variables...
         loss *= l.case_weight_ratio
@@ -278,7 +278,7 @@ function evaluate(l::WeightedHinge, u::Float64, a::Number)
     return loss
 end
 
-function grad(l::WeightedHinge, u::Float64, a::Number)
+function grad(l::WeightedHingeLoss, u::Float64, a::Number)
     g = (a*u>=1 ? 0 : -a*l.scale)
     if a>0
         g *= l.case_weight_ratio
@@ -286,7 +286,7 @@ function grad(l::WeightedHinge, u::Float64, a::Number)
     return g
 end
 
-function M_estimator(l::WeightedHinge, a::AbstractArray)
+function M_estimator(l::WeightedHingeLoss, a::AbstractArray)
     r = length(a)/length(filter(x->x>0, a)) - 1 
     if l.case_weight_ratio > r
         m = 1.0
