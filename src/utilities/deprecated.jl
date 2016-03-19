@@ -22,6 +22,8 @@ Base.@deprecate poisson PoissonLoss
 
 Base.@deprecate ordinal_hinge OrdinalHingeLoss
 
+Base.@deprecate OrdinalHinge OrdinalHingeLoss
+
 Base.@deprecate WeightedHinge WeightedHingeLoss
 
 Base.@deprecate periodic PeriodicLoss
