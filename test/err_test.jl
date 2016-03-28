@@ -4,11 +4,11 @@ srand(1);
 test_losses = Loss[
 QuadLoss(), 	
 L1Loss(), 			
-huber(), 		
+HuberLoss(), 		
 PeriodicLoss(1), 	
-OrdinalHinge(1,10),
+OrdinalHingeLoss(1,10),
 LogisticLoss(), 		
-WeightedHinge()
+WeightedHingeLoss()
 ]
 
 for test_iteration = 1:500

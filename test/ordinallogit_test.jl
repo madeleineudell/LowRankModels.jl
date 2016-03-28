@@ -74,3 +74,6 @@ A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
 println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
+
+# test scaling
+scale!(glrm.ry, 3)

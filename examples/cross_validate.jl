@@ -9,7 +9,7 @@ do_reg_path = true
 
 m,n,k = 50,50,3
 A = randn(m,k)*randn(k,n) + k*sprandn(m,n,.05)
-losses = fill(huber(),n)
+losses = fill(HuberLoss(),n)
 r = QuadReg(.1)
 glrm = GLRM(A,losses,r,r,k+2)
 
