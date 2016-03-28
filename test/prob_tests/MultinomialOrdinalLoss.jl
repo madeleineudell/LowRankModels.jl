@@ -5,7 +5,7 @@ import StatsBase: sample, WeightVec
 
 ## generate data
 srand(1);
-m,n,k = 200,100,3;
+m,n,k = 100,100,3;
 kfit = k+1
 nlevels = 5; # number of levels
 d = nlevels-1 # embedding dimension
@@ -28,16 +28,20 @@ for i=1:d
 end
 
 XY = X_real*Y_real;
+XYplusT = zeros(Float64, (m,D))
 A = zeros(Int, (m, n))
 for i=1:m
 	for j=1:n
 		u = XY[i,j] + T_real[:,j]
+		XYplusT[i,(j-1)*d+(1:d)] = u 
 		diffs = u'*signedsums
 		wv = WeightVec(Float64[exp(-diffs[l]) for l in 1:nlevels])
 		l = sample(wv)
 		A[i,j] = l
 	end
 end
+# loss is insensitive to shifts; regularizer should pick this shift
+XYplusT = XYplusT .- mean(XYplusT, 2)
 
 # and the model
 losses = fill(MultinomialOrdinalLoss(nlevels),n)
@@ -47,9 +51,9 @@ glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=r
 # fit w/o initialization
 p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
 @time X,Y,ch = fit!(glrm, params=p);
-XYh = X'*Y[:,1:d:D];
+XYh = X'*Y#[:,1:d:D];
 @show ch.objective
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
 println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
@@ -57,8 +61,8 @@ println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wro
 
 # initialize
 init_svd!(glrm)
-XYh = glrm.X' * glrm.Y[:,1:d:D]
-println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+XYh = glrm.X' * glrm.Y
+println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
 println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
 println("After initialization with the svd, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
@@ -67,9 +71,9 @@ println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wro
 # fit w/ initialization
 p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
 @time X,Y,ch = fit!(glrm, params=p);
-XYh = X'*Y[:,1:d:D];
+XYh = X'*Y#[:,1:d:D];
 @show ch.objective
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
 println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
