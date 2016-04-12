@@ -286,6 +286,9 @@ evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
 scale(r::OrdinalReg) = scale(r.r)
 scale!(r::OrdinalReg, newscale::Number) = scale!(r.r, newscale)
 
+# make sure we don't add two offsets cuz that's weird
+lastentry_unpenalized(r::OrdinalReg) = r
+
 ######### Product regularizers ##########
 
 abstract ProductRegularizer<:Regularizer
