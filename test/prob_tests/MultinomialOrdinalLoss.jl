@@ -49,8 +49,7 @@ rx, ry = lastentry1(QuadReg(.1)), OrdinalReg(QuadReg(.1)) #lastentry_unpenalized
 glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,D));
 
 # fit w/o initialization
-p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
-@time X,Y,ch = fit!(glrm, params=p);
+@time X,Y,ch = fit!(glrm);
 XYh = X'*Y#[:,1:d:D];
 @show ch.objective
 println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
@@ -69,8 +68,7 @@ println("After initialization with the svd, imputed entries are off by $(sum(abs
 println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
 
 # fit w/ initialization
-p = Params(1, max_iter=10, abs_tol=0.0000001, min_stepsize=0.000001) 
-@time X,Y,ch = fit!(glrm, params=p);
+@time X,Y,ch = fit!(glrm);
 XYh = X'*Y#[:,1:d:D];
 @show ch.objective
 println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")

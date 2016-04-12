@@ -31,8 +31,7 @@ glrm = GLRM(A,losses,rx,ry,kfit)
 #scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,n));
 
 # fit w/o initialization
-p = Params(1, max_iter=10, convergence_tol=0.0000001, min_stepsize=0.000001) 
-@time X,Y,ch = fit!(glrm, params=p);
+@time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
 println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
@@ -50,8 +49,7 @@ println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / p
 println("(Picking randomly, 50\% of entries would be wrong.)\n")
 
 # fit w/ initialization
-p = Params(1, max_iter=10, convergence_tol=0.0000001, min_stepsize=0.000001) 
-@time X,Y,ch = fit!(glrm, params=p);
+@time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
 println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
