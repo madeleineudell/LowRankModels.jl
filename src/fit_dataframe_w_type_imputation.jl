@@ -7,7 +7,8 @@ export GLRM
 
 function GLRM(df::DataFrame, k::Int;
               losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
-              offset = true, scale = true, NaNs_to_NAs = false)
+              offset = true, scale = false, 
+              prob_scale = true, NaNs_to_NAs = true)
     if NaNs_to_NAs
         df = copy(df)
         NaNs_to_NAs!(df)
@@ -30,6 +31,11 @@ function GLRM(df::DataFrame, k::Int;
     Y = randn(k,size(A,2))
     # form model
     glrm = GLRM(A, losses, rx, ry, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
+
+    # scale model so it really computes the MAP estimator of the parameters
+    if prob_scale
+        prob_scale!(glrm)
+    end
     return glrm, labels
 end
 

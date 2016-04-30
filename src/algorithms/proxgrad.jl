@@ -5,15 +5,15 @@ type ProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
-    abs_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
-    rel_tol::Float64 # stop if objective decrease upon one outer iteration is less than this
+    abs_tol::Float64 # stop if objective decrease upon one outer iteration is less than this * number of observations
+    rel_tol::Float64 # stop if objective decrease upon one outer iteration is less than this * objective value
     min_stepsize::Float64 # use a decreasing stepsize, stop when reaches min_stepsize
 end
 function ProxGradParams(stepsize::Number=1.0; # initial stepsize
 				        max_iter::Int=100, # maximum number of outer iterations
 				        inner_iter::Int=1, # how many prox grad steps to take on X before moving on to Y (and vice versa)
-                        abs_tol::Number=0.00001, # stop if objective decrease upon one outer iteration is less than this
-                        rel_tol::Number=0.0001, # stop if objective decrease upon one outer iteration is less than this
+                        abs_tol::Number=0.00001, # stop if objective decrease upon one outer iteration is less than this * number of observations
+                        rel_tol::Number=0.0001, # stop if objective decrease upon one outer iteration is less than this * objective value
 				        min_stepsize::Number=0.01*stepsize) # stop if stepsize gets this small
     stepsize = convert(Float64, stepsize)
     return ProxGradParams(convert(Float64, stepsize), 

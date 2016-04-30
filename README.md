@@ -190,6 +190,10 @@ You can also add offsets and scalings to previously unscaled models:
 
       equilibrate_variance!(glrm)
 
+* Scale only the columns using `QuadLoss` or `HuberLoss`
+
+      prob_scale!(glrm)
+
 # Fitting DataFrames
 
 Perhaps all this sounds like too much work. Perhaps you happen to have a 
@@ -211,19 +215,18 @@ and ordinal HingeLoss loss for integer columns,
 a small amount of QuadLoss regularization,
 and scaling and adding an offset to the model as described [here](#scaling).
 It returns the column labels for the columns it fit, along with the model.
-Right now, all other data types are ignored, as are `NA`s.
+Right now, all other data types are ignored.
+`NaN` values are treated as missing values (`NA`s) and ignored in the fit.
 
 The full call signature is
 ```
 GLRM(df::DataFrame, k::Int;
-     losses = None, rx = QuadReg(.01), ry = QuadReg(.01),
-     offset = true, scale = true, NaNs_to_NAs = false)
+    losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
+    offset = true, scale = false, 
+    prob_scale = true, NaNs_to_NAs = true)
 ```
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.
-If your DataFrame has `NaN`s in it, you can turn them into `NA`s that 
-will be ignored in the fit by calling `NaNs_to_NAs!(df)`, or form your `GLRM` 
-using `GLRM(df, k, NaNs_to_NAs = true)`.
 
 To fit a data frame with categorical values, you can use the function
 `expand_categoricals!` to turn categorical columns into a Boolean column for each 
@@ -329,11 +332,11 @@ methods with the default parameters:
 
 * `stepsize`: The step size controls the speed of convergence.
 Small step sizes will slow convergence, while large ones will cause 
-divergence. `stepsize` should be of order 1;
-`autoencode` scales it by the maximum number of entries per column or row
-so that step *lengths* remain of order 1.
+divergence. `stepsize` should be of order 1.
 * `abs_tol`: The algorithm stops when the decrease in the
-objective per iteration is less than `abs_tol*length(obs)`, 
+objective per iteration is less than `abs_tol*length(obs)`.
+* `rel_tol`: The algorithm stops when the decrease in the
+objective per iteration is less than `rel_tol`. 
 * `max_iter`: The algorithm also stops if maximum number of rounds
 `max_iter` has been reached.
 * `min_stepsize`: The algorithm also stops if `stepsize` decreases below 
@@ -341,7 +344,7 @@ this limit.
 * `inner_iter`: specifies how many proximal gradient steps to take on `X`
 before moving on to `Y` (and vice versa).
 
-The default parameters are: `ProxGradParams(stepsize=1.0;max_iter=100,inner_iter=1,abs_tol=0.00001,min_stepsize=0.01*stepsize)` 
+The default parameters are: `ProxGradParams(stepsize=1.0;max_iter=100,inner_iter=1,abs_tol=0.00001,rel_tol=0.0001,min_stepsize=0.01*stepsize)` 
 
 ### Convergence
 `ch` gives the convergence history so that the success of the optimization can be monitored;

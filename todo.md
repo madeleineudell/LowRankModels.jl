@@ -1,8 +1,10 @@
 # To Do
 
+* Factor out GFRM so we don't have to require FirstOrderOptimization
+
 * Implementation of max-norm regularization.
 	* check convergence
-	* check converges with more interesting losses
+	* 
 	
 * Make multidimensional categorical hinge loss
 
@@ -17,10 +19,7 @@
 	* nandana writes the UX
 
 * Documentation!
-	* functional forms and names of all loss functions
 	* how to think about mpca
-	* scaling
-		* prob scale
 	* imputation
 	* error metrics for cross validation
 	* new syntax for fitting data frame

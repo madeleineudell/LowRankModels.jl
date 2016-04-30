@@ -33,11 +33,6 @@ function copy_estimate(g::GLRM)
               g.observed_features,g.observed_examples,
               copy(g.X),copy(g.Y))
 end
-function copy_estimate(g::GFRM)
-  return GFRM(g.A,g.losses,g.r,g.k,
-              g.observed_features,g.observed_examples,
-              copy(g.U),copy(g.W))
-end
 # function copy_estimate(r::GLRM)
 #   newr = typeof(r)()
 #   for field in @compat fieldnames(r)
@@ -47,16 +42,6 @@ end
 #   newr.Y = copy(r.Y)
 #   newr
 # end
-# function copy_estimate(r::GFRM)
-#   newr = typeof(r)()
-#   for field in @compat fieldnames(r)
-#     setfield!(newr, field, getfield(r, field))
-#   end
-#   newr.U = copy(r.U)
-#   newr.W = copy(r.W)
-#   newr
-# end
-
 
 # domains are immutable, so this is ok
 copy(d::Domain) = d
