@@ -3,6 +3,8 @@ import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA,
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!
 
+include("fit_dataframe_w_type_imputation.jl")
+
 probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
     :bool        => LogisticLoss,
