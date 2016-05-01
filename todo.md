@@ -1,10 +1,4 @@
 # To Do
-
-* Factor out GFRM so we don't have to require FirstOrderOptimization
-
-* Implementation of max-norm regularization.
-	* check convergence
-	* 
 	
 * Make multidimensional categorical hinge loss
 
