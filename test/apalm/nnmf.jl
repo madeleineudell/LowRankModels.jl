@@ -6,7 +6,7 @@ println("\n\nnnmf\n====\n\n")
 ## generate data
 srand(1);
 m,n,k = 300,300,5;
-file_prefix = "nnmf_n=300_r=3" #n=$(n)_r=$k"
+file_prefix = "nnmf_n=300_r=5" #n=$(n)_r=$k"
 kfit = k
 
 # coordinates of covariates
