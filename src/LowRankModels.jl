@@ -25,6 +25,7 @@ include("fit.jl")
 include("algorithms/proxgrad.jl")
 include("algorithms/sparse_proxgrad.jl")
 include("algorithms/parallel_proxgrad.jl")
+include("algorithms/apalm.jl")
 
 # initialization methods
 include("rsvd.jl")
