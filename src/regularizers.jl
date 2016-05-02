@@ -175,8 +175,8 @@ scale!(r::fixed_latent_features, newscale::Number) = scale!(r.r, newscale)
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
 type OneSparseConstraint<:Regularizer
 end
-prox(r::OneSparseConstraint, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
-prox!(r::OneSparseConstraint, u::Array, alpha::Number) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
+prox(r::OneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
+prox!(r::OneSparseConstraint, u::Array, alpha::Number=0) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
 function evaluate(r::OneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
@@ -199,19 +199,21 @@ scale!(r::OneSparseConstraint, newscale::Number) = 1
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
 type UnitOneSparseConstraint<:Regularizer
 end
-prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
-prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number=0) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 function evaluate(r::UnitOneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
-        if oneflag
-            if ai==1
+        if ai==0
+            continue
+        elseif ai==1
+            if oneflag
                 return Inf
-            end
-        else
-            if ai==1
+            else
                 oneflag=true
             end
+        else
+            return Inf
         end
     end
     return 0
@@ -224,7 +226,7 @@ scale!(r::UnitOneSparseConstraint, newscale::Number) = 1
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
 type SimplexConstraint<:Regularizer
 end
-function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number)
+function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number=0)
     n = length(u)
     y = sort(u, rev=true)
     ysum = cumsum(y)
