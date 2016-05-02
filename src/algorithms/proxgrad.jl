@@ -103,7 +103,14 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
     for i=1:params.max_iter
 # STEP 1: X update
-        # XY = X' * Y this is computed before the first iteration
+        # XY = X' * Y was computed above
+        
+        # reset step size if we're doing something more like alternating minimization
+        if params.inner_iter > 1
+            for ii=1:m alpharow[ii] = params.stepsize end
+            for jj=1:n alphacol[jj] = params.stepsize end
+        end
+
         for inneri=1:params.inner_iter
         for e=1:m # for every example x_e == ve[e]
             scale!(g, 0) # reset gradient to 0
@@ -142,9 +149,9 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                     end                
                 end
             end
-        end
-        end
+        end # for e=1:m
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new X
+        end # inner iteration
 # STEP 2: Y update
         for inneri=1:params.inner_iter
         scale!(G, 0)
@@ -186,9 +193,9 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                     end
                 end
             end
-        end
-        end
+        end # for f=1:n
         gemm!('T','N',1.0,X,Y,0.0,XY) # Recalculate XY using the new Y
+        end # inner iteration
 # STEP 3: Record objective
         obj = sum(obj_by_col)
         t = time() - t
