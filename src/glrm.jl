@@ -82,3 +82,5 @@ function GLRM(A, losses::Array, rx::Regularizer, ry::Array, k::Int;
     end
     return glrm
 end
+
+parameter_estimate(glrm::GLRM) = (glrm.X, glrm.Y)
