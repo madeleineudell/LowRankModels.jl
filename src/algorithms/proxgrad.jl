@@ -67,7 +67,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
-    update!(ch, 0, objective(glrm, X, Y, XY, yidxs=yidxs))
+    update_ch!(ch, 0, objective(glrm, X, Y, XY, yidxs=yidxs))
     t = time()
     steps_in_a_row = 0
     # gradient wrt columns of X
@@ -199,7 +199,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 # STEP 3: Record objective
         obj = sum(obj_by_col)
         t = time() - t
-        update!(ch, t, obj)
+        update_ch!(ch, t, obj)
         t = time()
 # STEP 4: Check stopping criterion
         obj_decrease = ch.objective[end-1] - obj
