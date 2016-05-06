@@ -15,7 +15,7 @@ function fit_pca(m,n,k)
 	return A,X,Y,ch
 end
 
-# minimize_{X<=0, Y>=0} ||A - XY||^2
+# minimize_{X>=0, Y>=0} ||A - XY||^2
 function fit_nnmf(m,n,k)
 	# matrix to encode
 	A = rand(m,k)*rand(k,n)
