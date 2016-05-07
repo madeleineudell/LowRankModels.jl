@@ -175,12 +175,14 @@ end
 
 ########################################## POISSON ##########################################
 # f: ℜxℕ -> ℜ
-# BEWARE: THIS LOSS MAY CAUSE MODEL INSTABLITY AND DIFFICULTY FITTING.
+# BEWARE: 
+# 1) this is a reparametrized poisson: we parametrize the mean as exp(u) so that u can take any real value and still produce a positive mean
+# 2) THIS LOSS MAY CAUSE MODEL INSTABLITY AND DIFFICULTY FITTING.
 type PoissonLoss<:Loss
     scale::Float64
     domain::Domain
 end
-PoissonLoss(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)) = PoissonLoss(scale, domain)
+PoissonLoss(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)::Domain) = PoissonLoss(scale, domain)
 
 function evaluate(l::PoissonLoss, u::Float64, a::Number) 
     l.scale*(exp(u) - a*u) # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
