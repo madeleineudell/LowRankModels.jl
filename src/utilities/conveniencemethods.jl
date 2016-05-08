@@ -3,7 +3,7 @@
 ##############################################################
 
 import Base.copy
-export copy, GLRM
+export copy, copy_estimate, GLRM
 
 function copy(r::Regularizer)
   newr = typeof(r)()

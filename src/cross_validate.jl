@@ -40,7 +40,7 @@ function cross_validate(glrm::AbstractGLRM;
         if init != nothing
             init(train_glrms[ifold])
         end
-        fit!(train_glrms[ifold]; params=params, verbose=verbose)
+        fit!(train_glrms[ifold]; params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
         train_error[ifold] = error_fn(train_glrms[ifold], 
             parameter_estimate(train_glrms[ifold])...) / ntrain
@@ -168,7 +168,7 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
     for iter=1:niters
         # evaluate train and test error
         if verbose println("fitting train GLRM") end
-        X, Y, ch = fit!(train_glrm, params=params, verbose=false)
+        X, Y, ch = fit!(train_glrm, params, verbose=false)
         if verbose println("computing train and test error for iter $iter:") end
         train_error[iter] = objective(train_glrm, X, Y, include_regularization=false)/ntrain
         if verbose println("\ttrain error: $(train_error[iter])") end
@@ -208,7 +208,7 @@ end
 # For each value of the regularization parameter,
 # compute the training error, ie, average error (sum over (i,j) in train_glrm.obs of L_j(A_ij, x_i y_j))
 # and the test error, ie, average error (sum over (i,j) in test_glrm.obs of L_j(A_ij, x_i y_j))
-function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
+function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5), 
                                          verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     train_error = Array(Float64, length(reg_params))
@@ -216,26 +216,24 @@ function regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(),
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
     if verbose println("training model on $ntrain samples and testing on $ntest") end
+    @show params
     train_time = Array(Float64, length(reg_params))
-    model_onenorm = Array(Float64, length(reg_params))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train and test error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        scale!(train_glrm.rx, reg_param)
-        scale!(train_glrm.ry, reg_param)        
+        scale_regularizer!(train_glrm, reg_param)
         # no need to restart glrm X and Y even if they went to zero at the higher regularization
         # b/c fit! does that automatically
-        X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
+        fit!(train_glrm, params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
-        model_onenorm[iparam] = sum(abs(X)) + sum(abs(Y))
         if verbose println("computing mean train and test error for reg_param $reg_param:") end
-        train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
+        train_error[iparam] = objective(train_glrm, parameter_estimate(train_glrm)..., include_regularization=false) / ntrain
         if verbose println("\ttrain error: $(train_error[iparam])") end
-        test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntest
+        test_error[iparam] = objective(test_glrm, parameter_estimate(train_glrm)..., include_regularization=false) / ntest
         if verbose println("\ttest error:  $(test_error[iparam])") end
     end
-    return train_error, test_error, train_time, model_onenorm, reg_params
+    return train_error, test_error, train_time, reg_params
 end
 
 
@@ -261,7 +259,7 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         scale!(train_glrm.rx, reg_param)
         scale!(train_glrm.ry, reg_param)
         train_glrm.X, train_glrm.Y = randn(train_glrm.k,m), randn(train_glrm.k,n) # this bypasses the error checking in GLRM(). Risky.
-        X, Y, ch = fit!(train_glrm, params=params, ch=ch, verbose=verbose)
+        X, Y, ch = fit!(train_glrm, params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
         if verbose println("computing train error and precision at k for reg_param $reg_param:") end
         train_error[iparam] = objective(train_glrm, X, Y, include_regularization=false) / ntrain
