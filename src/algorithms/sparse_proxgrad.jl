@@ -47,7 +47,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
 
     # alternating updates of X and Y
     if verbose println("Fitting GLRM") end
-    update!(ch, 0, objective(glrm; sparse=true))
+    update_ch!(ch, 0, objective(glrm; sparse=true))
     t = time()
     steps_in_a_row = 0
     g = zeros(k)
@@ -103,7 +103,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
-            update!(ch, t, obj)
+            update_ch!(ch, t, obj)
             copy!(glrm.X, X); copy!(glrm.Y, Y) # save new best X and Y
             alpha = alpha * 1.05
             steps_in_a_row = max(1, steps_in_a_row+1)
@@ -124,7 +124,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
         end
     end
     t = time() - t
-    update!(ch, t, ch.objective[end])
+    update_ch!(ch, t, ch.objective[end])
 
     return glrm.X, glrm.Y, ch
 end

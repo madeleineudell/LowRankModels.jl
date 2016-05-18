@@ -41,4 +41,7 @@ include("fit_dataframe.jl")
 include("utilities/conveniencemethods.jl")
 include("utilities/deprecated.jl")
 
+# ScikitLearn.jl compatibility
+include("scikitlearn.jl")
+
 end # module

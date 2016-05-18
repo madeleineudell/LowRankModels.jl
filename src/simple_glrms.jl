@@ -17,7 +17,7 @@ function qpca(A::AbstractArray, k::Int; scale=1.0::Float64, kwargs...)
 end
 
 # nonnegative matrix factorization
-# minimize_{X<=0, Y>=0} ||A - XY||^2
+# minimize_{X>=0, Y>=0} ||A - XY||^2
 function nnmf(A::AbstractArray, k::Int; kwargs...)
 	loss = QuadLoss()
 	r = NonNegConstraint()

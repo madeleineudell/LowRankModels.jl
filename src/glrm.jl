@@ -5,7 +5,7 @@ import ArrayViews: view, StridedView, ContiguousView
 
 abstract AbstractGLRM
 
-export AbstractGLRM, GLRM, getindex, size
+export AbstractGLRM, GLRM, getindex, size, scale_regularizer!
 
 typealias ObsArray @compat(Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}})
 
@@ -84,3 +84,10 @@ function GLRM(A, losses::Array, rx::Regularizer, ry::Array, k::Int;
 end
 
 parameter_estimate(glrm::GLRM) = (glrm.X, glrm.Y)
+
+
+function scale_regularizer!(glrm::GLRM, newscale::Number)
+    scale!(glrm.rx, newscale)
+    scale!(glrm.ry, newscale)
+    return glrm  
+end

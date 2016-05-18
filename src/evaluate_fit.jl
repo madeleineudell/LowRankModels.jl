@@ -1,7 +1,7 @@
 export objective, error_metric, impute
 
 ### OBJECTIVE FUNCTION EVALUATION FOR MPCA
-function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2}, 
                    XY::Array{Float64,2}; 
                    yidxs = get_yidxs(glrm.losses), # mapping from columns of A to columns of Y; by default, the identity
                    include_regularization=true)
@@ -53,7 +53,7 @@ function col_objective(glrm::AbstractGLRM, j::Int, y::AbstractArray, X::Array{Fl
     return err
 end
 # The user can also pass in X and Y and `objective` will compute XY for them
-function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
+function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    sparse=false, include_regularization=true, 
                    yidxs = get_yidxs(glrm.losses), kwargs...)
     @assert(size(Y)==(glrm.k,yidxs[end][end]))
@@ -79,7 +79,7 @@ function objective(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2};
     end
 end
 # Or just the GLRM and `objective` will use glrm.X and .Y
-objective(glrm::AbstractGLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
+objective(glrm::GLRM; kwargs...) = objective(glrm, glrm.X, glrm.Y; kwargs...)
 
 # For shared arrays
 # TODO: compute objective in parallel

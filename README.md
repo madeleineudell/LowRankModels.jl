@@ -375,6 +375,44 @@ These functions should help you choose adequate regularization for your model.
 
 * `get_train_and_test(obs, m, n, holdout_proportion=.1)`: splits observations `obs` into a train and test set. `m` and `n` must be at least as large as the maximal value of the first or second elements of the tuples in `observations`, respectively. Returns `observed_features` and `observed_examples` for both train and test sets.
 
+## ScikitLearn
+
+This library implements the
+[ScikitLearn.jl](https://github.com/cstjean/ScikitLearn.jl) interface. These
+models are available: `SkGLRM, PCA, QPCA, NNMF, KMeans, RPCA`. See their
+docstrings for more information (eg. `?QPCA`). All models support the
+`ScikitLearnBase.fit!` and `ScikitLearnBase.transform` interface. Examples:
+
+```julia
+## Apply PCA to the iris dataset
+using LowRankModels
+import ScikitLearnBase
+using RDatasets    # may require Pkg.add("RDatasets")
+
+A = convert(Matrix, dataset("datasets", "iris")[[:SepalLength, :SepalWidth, :PetalLength, :PetalWidth]])
+ScikitLearnBase.fit_transform!(PCA(k=3, max_iter=500), A)
+```
+
+```julia
+## Fit K-Means to a fake dataset of two Gaussians
+using LowRankModels
+import ScikitLearnBase
+
+# Generate two disjoint Gaussians with 100 and 50 points
+gaussian1 = randn(100, 2) + 5
+gaussian2 = randn(50, 2) - 10
+# Merge them into a single dataset
+A = vcat(gaussian1, gaussian2)
+
+model = ScikitLearnBase.fit!(LowRankModels.KMeans(), A)
+# Count how many points are assigned to each Gaussians (should be 100 and 50)
+Set(sum(ScikitLearnBase.transform(model, A), 1))
+```
+
+See also [this notebook demonstrating K-Means](https://github.com/cstjean/ScikitLearn.jl/blob/master/examples/Plot_Kmeans_Digits_Julia.ipynb).
+
+These models can be used inside a [ScikitLearn pipeline](http://scikitlearnjl.readthedocs.io/en/latest/pipelines/), and every hyperparameter can be [tuned with GridSearchCV](http://scikitlearnjl.readthedocs.io/en/latest/model_selection/).
+
 # Citing this package
 
 If you use LowRankModels for published work, 

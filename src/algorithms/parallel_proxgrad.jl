@@ -90,7 +90,7 @@ function fit!(glrm::ShareGLRM, params::ProxGradParams;
 
     # alternating updates of X and Y
     if verbose println("fitting GLRM") end
-    update!(ch, 0, objective(glrm,X,Y))
+    update_ch!(ch, 0, objective(glrm,X,Y))
     t = time()
     steps_in_a_row = 0
 
@@ -164,7 +164,7 @@ function fit!(glrm::ShareGLRM, params::ProxGradParams;
         totalobj = sum(obj)
         if totalobj < ch.objective[end]
             t = time() - t
-            update!(ch, t, totalobj)
+            update_ch!(ch, t, totalobj)
             #copy!(glrm.X, X); copy!(glrm.Y, Y)
             @everywhere begin
                 @inbounds for i in localindexes(X)
@@ -204,7 +204,7 @@ function fit!(glrm::ShareGLRM, params::ProxGradParams;
         end
     end
     t = time() - t
-    update!(ch, t, ch.objective[end])
+    update_ch!(ch, t, ch.objective[end])
 
     return glrm.X', glrm.Y, ch
 end
