@@ -40,7 +40,7 @@ function cross_validate(glrm::AbstractGLRM;
         if init != nothing
             init(train_glrms[ifold])
         end
-        fit!(train_glrms[ifold]; params, verbose=verbose)
+        fit!(train_glrms[ifold], params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
         train_error[ifold] = error_fn(train_glrms[ifold], 
             parameter_estimate(train_glrms[ifold])...) / ntrain
@@ -139,17 +139,15 @@ end
 flattenarray{T}(x::Array{T})=flattenarray(x,Array(T, 0))
 
 function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1, 
-                    params=Params(1,max_iter=1,abs_tol=.01,min_stepsize=.01), 
-                    niters=30; verbose=true)
-    if verbose println("flattening observations") end
+                    params=Params(100,max_iter=1,abs_tol=.01,min_stepsize=.01),
+                    ch = ConvergenceHistory("cv_by_iter"); 
+                    verbose=true)
     # obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
     obs = flatten_observations(glrm.observed_features)
 
-    if verbose println("splitting train and test sets") end
     train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = 
         get_train_and_test(obs, size(glrm.A)..., holdout_proportion)
     
-    if verbose println("forming train and test GLRMs") end
     # form glrm on training dataset 
     train_glrm = copy_estimate(glrm)
     train_glrm.observed_examples = train_observed_examples
@@ -163,17 +161,22 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
         
+    niters = params.maxiters
+    params.maxiters = 1
     train_error = Array(Float64, niters)
     test_error = Array(Float64, niters)
+    if verbose
+        @printf("%12s%12s%12s\n", "train error", "test error", "time")  
+        t0 = time()
+    end
     for iter=1:niters
         # evaluate train and test error
-        if verbose println("fitting train GLRM") end
-        X, Y, ch = fit!(train_glrm, params, verbose=false)
-        if verbose println("computing train and test error for iter $iter:") end
-        train_error[iter] = objective(train_glrm, X, Y, include_regularization=false)/ntrain
-        if verbose println("\ttrain error: $(train_error[iter])") end
-        test_error[iter] = objective(test_glrm, X, Y, include_regularization=false)/ntest
-        if verbose println("\ttest error:  $(test_error[iter])") end
+        fit!(train_glrm, params, ch=ch, verbose=false)
+        train_error[iter] = ch.objective[end] # objective(train_glrm, parameter_estimate(train_glrm)..., include_regularization=false)/ntrain
+        test_error[iter] = objective(test_glrm, parameter_estimate(train_glrm)..., include_regularization=false)/ntest
+        if verbose
+            @printf("%12.4e%12.4e%12.4e\n", train_error[iter], test_error[iter], time() - t0)
+        end
     end
     return train_error, test_error
 end
