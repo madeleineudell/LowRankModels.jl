@@ -1,14 +1,8 @@
-using FullRankModels
+using LowRankModels
 using Base.Test
-
-# write your own tests here
-@test 1 == 1
-
-
 
 ################################################################################
 # ScikitLearnBase test
-using LowRankModels
 import ScikitLearnBase
 
 # Check that KMeans can correctly separate two non-overlapping Gaussians
