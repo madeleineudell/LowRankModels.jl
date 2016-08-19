@@ -1,6 +1,6 @@
 # LowRankModels.jl
 
-<!--[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)-->
+[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)
 
 LowRankModels.jl is a julia package for modeling and fitting generalized low rank models (GLRMs).
 GLRMs model a data array by a low rank matrix, and
