@@ -420,14 +420,19 @@ we encourage you to cite the software.
 
 Use the following BibTeX citation:
 
-    @article{udell2014,
-        title = {Generalized Low Rank Models},
-        author ={Udell, Madeleine and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
-        year = {2014},
-        archivePrefix = "arXiv",
-        eprint = {1410.0342},
-        primaryClass = "stat-ml",
-        journal={arXiv preprint arXiv:1410.0342},
-    }
+```
+@article{udell2016,
+    Author = {Madeleine Udell and Corinne Horn and Reza Zadeh and Stephen Boyd},
+    Doi = {10.1561/2200000055},
+    Issn = {1935-8237},
+    Journal = {Foundations and Trends{\textregistered} in Machine Learning},
+    Number = {1},
+    Pages = {1-118},
+    Title = {Generalized Low Rank Models},
+    Url = {http://dx.doi.org/10.1561/2200000055},
+    Volume = {9},
+    Year = {2016}
+}
+```
 
 [glrmpaper]: http://arxiv.org/abs/1410.0342
