@@ -420,19 +420,19 @@ we encourage you to cite the software.
 
 Use the following BibTeX citation:
 
-  @article{glrm,
-    title = {Generalized Low Rank Models},
-    author ={Madeleine Udell and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
-    doi = {10.1561/2200000055},
-    year = {2016},
-    archivePrefix = "arXiv",
-    eprint = {1410.0342},
-    primaryClass = "stat-ml",
-    journal = {Foundations and Trends in Machine Learning},
-    number = {1},
-    volume = {9},
-    issn = {1935-8237},
-    url = {http://dx.doi.org/10.1561/2200000055},
-  }
+    @article{glrm,
+      title = {Generalized Low Rank Models},
+      author ={Madeleine Udell and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
+      doi = {10.1561/2200000055},
+      year = {2016},
+      archivePrefix = "arXiv",
+      eprint = {1410.0342},
+      primaryClass = "stat-ml",
+      journal = {Foundations and Trends in Machine Learning},
+      number = {1},
+      volume = {9},
+      issn = {1935-8237},
+      url = {http://dx.doi.org/10.1561/2200000055},
+    }
 
 [glrmpaper]: https://people.orie.cornell.edu/mru8/doc/udell16_glrm.pdf
