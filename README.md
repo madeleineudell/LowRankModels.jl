@@ -91,7 +91,7 @@ Regularizers:
 * unit 1-sparse constraint `UnitOneSparseConstraint` (eg, for k-means)
 * simplex constraint `SimplexConstraint`
 * l1 regularization, combined with nonnegative constraint `NonNegOneReg`
-* fix features at values `y0` FixedLatentFeaturesConstraint(y0)`
+* fix features at values `y0` `FixedLatentFeaturesConstraint(y0)`
 
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 
@@ -420,19 +420,19 @@ we encourage you to cite the software.
 
 Use the following BibTeX citation:
 
-  @article{glrm,
-    title = {Generalized Low Rank Models},
-    author ={Madeleine Udell and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
-    doi = {10.1561/2200000055},
-    year = {2016},
-    archivePrefix = "arXiv",
-    eprint = {1410.0342},
-    primaryClass = "stat-ml",
-    journal = {Foundations and Trends in Machine Learning},
-    number = {1},
-    volume = {9},
-    issn = {1935-8237},
-    url = {http://dx.doi.org/10.1561/2200000055},
-  }
+    @article{glrm,
+      title = {Generalized Low Rank Models},
+      author ={Madeleine Udell and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
+      doi = {10.1561/2200000055},
+      year = {2016},
+      archivePrefix = "arXiv",
+      eprint = {1410.0342},
+      primaryClass = "stat-ml",
+      journal = {Foundations and Trends in Machine Learning},
+      number = {1},
+      volume = {9},
+      issn = {1935-8237},
+      url = {http://dx.doi.org/10.1561/2200000055},
+    }
 
 [glrmpaper]: https://people.orie.cornell.edu/mru8/doc/udell16_glrm.pdf
