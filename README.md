@@ -91,7 +91,7 @@ Regularizers:
 * unit 1-sparse constraint `UnitOneSparseConstraint` (eg, for k-means)
 * simplex constraint `SimplexConstraint`
 * l1 regularization, combined with nonnegative constraint `NonNegOneReg`
-* fix features at values `y0` FixedLatentFeaturesConstraint(y0)`
+* fix features at values `y0` `FixedLatentFeaturesConstraint(y0)`
 
 Each of these losses and regularizers can be scaled 
 (for example, to increase the importance of the loss relative to the regularizer) 
