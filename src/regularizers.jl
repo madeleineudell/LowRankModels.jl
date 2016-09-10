@@ -12,6 +12,7 @@ export Regularizer, ProductRegularizer, # abstract types
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
        lastentry1, lastentry_unpenalized, 
        fixed_latent_features, FixedLatentFeaturesConstraint,
+       fixed_last_latent_features, FixedLastLatentFeaturesConstraint,
        OrdinalReg,
        # methods on regularizers
        prox!, prox,
@@ -170,6 +171,27 @@ end
 evaluate(r::fixed_latent_features, a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
 scale(r::fixed_latent_features) = scale(r.r)
 scale!(r::fixed_latent_features, newscale::Number) = scale!(r.r, newscale)
+
+## fixes the values of the last n elements of the column to be y
+## optionally regularizes the first k-n elements with regularizer r
+type fixed_last_latent_features<:Regularizer
+    r::Regularizer
+    y::Array{Float64,1} # the values of the fixed latent features 
+    n::Int # length of y
+end
+fixed_last_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_last_latent_features(r,y,length(y))
+# standalone use without another regularizer
+FixedLastLatentFeaturesConstraint(y::Array{Float64, 1}) = fixed_last_latent_features(ZeroReg(),y,length(y))
+
+prox(r::fixed_last_latent_features,u::AbstractArray,alpha::Number) = [prox(r.r,u[(r.n+1):end],alpha); r.y]
+function prox!(r::fixed_last_latent_features,u::Array{Float64},alpha::Number)
+    u[length(u)-r.n+1:end]=y
+    prox!(r.r,u[1:length(a)-r.n],alpha)
+    u
+end
+evaluate(r::fixed_last_latent_features, a::AbstractArray) = a[length(a)-r.n+1:end]==r.y ? evaluate(r.r, a[1:length(a)-r.n]) : Inf
+scale(r::fixed_last_latent_features) = scale(r.r)
+scale!(r::fixed_last_latent_features, newscale::Number) = scale!(r.r, newscale)
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
