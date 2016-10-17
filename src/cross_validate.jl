@@ -6,7 +6,7 @@ loss_fn(args...; kwargs...) = objective(args...; include_regularization=false, k
 
 # to use with error_metric when we have domains in the namespace, call as:
 # cross_validate(glrm, error_fn = error_metric(glrm,domains,glrm.X,glrm.Y))
-function cross_validate(glrm::AbstractGLRM; 
+function cross_validate(glrm::AbstractGLRM;
                         nfolds=5, params=Params(),
                         verbose=true, use_folds=nfolds,
                         error_fn=loss_fn,
@@ -27,7 +27,7 @@ function cross_validate(glrm::AbstractGLRM;
 	    ntrain = sum(map(length, train_observed_features))
     	ntest = sum(map(length, test_observed_features))
 	    if verbose println("training model on $ntrain samples and testing on $ntest") end
-        # form glrm on training dataset 
+        # form glrm on training dataset
         train_glrms[ifold] = copy_estimate(glrm)
         train_glrms[ifold].observed_examples = train_observed_examples
         train_glrms[ifold].observed_features = train_observed_features
@@ -42,17 +42,17 @@ function cross_validate(glrm::AbstractGLRM;
         end
         fit!(train_glrms[ifold], params, verbose=verbose)
         if verbose println("computing train and test error for fold $ifold:") end
-        train_error[ifold] = error_fn(train_glrms[ifold], 
+        train_error[ifold] = error_fn(train_glrms[ifold],
             parameter_estimate(train_glrms[ifold])...) / ntrain
         if verbose println("\ttrain error: $(train_error[ifold])") end
-        test_error[ifold] = error_fn(test_glrms[ifold], 
+        test_error[ifold] = error_fn(test_glrms[ifold],
             parameter_estimate(train_glrms[ifold])...) / ntest
         if verbose println("\ttest error:  $(test_error[ifold])") end
     end
     return train_error, test_error, train_glrms, test_glrms
 end
 
-@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)    
+@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)
     # partition elements of obs into nfolds groups
     groups = Array(Int, size(obs))
     rand!(groups, 1:nfolds)  # fill an array with random 1 through N
@@ -62,8 +62,8 @@ end
         enough_observations = 0
         for ifold=1:nfolds
             train = obs[filter(i->groups[i]!=ifold, 1:length(obs))] # all the obs that didn't get the ifold label
-            train_observed_features, train_observed_examples = sort_observations(train,m,n) 
-            if !do_check || 
+            train_observed_features, train_observed_examples = sort_observations(train,m,n)
+            if !do_check ||
                 (check_enough_observations(train_observed_features) && check_enough_observations(train_observed_examples))
                     enough_observations += 1
             else
@@ -79,14 +79,14 @@ end
             return folds
         end
     end
-    error("Not enough data to cross validate automatically.")      
+    error("Not enough data to cross validate automatically.")
 end
 
 function check_enough_observations(observed_examples_or_features)
     all(map(length, observed_examples_or_features) .> 0)
 end
 
-function get_train_and_test(obs, m, n, holdout_proportion=.1)    
+function get_train_and_test(obs, m, n, holdout_proportion=.1)
 
     # generate random uniform number for each observation
     groups = Array(Float64, size(obs))
@@ -117,10 +117,10 @@ function flatten(x, y)
     if state==false
         push!(y, x)
     else
-        while !done(x, state) 
-          (item, state) = next(x, state) 
+        while !done(x, state)
+          (item, state) = next(x, state)
           flatten(item, y)
-        end 
+        end
     end
     y
 end
@@ -130,25 +130,25 @@ function flattenarray(x, y)
     if typeof(x)<:Array
         for xi in x
           flattenarray(xi, y)
-        end        
+        end
     else
-        push!(y, x) 
+        push!(y, x)
     end
     y
 end
 flattenarray{T}(x::Array{T})=flattenarray(x,Array(T, 0))
 
-function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1, 
+function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
                     params=Params(100,max_iter=1,abs_tol=.01,min_stepsize=.01),
-                    ch = ConvergenceHistory("cv_by_iter"); 
+                    ch = ConvergenceHistory("cv_by_iter");
                     verbose=true)
     # obs = flattenarray(map(ijs->map(j->(ijs[1],j),ijs[2]),zip(1:length(glrm.observed_features),glrm.observed_features)))
     obs = flatten_observations(glrm.observed_features)
 
-    train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = 
+    train_observed_features, train_observed_examples, test_observed_features, test_observed_examples =
         get_train_and_test(obs, size(glrm.A)..., holdout_proportion)
-    
-    # form glrm on training dataset 
+
+    # form glrm on training dataset
     train_glrm = copy_estimate(glrm)
     train_glrm.observed_examples = train_observed_examples
     train_glrm.observed_features = train_observed_features
@@ -160,13 +160,13 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
 
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
-        
-    niters = params.maxiters
-    params.maxiters = 1
+
+    niters = params.max_iter
+    params.max_iter = 1
     train_error = Array(Float64, niters)
     test_error = Array(Float64, niters)
     if verbose
-        @printf("%12s%12s%12s\n", "train error", "test error", "time")  
+        @printf("%12s%12s%12s\n", "train error", "test error", "time")
         t0 = time()
     end
     for iter=1:niters
@@ -181,7 +181,7 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
     return train_error, test_error
 end
 
-function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5), 
+function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5),
                                          holdout_proportion=.1, verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     if verbose println("flattening observations") end
@@ -189,11 +189,11 @@ function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=log
     obs = flatten_observations(glrm.observed_features)
 
     if verbose println("splitting train and test sets") end
-    train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = 
+    train_observed_features, train_observed_examples, test_observed_features, test_observed_examples =
         get_train_and_test(obs, size(glrm.A)..., holdout_proportion)
-    
+
     if verbose println("forming train and test GLRMs") end
-    # form glrm on training dataset 
+    # form glrm on training dataset
     train_glrm = copy_estimate(glrm)
     train_glrm.observed_examples = train_observed_examples
     train_glrm.observed_features = train_observed_features
@@ -203,7 +203,7 @@ function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=log
     test_glrm.observed_examples = test_observed_examples
     test_glrm.observed_features = test_observed_features
 
-    return regularization_path(train_glrm, test_glrm; params=params, reg_params=reg_params, 
+    return regularization_path(train_glrm, test_glrm; params=params, reg_params=reg_params,
                                          verbose=verbose,
                                          ch=ch)
 end
@@ -211,7 +211,7 @@ end
 # For each value of the regularization parameter,
 # compute the training error, ie, average error (sum over (i,j) in train_glrm.obs of L_j(A_ij, x_i y_j))
 # and the test error, ie, average error (sum over (i,j) in test_glrm.obs of L_j(A_ij, x_i y_j))
-function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5), 
+function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5),
                                          verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     train_error = Array(Float64, length(reg_params))
@@ -240,7 +240,7 @@ function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; 
 end
 
 
-function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(), reg_params=logspace(2,-2,5), 
+function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(), reg_params=logspace(2,-2,5),
                         holdout_proportion=.1, verbose=true,
                         ch::ConvergenceHistory=ConvergenceHistory("reg_path"), kprec=10)
     m,n = size(train_glrm.A)
@@ -279,9 +279,9 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
                 break
             end
             for j=1:n
-                if kfound >= kprec 
+                if kfound >= kprec
                     break
-                end        
+                end
                 if XY[i,j] >= q
                     # i predict 1 and (i,j) was in my test set and i observed 1
                     if j in test_observed_features[i]

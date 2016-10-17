@@ -1,13 +1,13 @@
 import Base: isnan
-import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA, NAtype
-
+import DataArrays: DataArray, isna, dropna, NA, NAtype, array
+import DataFrames: DataFrame, ncol, convert
 export GLRM
 
 # TODO: identify categoricals automatically from PooledDataArray columns
 
 function GLRM(df::DataFrame, k::Int;
               losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
-              offset = true, scale = false, 
+              offset = true, scale = false,
               prob_scale = true, NaNs_to_NAs = true)
     if NaNs_to_NAs
         df = copy(df)
@@ -64,8 +64,8 @@ end
 function get_ordinals(df::DataFrame)
     m,n = size(df)
     # there must be a better way to check types...
-    ordinals = [(isa(df[i], AbstractArray{Int,1}) || 
-                 isa(df[i], AbstractArray{Int32,1}) || 
+    ordinals = [(isa(df[i], AbstractArray{Int,1}) ||
+                 isa(df[i], AbstractArray{Int32,1}) ||
                  isa(df[i], AbstractArray{Int64,1})) for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]

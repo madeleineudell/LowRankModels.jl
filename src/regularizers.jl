@@ -1,7 +1,7 @@
 # Predefined regularizers
-# You may also implement your own regularizer by subtyping 
+# You may also implement your own regularizer by subtyping
 # the abstract type Regularizer.
-# Regularizers should implement `evaluate` and `prox`. 
+# Regularizers should implement `evaluate` and `prox`.
 
 import Base.scale!, Roots.fzero
 
@@ -10,7 +10,7 @@ export Regularizer, ProductRegularizer, # abstract types
        QuadReg, QuadConstraint,
        OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
-       lastentry1, lastentry_unpenalized, 
+       lastentry1, lastentry_unpenalized,
        fixed_latent_features, FixedLatentFeaturesConstraint,
        fixed_last_latent_features, FixedLastLatentFeaturesConstraint,
        OrdinalReg,
@@ -23,7 +23,7 @@ export Regularizer, ProductRegularizer, # abstract types
 TOL = 1e-12
 
 # regularizers
-# regularizers r should have the method `prox` defined such that 
+# regularizers r should have the method `prox` defined such that
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
 abstract Regularizer
 
@@ -55,9 +55,9 @@ evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(a.^2)
 ## the function r such that
 ## r(x) = inf    if norm(x) > max_2norm
 ##        0      otherwise
-## can be used to implement maxnorm regularization: 
-##   constraining the maxnorm of XY to be <= mu is achieved 
-##   by setting glrm.rx = QuadConstraint(sqrt(mu)) 
+## can be used to implement maxnorm regularization:
+##   constraining the maxnorm of XY to be <= mu is achieved
+##   by setting glrm.rx = QuadConstraint(sqrt(mu))
 ##   and the same for every element of glrm.ry
 type QuadConstraint<:Regularizer
     max_2norm::Float64
@@ -86,13 +86,13 @@ evaluate(r::ZeroReg,a::AbstractArray) = 0
 scale(r::ZeroReg) = 0
 scale!(r::ZeroReg, newscale::Number) = 0
 
-## indicator of the nonnegative orthant 
+## indicator of the nonnegative orthant
 ## (enforces nonnegativity, eg for nonnegative matrix factorization)
 type NonNegConstraint<:Regularizer
 end
-prox(r::NonNegConstraint,u::AbstractArray,alpha::Number) = broadcast(max,u,0)
-prox!(r::NonNegConstraint,u::Array{Float64},alpha::Number) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
-function evaluate(r::NonNegConstraint,a::AbstractArray) 
+prox(r::NonNegConstraint,u::AbstractArray,alpha::Number=1) = broadcast(max,u,0)
+prox!(r::NonNegConstraint,u::Array{Float64},alpha::Number=1) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
+function evaluate(r::NonNegConstraint,a::AbstractArray)
     for ai in a
         if ai<0
             return Inf
@@ -127,10 +127,10 @@ type lastentry1<:Regularizer
     r::Regularizer
 end
 lastentry1() = lastentry1(ZeroReg())
-prox(r::lastentry1,u::AbstractArray{Float64,1},alpha::Number) = [prox(r.r,view(u,1:length(u)-1),alpha); 1]
-prox!(r::lastentry1,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:length(u)-1),alpha); u[end]=1; u)
-prox(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,view(u,1:size(u,1)-1,:),alpha); ones(1, size(u,2))]
-prox!(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u[end,:]=1; u)
+prox(r::lastentry1,u::AbstractArray{Float64,1},alpha::Number=1) = [prox(r.r,view(u,1:length(u)-1),alpha); 1]
+prox!(r::lastentry1,u::AbstractArray{Float64,1},alpha::Number=1) = (prox!(r.r,view(u,1:length(u)-1),alpha); u[end]=1; u)
+prox(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number=1) = [prox(r.r,view(u,1:size(u,1)-1,:),alpha); ones(1, size(u,2))]
+prox!(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number=1) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u[end,:]=1; u)
 evaluate(r::lastentry1,a::AbstractArray{Float64,1}) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 evaluate(r::lastentry1,a::AbstractArray{Float64,2}) = (all(a[end,:].==1) ? evaluate(r.r,a[1:end-1,:]) : Inf)
 scale(r::lastentry1) = scale(r.r)
@@ -142,11 +142,11 @@ type lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
 lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
-prox(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = [prox(r.r,u[1:end-1],alpha); u[end]]
-prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1),alpha); u)
+prox(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number=1) = [prox(r.r,u[1:end-1],alpha); u[end]]
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,1},alpha::Number=1) = (prox!(r.r,view(u,1:size(u,1)-1),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,1}) = evaluate(r.r,a[1:end-1])
-prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = [prox(r.r,u[1:end-1,:],alpha); u[end,:]]
-prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u)
+prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number=1) = [prox(r.r,u[1:end-1,:],alpha); u[end,:]]
+prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number=1) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[1:end-1,:])
 scale(r::lastentry_unpenalized) = scale(r.r)
 scale!(r::lastentry_unpenalized, newscale::Number) = scale!(r.r, newscale)
@@ -155,7 +155,7 @@ scale!(r::lastentry_unpenalized, newscale::Number) = scale!(r.r, newscale)
 ## optionally regularizes the last k-n elements with regularizer r
 type fixed_latent_features<:Regularizer
     r::Regularizer
-    y::Array{Float64,1} # the values of the fixed latent features 
+    y::Array{Float64,1} # the values of the fixed latent features
     n::Int # length of y
 end
 fixed_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_latent_features(r,y,length(y))
@@ -176,7 +176,7 @@ scale!(r::fixed_latent_features, newscale::Number) = scale!(r.r, newscale)
 ## optionally regularizes the first k-n elements with regularizer r
 type fixed_last_latent_features<:Regularizer
     r::Regularizer
-    y::Array{Float64,1} # the values of the fixed latent features 
+    y::Array{Float64,1} # the values of the fixed latent features
     n::Int # length of y
 end
 fixed_last_latent_features(r::Regularizer, y::Array{Float64,1}) = fixed_last_latent_features(r,y,length(y))
@@ -274,7 +274,7 @@ scale(r::SimplexConstraint) = 1
 scale!(r::SimplexConstraint, newscale::Number) = 1
 
 ## ordinal regularizer
-## a block regularizer which 
+## a block regularizer which
     # 1) forces the first k-1 entries of each column to be the same
     # 2) forces the last entry of each column to be increasing
     # 3) applies an internal regularizer to the first k-1 entries of each column
@@ -307,3 +307,9 @@ scale!(r::OrdinalReg, newscale::Number) = scale!(r.r, newscale)
 
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::OrdinalReg) = r
+
+## simpler method for numbers, not arrays
+evaluate(r::Regularizer, u::Number) = evaluate(r, [u])
+prox(r::Regularizer, u::Number, alpha::Number) = prox(r, [u], alpha)[1]
+# if step size not specified, step size = 1
+prox(r::Regularizer, u) = prox(r, u, 1)

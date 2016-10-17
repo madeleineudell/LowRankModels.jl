@@ -1,5 +1,6 @@
 import Base: isnan
-import DataFrames: DataFrame, DataArray, isna, dropna, array, ncol, convert, NA, NAtype
+import DataArrays: DataArray, isna, dropna, NA, NAtype, array
+import DataFrames: DataFrame, ncol, convert
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!
 
@@ -13,7 +14,7 @@ probabilistic_losses = Dict{Symbol, Any}(
 )
 
 function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
-              loss_map = probabilistic_losses, 
+              loss_map = probabilistic_losses,
               rx = QuadReg(.01), ry = QuadReg(.01),
               offset = true, scale = false, prob_scale = true,
               transform_data_to_numbers = true, NaNs_to_NAs = true)
@@ -32,7 +33,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
 
     # clean up dataframe if needed
     A = copy(df)
-    if NaNs_to_NAs    
+    if NaNs_to_NAs
         NaNs_to_NAs!(A)
     end
 
@@ -59,7 +60,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
         end
     end
     glrm = GLRM(A, losses, rx, rys, k, obs=obs, offset=offset, scale=scale)
-    
+
     # scale model so it really computes the MAP estimator of the parameters
     if prob_scale
         prob_scale!(glrm)
@@ -79,7 +80,7 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
             error("column contains non-numerical values")
         end
     end
-    
+
     # harder cases
     col = copy(df[j])
     levels = Set(col[!isna(col)])
@@ -208,7 +209,7 @@ function df2array(df::DataFrame, z::Number)
             A[:,i] = convert(Array, (2*df[i]-1), z)
         else
             A[:,i] = convert(Array, df[i], z)
-        end            
+        end
     end
     return A
 end
@@ -239,8 +240,8 @@ end
 function get_ordinals(df::DataFrame)
     m,n = size(df)
     # there must be a better way to check types...
-    ordinals = [(isa(df[i], AbstractArray{Int,1}) || 
-                 isa(df[i], AbstractArray{Int32,1}) || 
+    ordinals = [(isa(df[i], AbstractArray{Int,1}) ||
+                 isa(df[i], AbstractArray{Int32,1}) ||
                  isa(df[i], AbstractArray{Int64,1})) for i in 1:n]
     nord = sum(ordinals)
     ord_idx = (1:size(df,2))[ordinals]

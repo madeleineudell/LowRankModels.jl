@@ -9,19 +9,19 @@
 #           The "natural" domain that the loss function was meant to handle. E.g. BoolDomain for LogisticLoss,
 #           RealDomain for QuadLoss, etc.
 
-#   Other fields may be also be included to encode parameters of the loss function, encode the range or  
+#   Other fields may be also be included to encode parameters of the loss function, encode the range or
 #   set of possible values of the data, etc.
 #
 #   Methods:
-#     `my_loss_type(args..., scale=1.0::Float64; 
+#     `my_loss_type(args..., scale=1.0::Float64;
 #                   domain=natural_Domain(args[range]...), kwargs...) ::my_loss_type`
-#           Constructor for the loss type. The first few arguments are parameters for 
+#           Constructor for the loss type. The first few arguments are parameters for
 #           which there isn't a rational default (a loss may not need any of these).
 #           The last positional argument should be the scale, which should default to 1.
-#           There must be a default domain which is a Domain, which may take arguments from 
-#           the list of positional arguments. Parameters besides the scale for which there are 
+#           There must be a default domain which is a Domain, which may take arguments from
+#           the list of positional arguments. Parameters besides the scale for which there are
 #           reasonable defaults should be included as keyword arguments (there may be none).
-#     `evaluate(l::my_loss_type, u::Float64, a::Number) ::Float64` 
+#     `evaluate(l::my_loss_type, u::Float64, a::Number) ::Float64`
 #           Evaluates the function l(u,a) where u is the approximation of a
 #     `grad(l::my_loss_type, u::Float64, a::Number) ::Float64`
 #           Evaluates the gradient of the loss at the given point (u,a)
@@ -29,21 +29,21 @@
 #   In addition, loss functions should preferably implement a method:
 #     `M_estimator(l::my_loss_type, a::AbstractArray) ::Float64`
 #           Finds uₒ = argmin ∑l(u,aᵢ) which is the best single estimate of the array `a`
-#   If `M_estimator` is not implemented, a live optimization procedure will be used when this function is 
-#   called in order to compute loss function scalings. The live optimization may be slow, so an analytic 
+#   If `M_estimator` is not implemented, a live optimization procedure will be used when this function is
+#   called in order to compute loss function scalings. The live optimization may be slow, so an analytic
 #   implementation is preferable.
 
 
-import Base.scale! 
+import Base.scale!
 import Optim.optimize
-export Loss, 
+export Loss,
        DiffLoss, # a category of Losses
-       QuadLoss, WeightedHingeLoss, HingeLoss, LogisticLoss, PoissonLoss, 
+       QuadLoss, WeightedHingeLoss, HingeLoss, LogisticLoss, PoissonLoss,
        OrdinalHingeLoss, MultinomialLoss, MultinomialOrdinalLoss,
-       OrdisticLoss, L1Loss, HuberLoss, 
+       OrdisticLoss, L1Loss, HuberLoss,
        PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
-       avgerror, scale, scale!, 
+       avgerror, scale, scale!,
        embedding_dim, get_yidxs, datalevels
 
 abstract Loss
@@ -69,7 +69,7 @@ function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
     featurestartidxs = cumsum(append!([1], ds))
     # find which columns of Y map to which columns of A (for multidimensional losses)
     @compat yidxs = Array(Union{Range{Int}, Int}, n)
-    
+
     for f = 1:n
         if ds[f] == 1
             yidxs[f] = featurestartidxs[f]
@@ -86,7 +86,7 @@ end
 # for checking that the analytic M_estimators are correct. To make sure this method is called instead
 # of the loss-specific method (should only be done to test), simply pass the third paramter `test`.
 # e.g. M_estimator(l,a) will call the implementation for l, but M_estimator(l,a,"test") will call the
-# general-purpose optimizing M_estimator.  
+# general-purpose optimizing M_estimator.
 function M_estimator(l::Loss, a::AbstractArray; test="test")
     # the function to optimize over
     f = u -> sum(map(ai->evaluate(l,u[1],ai), a)) # u is indexed because `optim` assumes input is a vector
@@ -97,7 +97,7 @@ function M_estimator(l::Loss, a::AbstractArray; test="test")
     m = optimize(f, g!, [median(a)], method=:l_bfgs).minimum[1]
 end
 
-# Uses uₒ = argmin ∑l(u,aᵢ) to find (1/n)*∑l(uₒ,aᵢ) which is the 
+# Uses uₒ = argmin ∑l(u,aᵢ) to find (1/n)*∑l(uₒ,aᵢ) which is the
 # average error incurred by using the estimate uₒ for every aᵢ
 function avgerror(l::Loss, a::AbstractArray)
     m = M_estimator(l,a)
@@ -155,7 +155,7 @@ grad(l::HuberLoss,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.sca
 ########################################## PERIODIC ##########################################
 # f: ℜxℜ -> ℜ
 # f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
-# this measures how far away u and a are on a circle of circumference T. 
+# this measures how far away u and a are on a circle of circumference T.
 type PeriodicLoss<:DiffLoss
     T::Float64 # the length of the period
     scale::Float64
@@ -168,14 +168,14 @@ evaluate(l::PeriodicLoss, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l
 grad(l::PeriodicLoss, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
 
 function M_estimator(l::PeriodicLoss, a::AbstractArray{Float64})
-    (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding. 
+    (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding.
     # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
 end
 
 ########################################## POISSON ##########################################
 # f: ℜxℕ -> ℜ
-# BEWARE: 
+# BEWARE:
 # 1) this is a reparametrized poisson: we parametrize the mean as exp(u) so that u can take any real value and still produce a positive mean
 # 2) THIS LOSS MAY CAUSE MODEL INSTABLITY AND DIFFICULTY FITTING.
 type PoissonLoss<:Loss
@@ -184,7 +184,7 @@ type PoissonLoss<:Loss
 end
 PoissonLoss(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)::Domain) = PoissonLoss(scale, domain)
 
-function evaluate(l::PoissonLoss, u::Float64, a::Number) 
+function evaluate(l::PoissonLoss, u::Float64, a::Number)
     l.scale*(exp(u) - a*u) # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
 end
 
@@ -268,7 +268,7 @@ type WeightedHingeLoss<:Loss
     domain::Domain
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
 end
-WeightedHingeLoss(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) = 
+WeightedHingeLoss(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) =
     WeightedHingeLoss(scale, domain, case_weight_ratio)
 HingeLoss(scale=1.0::Float64; kwargs...) = WeightedHingeLoss(scale; kwargs...) # the standard HingeLoss is a special case of WeightedHingeLoss
 
@@ -289,7 +289,7 @@ function grad(l::WeightedHingeLoss, u::Float64, a::Number)
 end
 
 function M_estimator(l::WeightedHingeLoss, a::AbstractArray)
-    r = length(a)/length(filter(x->x>0, a)) - 1 
+    r = length(a)/length(filter(x->x>0, a)) - 1
     if l.case_weight_ratio > r
         m = 1.0
     elseif l.case_weight_ratio == r
@@ -324,7 +324,7 @@ function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     for j in 1:length(u)
         sumexp += exp(u[j] - u[a] - M)
     end
-    loss = log(sumexp) + M    
+    loss = log(sumexp) + M
     return l.scale*loss
 end
 
@@ -333,7 +333,7 @@ function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     # Using some nice algebra, you can show
     g[a] = -1
     # and g[b] = -1/sum_{a' \in S} exp(u[b] - u[a'])
-    # the contribution of one observation to one entry of the gradient 
+    # the contribution of one observation to one entry of the gradient
     # is always between -1 and 0
     for j in 1:length(u)
         M = maximum(u) - u[j] # prevents overflow
@@ -376,7 +376,7 @@ function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     diffusquared = u[a]^2 .- u.^2
     M = maximum(diffusquared)
     invlik = sum(exp(diffusquared .- M))
-    loss = M + log(invlik)  
+    loss = M + log(invlik)
     return l.scale*loss
 end
 
@@ -410,27 +410,27 @@ end
 # l: ℜ^{max-1} x {1, 2, ..., max-1, max} -> ℜ
 # l computes the (negative log likelihood of the) multinomial ordinal logit.
 #
-# the length of the first argument u is one less than 
+# the length of the first argument u is one less than
 # the number of levels of the second argument a,
 # since the entries of u correspond to the division between each level
 # and the one above it.
 #
 # To yield a sensible pdf, the entries of u should be increasing
 # (b/c they're basically the -log of the cdf at the boundary between each level)
-# 
+#
 # The multinomial ordinal logit corresponds to a likelihood p with
 # p(u, a > i) ~ exp(-u[i]), so
 # p(u, a)     ~ exp(-u[1]) * ... * exp(-u[a-1]) * exp(u[a]) * ... * exp(u[end])
 #             = exp(- u[1] - ... - u[a-1] + u[a] + ... + u[end])
 # and normalizing,
 # p(u, a)     = p(u, a) / sum_{a'} p(u, a')
-# 
-# So l(u, a) = -log(p(u, a)) 
-#            = u[1] + ... + u[a-1] - u[a] - ... - u[end] + 
+#
+# So l(u, a) = -log(p(u, a))
+#            = u[1] + ... + u[a-1] - u[a] - ... - u[end] +
 #              log(sum_{a'}(exp(u[1] + ... + u[a'-1] - u[a'] - ... - u[end])))
-# 
+#
 # Inspection of this loss function confirms that given u,
-# the most probable value a is the index of the first 
+# the most probable value a is the index of the first
 # positive entry of u
 
 type MultinomialOrdinalLoss<:Loss
@@ -484,4 +484,22 @@ function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
         u -= .1*grad(l, u, ai)
     end
     return u
+end
+
+function evaluate(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
+  @assert size(u) == size(a)
+  out = 0
+  for i=1:length(a)
+    out += evaluate(l, u[i], a[i])
+  end
+  return out
+end
+
+function grad(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
+  @assert size(u) == size(a)
+  mygrad = zeros(size(u))
+  for i=1:length(a)
+    mygrad[i] = grad(l, u[i], a[i])
+  end
+  return mygrad
 end
