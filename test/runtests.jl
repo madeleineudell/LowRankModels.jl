@@ -1,6 +1,10 @@
 using LowRankModels
 using Base.Test
 
+###############################################################
+# verify all examples run
+include("../examples/runexamples.jl")
+
 ################################################################################
 # ScikitLearnBase test
 import ScikitLearnBase
