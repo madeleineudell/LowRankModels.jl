@@ -215,54 +215,6 @@ function df2array(df::DataFrame, z::Number)
 end
 df2array(df::DataFrame) = df2array(df, 0)
 
-function get_reals(df::DataFrame)
-    m,n = size(df)
-    reals = [typeof(df[i])<:AbstractArray{Float64,1} for i in 1:n]
-    n1 = sum(reals)
-    losses = Array(Loss,n1)
-    for i=1:n1
-        losses[i] = QuadLoss()
-    end
-    return reals, losses
-end
-
-function get_bools(df::DataFrame)
-    m,n = size(df)
-    bools = [isa(df[i], AbstractArray{Bool,1}) for i in 1:n]
-    n1 = sum(bools)
-    losses = Array(Loss,n1)
-    for i=1:n1
-        losses[i] = HingeLoss()
-    end
-    return bools, losses
-end
-
-function get_ordinals(df::DataFrame)
-    m,n = size(df)
-    # there must be a better way to check types...
-    ordinals = [(isa(df[i], AbstractArray{Int,1}) ||
-                 isa(df[i], AbstractArray{Int32,1}) ||
-                 isa(df[i], AbstractArray{Int64,1})) for i in 1:n]
-    nord = sum(ordinals)
-    ord_idx = (1:size(df,2))[ordinals]
-    maxs = zeros(nord,1)
-    mins = zeros(nord,1)
-    for i in 1:nord
-        col = df[ord_idx[i]]
-        try
-            maxs[i] = maximum(dropna(col))
-            mins[i] = minimum(dropna(col))
-        end
-    end
-
-    # set losses and regularizers
-    losses = Array(Loss,nord)
-    for i=1:nord
-        losses[i] = OrdinalHingeLoss(mins[i],maxs[i])
-    end
-    return ordinals, losses
-end
-
 # expand categorical columns, given as column indices, into one boolean column for each level
 function expand_categoricals!(df::DataFrame,categoricals::Array{Int,1})
     # map from names to indices; not used: categoricalidxs = map(y->df.colindex[y], categoricals)

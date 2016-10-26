@@ -1,4 +1,4 @@
-export ConvergenceHistory, update!
+export ConvergenceHistory, update_ch!
 
 type ConvergenceHistory
     name::AbstractString
@@ -12,8 +12,8 @@ type ConvergenceHistory
 end
 ConvergenceHistory(name::AbstractString,optval=0) = ConvergenceHistory(name,Float64[],Float64[],Float64[],Float64[],Float64[],Float64[],optval)
 
-function update_ch!(ch::ConvergenceHistory, dt, 
-                 obj=0, stepsize=0, pr=0, dr=0)
+function update_ch!(ch::ConvergenceHistory, dt::Number, obj::Number,
+                    stepsize::Number=0, pr::Number=0, dr::Number=0)
     push!(ch.objective,obj)
     push!(ch.primal_residual,pr)
     push!(ch.dual_residual,dr)
@@ -25,7 +25,7 @@ function update_ch!(ch::ConvergenceHistory, dt,
     end
 end
 
-function update_ch!(ch::ConvergenceHistory, dt; obj=0, dual_obj=0, stepsize=0, pr=0, dr=0)
+function update_ch!(ch::ConvergenceHistory, dt; obj=0, stepsize=0, pr=0, dr=0, dual_obj=0)
     push!(ch.objective,obj)
     push!(ch.dual_objective,dual_obj)
     push!(ch.primal_residual,pr)

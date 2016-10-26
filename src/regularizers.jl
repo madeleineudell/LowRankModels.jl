@@ -3,7 +3,7 @@
 # the abstract type Regularizer.
 # Regularizers should implement `evaluate` and `prox`.
 
-import Base.scale!, Roots.fzero
+import Base.scale!, Base.*, Roots.fzero
 
 export Regularizer, ProductRegularizer, # abstract types
        # concrete regularizers
@@ -17,7 +17,7 @@ export Regularizer, ProductRegularizer, # abstract types
        # methods on regularizers
        prox!, prox,
        # utilities
-       scale, scale!
+       scale, scale!, *
 
 # numerical tolerance
 TOL = 1e-12
@@ -29,9 +29,12 @@ abstract Regularizer
 
 # default inplace prox operator (slower than if inplace prox is implemented)
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
+
+# default scaling
 scale(r::Regularizer) = r.scale
 scale!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
 scale!(rs::Array{Regularizer}, newscale::Number) = (for r in rs scale!(r, newscale) end; rs)
+*(newscale::Number, r::Regularizer) = (newr = typeof(r)(); scale!(newr, scale(r)*newscale); newr)
 
 ## utilities
 

@@ -34,7 +34,7 @@
 #   implementation is preferable.
 
 
-import Base.scale!
+import Base: scale!, *
 import Optim.optimize
 export Loss,
        DiffLoss, # a category of Losses
@@ -43,7 +43,7 @@ export Loss,
        OrdisticLoss, L1Loss, HuberLoss,
        PeriodicLoss, # concrete losses
        evaluate, grad, M_estimator, # methods on losses
-       avgerror, scale, scale!,
+       avgerror, scale, scale!, *,
        embedding_dim, get_yidxs, datalevels
 
 abstract Loss
@@ -53,6 +53,7 @@ abstract DiffLoss<:Loss
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
+*(newscale::Number, l::Loss) = typeof(l)(scale(l)*newscale)
 
 ### embedding dimensions: mappings from losses/columns of A to columns of Y
 
