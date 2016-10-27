@@ -38,10 +38,12 @@ import Base: scale!, *
 import Optim.optimize
 export Loss,
        DiffLoss, # a category of Losses
-       QuadLoss, WeightedHingeLoss, HingeLoss, LogisticLoss, PoissonLoss,
-       OrdinalHingeLoss, MultinomialLoss, MultinomialOrdinalLoss,
-       OrdisticLoss, L1Loss, HuberLoss,
-       PeriodicLoss, # concrete losses
+       QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
+       PoissonLoss, # losses for predicting integers
+       HingeLoss, WeightedHingeLoss, LogisticLoss, # losses for predicting booleans
+       OrdinalHingeLoss, OrdisticLoss, MultinomialOrdinalLoss, # losses for predicting ordinals
+       MultinomialLoss, OvALoss, # losses for predicting nominals (categoricals)
+       PeriodicLoss, # losses for predicting periodic variables
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, *,
        embedding_dim, get_yidxs, datalevels
@@ -153,6 +155,30 @@ grad(l::HuberLoss,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.sca
 
 # M_estimator(l::HuberLoss, a::AbstractArray) = median(a) # a heuristic, not the true estimator.
 
+########################################## QUANTILE ##########################################
+# f: ℜxℜ -> ℜ
+# define (u)_+ = max(u,0), (u)_- = max(-u,0) so (u)_+ + (u)_- = |u|
+# f(u,a) = {    quantile (a - u)_+ + (1-quantile) (a - u)_-
+# fits the `quantile`th quantile of the distribution
+type QuantileLoss<:DiffLoss
+    scale::Float64
+    domain::Domain
+    quantile::Float64 # fit the alphath quantile
+end
+QuantileLoss(scale=1.0::Float64; domain=RealDomain(), quantile=.5::Float64) = QuantileLoss(scale, domain, quantile)
+
+function evaluate(l::QuantileLoss, u::Float64, a::Number)
+    diff = a-u
+    diff > 0  ?  l.scale * l.quantile * diff  :  - l.scale * (1-l.quantile) * diff
+end
+
+function grad(l::QuantileLoss,u::Float64,a::Number)
+  diff = a-u
+  diff > 0  ?  -l.scale * l.quantile  :  l.scale * (1-l.quantile)
+end
+
+M_estimator(l::QuantileLoss, a::AbstractArray) = quantile(a, l.quantile)
+
 ########################################## PERIODIC ##########################################
 # f: ℜxℜ -> ℜ
 # f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
@@ -262,8 +288,8 @@ end
 
 ########################################## WEIGHTED HINGE ##########################################
 # f: ℜx{-1,1} -> ℜ
-# f(u,a) = {     w * max(0, u) for a = -1
-#        = { c * w * max(0,-u) for a =  1
+# f(u,a) = {     w * max(1-a*u, 0) for a = -1
+#        = { c * w * max(1-a*u, 0) for a =  1
 type WeightedHingeLoss<:Loss
     scale::Float64
     domain::Domain
@@ -315,7 +341,9 @@ MultinomialLoss(m, scale=1.0::Float64; domain=CategoricalDomain(m)) = Multinomia
 embedding_dim(l::MultinomialLoss) = l.max
 datalevels(l::MultinomialLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-# argument u is a row vector (row slice of a matrix), which in julia is 2d
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
 function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     sumexp = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
@@ -329,6 +357,9 @@ function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     return l.scale*loss
 end
 
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
 function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
@@ -354,6 +385,48 @@ function M_estimator(l::MultinomialLoss, a::AbstractArray)
     for i = 1:length(a)
         ai = a[i]
         u -= .1*grad(l, u, ai)
+    end
+    return u
+end
+
+########################################## One vs All loss ##########################################
+# f: ℜx{1, 2, ..., max-1, max} -> ℜ
+type OvALoss<:Loss
+    max::Integer
+    bin_loss::Loss
+    scale::Float64
+    domain::Domain
+end
+OvALoss(m, scale=1.0::Float64; domain=CategoricalDomain(m), bin_loss=HingeLoss(scale)) = OvALoss(m,scale,domain,bin_loss)
+embedding_dim(l::OvALoss) = l.max
+datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
+
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function evaluate(l::OvALoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
+function evaluate(l::OvALoss, u::Array{Float64,1}, a::Int)
+    loss = 0
+    for j in 1:length(u)
+        loss += evaluate(l.bin_loss, u[j], a==j)
+    end
+    return l.scale*loss
+end
+
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function grad(l::OvALoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
+function grad(l::OvALoss, u::Array{Float64,1}, a::Int)
+  g = 0
+  for j in 1:length(u)
+      g += grad(l.bin_loss, u[j], a==j)
+  end
+  return l.scale*g
+end
+
+function M_estimator(l::OvALoss, a::AbstractArray)
+    u = zeros(l.max)
+    for i = 1:l.max
+        u[i] = M_estimator(l.bin_loss, a.==i)
     end
     return u
 end
