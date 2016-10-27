@@ -26,13 +26,14 @@
 #     `grad(l::my_loss_type, u::Float64, a::Number) ::Float64`
 #           Evaluates the gradient of the loss at the given point (u,a)
 
-#   In addition, loss functions should preferably implement a method:
+#   In addition, loss functions should preferably implement methods:
 #     `M_estimator(l::my_loss_type, a::AbstractArray) ::Float64`
 #           Finds uₒ = argmin ∑l(u,aᵢ) which is the best single estimate of the array `a`
-#   If `M_estimator` is not implemented, a live optimization procedure will be used when this function is
-#   called in order to compute loss function scalings. The live optimization may be slow, so an analytic
-#   implementation is preferable.
-
+#           If `M_estimator` is not implemented, a live optimization procedure will be used when this function is
+#           called in order to compute loss function scalings. The live optimization may be slow, so an analytic
+#           implementation is preferable.
+#     `impute(d::Domain, l::my_loss_type, u::Array{Float64})` (in impute_and_err.jl)
+#           Finds a = argmin l(u,a), the most likely value for an observation given a parameter u
 
 import Base: scale!, *
 import Optim.optimize
@@ -397,7 +398,7 @@ type OvALoss<:Loss
     scale::Float64
     domain::Domain
 end
-OvALoss(m, scale=1.0::Float64; domain=CategoricalDomain(m), bin_loss=HingeLoss(scale)) = OvALoss(m,scale,domain,bin_loss)
+OvALoss(m, scale=1.0::Float64; domain=CategoricalDomain(m), bin_loss::Loss=HingeLoss(scale)) = OvALoss(m,bin_loss,scale,domain)
 embedding_dim(l::OvALoss) = l.max
 datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
@@ -416,9 +417,9 @@ end
 # function grad(l::OvALoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
 function grad(l::OvALoss, u::Array{Float64,1}, a::Int)
-  g = 0
+  g = zeros(length(u))
   for j in 1:length(u)
-      g += grad(l.bin_loss, u[j], a==j)
+      g[j] = grad(l.bin_loss, u[j], a==j)
   end
   return l.scale*g
 end
