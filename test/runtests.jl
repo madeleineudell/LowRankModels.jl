@@ -5,6 +5,10 @@ using Base.Test
 # verify all examples run
 include("../examples/runexamples.jl")
 
+###############################################################
+# verify all tests of specific loss functions run
+include("prob_tests/runtests.jl")
+
 ################################################################################
 # ScikitLearnBase test
 import ScikitLearnBase

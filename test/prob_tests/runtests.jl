@@ -1,0 +1,6 @@
+include("LogisticLoss.jl")
+include("MultinomialLoss.jl")
+include("MultinomialOrdinalLoss.jl")
+include("OrdisticLoss.jl")
+include("OvALoss.jl")
+include("QuadLoss.jl")
