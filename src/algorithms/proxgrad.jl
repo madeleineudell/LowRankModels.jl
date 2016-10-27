@@ -129,7 +129,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 if isa(curgrad, Number)
                     axpy!(curgrad, vf[f], g)
                 else
-                    gemm!('N', 'T', 1.0, vf[f], curgrad, 1.0, g)
+                    # on v0.4: gemm!('N', 'T', 1.0, vf[f], curgrad, 1.0, g)
+                    gemm!('N', 'N', 1.0, vf[f], curgrad, 1.0, g)
                 end
             end
             # take a proximal gradient step to update ve[e]
@@ -171,7 +172,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 if isa(curgrad, Number)
                     axpy!(curgrad, ve[e], gf[f])
                 else
-                    gemm!('N', 'N', 1.0, ve[e], curgrad, 1.0, gf[f])
+                    # on v0.4: gemm!('N', 'T', 1.0, ve[e], curgrad, 1.0, gf[f])
+                    gemm!('N', 'T', 1.0, ve[e], curgrad, 1.0, gf[f])
                 end
             end
             # take a proximal gradient step

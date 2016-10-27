@@ -344,7 +344,7 @@ datalevels(l::MultinomialLoss) = 1:l.max # levels are encoded as the numbers 1:l
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
+function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
     sumexp = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
@@ -360,7 +360,7 @@ end
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
+function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = -1
