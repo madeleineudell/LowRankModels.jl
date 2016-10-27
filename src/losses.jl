@@ -446,8 +446,7 @@ OrdisticLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = OrdisticLo
 embedding_dim(l::OrdisticLoss) = l.max
 datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-# argument u is a row vector (row slice of a matrix), which in julia is 2d
-function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
+function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
     diffusquared = u[a]^2 .- u.^2
     M = maximum(diffusquared)
     invlik = sum(exp(diffusquared .- M))
@@ -455,8 +454,7 @@ function evaluate(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
     return l.scale*loss
 end
 
-# u should always be a row vector when this function is called from proxgrad.jl
-function grad(l::OrdisticLoss, u::Array{Float64,2}, a::Int)
+function grad(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = 2*u[a]
