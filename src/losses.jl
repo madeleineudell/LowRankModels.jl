@@ -519,7 +519,7 @@ datalevels(l::MultinomialOrdinalLoss) = 1:l.max # levels are encoded as the numb
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 # todo: increase numerical stability
-function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
+function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
     diffs = zeros(l.max)
     for i=1:l.max
         diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
@@ -531,7 +531,7 @@ function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
 end
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
-function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
+function grad(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
     signedsums = Array(Float64, l.max-1, l.max)
     for i=1:l.max-1
         for j=1:l.max
@@ -539,14 +539,14 @@ function grad(l::MultinomialOrdinalLoss, u::Array{Float64,2}, a::Int)
         end
     end
     g = signedsums[:,a]
-    diffs = u * signedsums
+    diffs = signedsums'*u
     M = maximum(diffs) # enhanced numerical stability: exp of small numbers only
     expdiffs = exp(diffs .- M)
     sumexpdiffs = sum(expdiffs)
     for i=1:l.max
         g += expdiffs[i]/sumexpdiffs*signedsums[:,i]
     end
-    return l.scale*g'
+    return l.scale*g
 end
 
 ## we'll compute it via a stochastic gradient method
@@ -561,11 +561,22 @@ function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
     return u
 end
 
+
+### convenience methods for evaluating and computing gradients on vectorized arguments
+
 function evaluate(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
   @assert size(u) == size(a)
   out = 0
   for i=1:length(a)
     out += evaluate(l, u[i], a[i])
+  end
+  return out
+end
+function evaluate(l::Loss, u::Array{Float64,2}, a::Array{Float64,1})
+  @assert size(u,1) == size(a)
+  out = 0
+  for i=1:length(a)
+    out += evaluate(l, u[i,:], a[i])
   end
   return out
 end
@@ -575,6 +586,14 @@ function grad(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
   mygrad = zeros(size(u))
   for i=1:length(a)
     mygrad[i] = grad(l, u[i], a[i])
+  end
+  return mygrad
+end
+function grad(l::Loss, u::Array{Float64,2}, a::Array{Float64,1})
+  @assert size(u,1) == size(a)
+  mygrad = zeros(size(u))
+  for i=1:length(a)
+    mygrad[i] = grad(l, u[i,:], a[i])
   end
   return mygrad
 end

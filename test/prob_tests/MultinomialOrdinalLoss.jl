@@ -13,7 +13,7 @@ D = n*d;
 # coordinates of covariates
 X_real = randn(m,k)
 # directions of observations
-Y_real = randn(k,n) 
+Y_real = randn(k,n)
 # measurement thresholds
 T_real = k*randn(d,n) # notice x^T y has variance k; so making this bigger makes the problem easier
 for j=1:n # this scheme doesn't work to ensure uniform sampling
@@ -33,7 +33,7 @@ A = zeros(Int, (m, n))
 for i=1:m
 	for j=1:n
 		u = XY[i,j] + T_real[:,j]
-		XYplusT[i,(j-1)*d+(1:d)] = u 
+		XYplusT[i,(j-1)*d+(1:d)] = u
 		diffs = u'*signedsums
 		wv = WeightVec(Float64[exp(-diffs[l]) for l in 1:nlevels])
 		l = sample(wv)

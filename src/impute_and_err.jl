@@ -89,7 +89,7 @@ impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
 # positive entry of u
 function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
     try assert(all(diff(u) .>= -1e-10))
-    catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing")
+    catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing; instead, saw $u")
 	end
     for i=1:length(u)
     	if u[i] > 0
