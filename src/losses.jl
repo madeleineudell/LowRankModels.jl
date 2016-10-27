@@ -562,7 +562,7 @@ end
 
 ### convenience methods for evaluating and computing gradients on vectorized arguments
 
-function evaluate(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
+function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   @assert size(u) == size(a)
   out = 0
   for i=1:length(a)
@@ -570,7 +570,7 @@ function evaluate(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
   end
   return out
 end
-function evaluate(l::Loss, u::Array{Float64,2}, a::Array{Float64,1})
+function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractArray)
   @assert size(u,1) == size(a)
   out = 0
   for i=1:length(a)
@@ -579,7 +579,7 @@ function evaluate(l::Loss, u::Array{Float64,2}, a::Array{Float64,1})
   return out
 end
 
-function grad(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
+function grad(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   @assert size(u) == size(a)
   mygrad = zeros(size(u))
   for i=1:length(a)
@@ -587,7 +587,7 @@ function grad(l::Loss, u::Array{Float64,1}, a::Array{Float64,1})
   end
   return mygrad
 end
-function grad(l::Loss, u::Array{Float64,2}, a::Array{Float64,1})
+function grad(l::Loss, u::Array{Float64,2}, a::AbstractArray)
   @assert size(u,1) == size(a)
   mygrad = zeros(size(u))
   for i=1:length(a)

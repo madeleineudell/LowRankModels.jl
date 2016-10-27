@@ -1,5 +1,5 @@
 import ScikitLearnBase
-using ScikitLearnBase: declare_hyperparameters
+using ScikitLearnBase: @declare_hyperparameters
 
 export SkGLRM, PCA, QPCA, NNMF, KMeans, RPCA
 
@@ -8,7 +8,7 @@ export SkGLRM, PCA, QPCA, NNMF, KMeans, RPCA
 
 # Note: there is redundancy in the hyperparameters. This is
 # necessary if we want to offer a simple interface in PCA(), and a full
-# interface in SkGLRM(). PCA(abs_tol=0.1, max_iter=200) cannot create 
+# interface in SkGLRM(). PCA(abs_tol=0.1, max_iter=200) cannot create
 # `ProxGradParams(abs_tol, max_iter)` right away, because abs_tol and
 # max_iter are hyperparameters and need to be visible/changeable by
 # set_params for grid-search.
@@ -16,7 +16,7 @@ export SkGLRM, PCA, QPCA, NNMF, KMeans, RPCA
 type SkGLRM <: ScikitLearnBase.BaseEstimator
     # Hyperparameters: those will be passed to GLRM, so it doesn't matter if
     # they're not typed.
-    fit_params # if fit_params != nothing, it has priority over abs_tol, etc. 
+    fit_params # if fit_params != nothing, it has priority over abs_tol, etc.
     loss
     rx
     ry
@@ -36,7 +36,7 @@ type SkGLRM <: ScikitLearnBase.BaseEstimator
 end
 
 # This defines `clone`, `get_params` and `set_params!`
-declare_hyperparameters(SkGLRM, [:fit_params, :init, :rx, :ry,
+@declare_hyperparameters(SkGLRM, [:fit_params, :init, :rx, :ry,
                                  :rx_scale, :ry_scale, :loss,
                                  :abs_tol, :rel_tol, :max_iter, :inner_iter, :k,
                                  :verbose])
@@ -47,7 +47,7 @@ function do_fit!(skglrm::SkGLRM, glrm::GLRM)
                                  rel_tol=skglrm.rel_tol,
                                  max_iter=skglrm.max_iter) :
                   skglrm.fit_params)
-                  
+
     fit!(glrm, fit_params; verbose=skglrm.verbose)
 end
 
@@ -70,12 +70,12 @@ end
 function ScikitLearnBase.fit_transform!(skglrm::SkGLRM, X, y=nothing;
                                         missing_values::Matrix=isnan(X))
     @assert size(X)==size(missing_values)
-    
+
     # Reuse the standard GLRM constructor and fitting machinery
     skglrm.glrm = build_glrm(skglrm, X, missing_values)
     skglrm.init(skglrm.glrm)
     X, _, _ = do_fit!(skglrm, skglrm.glrm)
-    
+
     return X'
 end
 
@@ -112,7 +112,7 @@ end
 # Public constructors
 
 """
-    SkGLRM(; fit_params=nothing, init=glrm->nothing, k::Int=-1, 
+    SkGLRM(; fit_params=nothing, init=glrm->nothing, k::Int=-1,
            loss=QuadLoss(), rx::Regularizer=ZeroReg(), ry=ZeroReg(),
            rx_scale=nothing, ry_scale=nothing,
            # defaults taken from proxgrad.jl
@@ -149,7 +149,7 @@ All parameters (in particular, `rx/ry_scale`) can be tuned with
 
 For more information on the parameters see [LowRankModels](https://github.com/madeleineudell/LowRankModels.jl)
 """
-function SkGLRM(; fit_params=nothing, init=glrm->nothing, k=-1, 
+function SkGLRM(; fit_params=nothing, init=glrm->nothing, k=-1,
                 loss=QuadLoss(), rx=ZeroReg(), ry=ZeroReg(),
                 rx_scale=nothing, ry_scale=nothing,
                 # defaults taken from proxgrad.jl
@@ -229,7 +229,7 @@ the iteration may not reach convergence.
 function KMeans(; k=2, inner_iter=10, kwargs...)
     # minimize_{columns of X are unit vectors} ||A - XY||^2
     loss = QuadLoss()
-    rx = UnitOneSparseConstraint() 
+    rx = UnitOneSparseConstraint()
     ry = ZeroReg()
     return SkGLRM(k=k, loss=loss,rx=rx,ry=ry, inner_iter=inner_iter,
                   init=init_kmeanspp!; kwargs...)
