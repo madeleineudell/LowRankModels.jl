@@ -56,7 +56,7 @@ abstract DiffLoss<:Loss
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
-*(newscale::Number, l::Loss) = typeof(l)(scale(l)*newscale)
+*(newscale::Number, l::Loss) = (newl = copy(l); scale!(newl, newscale))
 
 ### embedding dimensions: mappings from losses/columns of A to columns of Y
 
@@ -570,6 +570,7 @@ function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   end
   return out
 end
+# now for multidimensional losses
 function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractArray)
   @assert size(u,1) == size(a)
   out = 0
