@@ -52,7 +52,7 @@ end
 QuadReg() = QuadReg(1)
 prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+2*alpha*r.scale)*u
 prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+2*alpha*r.scale))
-evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(a.^2)
+evaluate(r::QuadReg,a::AbstractArray) = r.scale*sumabs2(a)
 
 ## constrained QuadLoss regularization
 ## the function r such that
@@ -78,7 +78,7 @@ type OneReg<:Regularizer
 end
 OneReg() = OneReg(1)
 prox(r::OneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
-evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs(a))
+evaluate(r::OneReg,a::AbstractArray) = r.scale*sumabs(a)
 
 ## no regularization
 type ZeroReg<:Regularizer
