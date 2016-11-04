@@ -5,7 +5,7 @@ import StatsBase: sample, WeightVec
 
 ## generate data
 srand(1);
-m,n,k = 300,300,3;
+m,n,k = 1000,1000,3;
 kfit = k+1
 # variance of measurement
 sigmasq = .1
@@ -13,14 +13,14 @@ sigmasq = .1
 # coordinates of covariates
 X_real = randn(m,k)
 # directions of observations
-Y_real = randn(k,n) 
+Y_real = randn(k,n)
 
 XY = X_real*Y_real;
 A = zeros(Int, (m, n))
 logistic(x) = 1/(1+exp(-x))
 for i=1:m
 	for j=1:n
-		A[i,j] = logistic(XY[i,j]) >= rand() ? 1 : -1
+		A[i,j] = (logistic(XY[i,j]) >= rand()) ? true : false
 	end
 end
 
