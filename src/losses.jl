@@ -35,7 +35,7 @@
 #     `impute(d::Domain, l::my_loss_type, u::Array{Float64})` (in impute_and_err.jl)
 #           Finds a = argmin l(u,a), the most likely value for an observation given a parameter u
 
-import Base: scale!, *
+import Base: scale!, *, convert
 import Optim.optimize
 export Loss,
        DiffLoss, # a category of Losses
@@ -83,6 +83,18 @@ function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
     end
     return yidxs
 end
+
+### promote integers to floats if given as the argument u
+evaluate(l::Loss, u::Int, a) = evaluate(l,convert(Float64,u),a)
+grad(l::Loss, u::Int, a) = grad(l,convert(Float64,u),a)
+evaluate(l::Loss, u::Array{Int,1}, a) = evaluate(l,convert(Array{Float64,1},u),a)
+grad(l::Loss, u::Array{Int,1}, a) = grad(l,convert(Array{Float64,1},u),a)
+
+### -1,0,1::Int are translated to Booleans if loss is not defined on numbers
+convert(::Type{Bool}, x::Int) = x==1 ? true : (x==-1 || x==0) ? false : throw(InexactError())
+evaluate(l::Loss, u::Float64, a::Int) = evaluate(l,u,Bool(a))
+grad(l::Loss, u::Float64, a::Int) = grad(l,u,Bool(a))
+M_estimator(l::Loss, a::AbstractArray{Int,1}) = M_estimator(l,Bool(a))
 
 ### M-estimators
 
@@ -278,11 +290,11 @@ type LogisticLoss<:Loss
 end
 LogisticLoss(scale=1.0::Float64; domain=BoolDomain()) = LogisticLoss(scale, domain)
 
-evaluate(l::LogisticLoss, u::Float64, a::Number) = l.scale*log(1+exp(-a*u))
+evaluate(l::LogisticLoss, u::Float64, a::Bool) = l.scale*log(1+exp(-(2a-1)*u))
 
-grad(l::LogisticLoss, u::Float64, a::Number) = -a*l.scale/(1+exp(a*u))
+grad(l::LogisticLoss, u::Float64, a::Bool) = -a*l.scale/(1+exp((2a-1)*u))
 
-function M_estimator(l::LogisticLoss, a::AbstractArray)
+function M_estimator(l::LogisticLoss, a::AbstractArray{Bool,1})
     d, N = sum(a), length(a)
     log(N + d) - log(N - d) # very satisfying
 end
@@ -300,23 +312,24 @@ WeightedHingeLoss(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) =
     WeightedHingeLoss(scale, domain, case_weight_ratio)
 HingeLoss(scale=1.0::Float64; kwargs...) = WeightedHingeLoss(scale; kwargs...) # the standard HingeLoss is a special case of WeightedHingeLoss
 
-function evaluate(l::WeightedHingeLoss, u::Float64, a::Number)
-    loss = l.scale*max(1-a*u, 0)
-    if a>0 # if for whatever reason someone doesn't use properly coded variables...
+function evaluate(l::WeightedHingeLoss, u::Float64, a::Bool)
+    loss = l.scale*max(1-(2*a-1)*u, 0)
+    if l.case_weight_ratio !==1. && a
         loss *= l.case_weight_ratio
     end
     return loss
 end
 
-function grad(l::WeightedHingeLoss, u::Float64, a::Number)
-    g = (a*u>=1 ? 0 : -a*l.scale)
-    if a>0
+function grad(l::WeightedHingeLoss, u::Float64, a::Bool)
+    an = (2*a-1) # change to {-1,1}
+    g = (an*u>=1 ? 0 : -an*l.scale)
+    if l.case_weight_ratio !==1. && a
         g *= l.case_weight_ratio
     end
     return g
 end
 
-function M_estimator(l::WeightedHingeLoss, a::AbstractArray)
+function M_estimator(l::WeightedHingeLoss, a::AbstractArray{Bool,1})
     r = length(a)/length(filter(x->x>0, a)) - 1
     if l.case_weight_ratio > r
         m = 1.0
@@ -398,7 +411,8 @@ type OvALoss<:Loss
     scale::Float64
     domain::Domain
 end
-OvALoss(m, scale=1.0::Float64; domain=CategoricalDomain(m), bin_loss::Loss=HingeLoss(scale)) = OvALoss(m,bin_loss,scale,domain)
+OvALoss(m::Integer, scale::Float64=1.0; domain=CategoricalDomain(m), bin_loss::Loss=HingeLoss(scale)) = OvALoss(m,bin_loss,scale,domain)
+OvALoss() = OvALoss(1) # for copying correctly
 embedding_dim(l::OvALoss) = l.max
 datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
@@ -408,7 +422,7 @@ datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 function evaluate(l::OvALoss, u::Array{Float64,1}, a::Int)
     loss = 0
     for j in 1:length(u)
-        loss += evaluate(l.bin_loss, u[j], a==j)
+        loss += evaluate(l.bin_loss, u[j], a==j ? 1 : -1)
     end
     return l.scale*loss
 end
@@ -419,7 +433,7 @@ end
 function grad(l::OvALoss, u::Array{Float64,1}, a::Int)
   g = zeros(length(u))
   for j in 1:length(u)
-      g[j] = grad(l.bin_loss, u[j], a==j)
+      g[j] = grad(l.bin_loss, u[j], a==j ? 1 : -1)
   end
   return l.scale*g
 end
@@ -427,7 +441,7 @@ end
 function M_estimator(l::OvALoss, a::AbstractArray)
     u = zeros(l.max)
     for i = 1:l.max
-        u[i] = M_estimator(l.bin_loss, a.==i)
+        u[i] = M_estimator(l.bin_loss, a==j ? 1 : -1)
     end
     return u
 end
@@ -572,7 +586,9 @@ function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractArray)
 end
 # now for multidimensional losses
 function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractArray)
-  @assert size(u,1) == size(a)
+  # @show size(u,1)
+  # @show size(a)
+  @assert size(u,1) == length(a)
   out = 0
   for i=1:length(a)
     out += evaluate(l, u[i,:], a[i])
@@ -589,10 +605,10 @@ function grad(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   return mygrad
 end
 function grad(l::Loss, u::Array{Float64,2}, a::AbstractArray)
-  @assert size(u,1) == size(a)
+  @assert size(u,1) == length(a)
   mygrad = zeros(size(u))
   for i=1:length(a)
-    mygrad[i] = grad(l, u[i,:], a[i])
+    mygrad[i,:] = grad(l, u[i,:], a[i])
   end
   return mygrad
 end
