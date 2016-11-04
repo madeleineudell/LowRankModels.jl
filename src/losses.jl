@@ -53,6 +53,8 @@ abstract Loss
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
 # for example, QuadLoss(u,a)=(u-a)² and we can write f(x)=x² and x=u-a
 abstract DiffLoss<:Loss
+# a ClassificationLoss is one in which observed values are true = 1 or false = 0 = -1 AND argmin_a L(u,a) = u>=0 ? true : false
+abstract ClassificationLoss<:Loss
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
@@ -85,16 +87,17 @@ function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
 end
 
 ### promote integers to floats if given as the argument u
-evaluate(l::Loss, u::Int, a) = evaluate(l,convert(Float64,u),a)
-grad(l::Loss, u::Int, a) = grad(l,convert(Float64,u),a)
-evaluate(l::Loss, u::Array{Int,1}, a) = evaluate(l,convert(Array{Float64,1},u),a)
-grad(l::Loss, u::Array{Int,1}, a) = grad(l,convert(Array{Float64,1},u),a)
+## causes ambiguity warnings
+# evaluate(l::Loss, u::Number, a) = evaluate(l,convert(Float64,u),a)
+# grad(l::Loss, u::Number, a) = grad(l,convert(Float64,u),a)
+# evaluate{T<:Number}(l::Loss, u::Array{T,1}, a) = evaluate(l,convert(Array{Float64,1},u),a)
+# grad{T<:Number}(l::Loss, u::Array{T,1}, a) = grad(l,convert(Array{Float64,1},u),a)
 
 ### -1,0,1::Int are translated to Booleans if loss is not defined on numbers
 convert(::Type{Bool}, x::Int) = x==1 ? true : (x==-1 || x==0) ? false : throw(InexactError())
-evaluate(l::Loss, u::Float64, a::Int) = evaluate(l,u,Bool(a))
-grad(l::Loss, u::Float64, a::Int) = grad(l,u,Bool(a))
-M_estimator(l::Loss, a::AbstractArray{Int,1}) = M_estimator(l,Bool(a))
+evaluate(l::ClassificationLoss, u::Float64, a::Int) = evaluate(l,u,Bool(a))
+grad(l::ClassificationLoss, u::Float64, a::Int) = grad(l,u,Bool(a))
+M_estimator(l::ClassificationLoss, a::AbstractArray{Int,1}) = M_estimator(l,Bool(a))
 
 ### M-estimators
 
@@ -284,7 +287,7 @@ M_estimator(l::OrdinalHingeLoss, a::AbstractArray) = median(a)
 
 ########################################## LOGISTIC ##########################################
 # f: ℜx{-1,1}-> ℜ
-type LogisticLoss<:Loss
+type LogisticLoss<:ClassificationLoss
     scale::Float64
     domain::Domain
 end
@@ -303,7 +306,7 @@ end
 # f: ℜx{-1,1} -> ℜ
 # f(u,a) = {     w * max(1-a*u, 0) for a = -1
 #        = { c * w * max(1-a*u, 0) for a =  1
-type WeightedHingeLoss<:Loss
+type WeightedHingeLoss<:ClassificationLoss
     scale::Float64
     domain::Domain
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite

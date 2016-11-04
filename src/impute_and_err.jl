@@ -56,9 +56,11 @@ end
 ########################################## BOOLS ##########################################
 # Boolean data should take values from {-1,1}
 
+# sign of u
+impute(D::BoolDomain, l::ClassificationLoss, u::Float64) = u>=0 ? true : false
 # Evaluate w/ a=-1 and a=1 and see which is better according to that loss.
 # This is fast and works for any loss.
-impute(D::BoolDomain, l::Loss, u::Float64) = evaluate(l,u,-1.0)<evaluate(l,u,1.0) ? -1.0 : 1.0
+impute(D::BoolDomain, l::Loss, u::Float64) = evaluate(l,u,false)<evaluate(l,u,true) ? false : true
 
 function error_metric(D::BoolDomain, l::Loss, u::Float64, a::Number)
 	a_imputed = impute(D, l, u)
