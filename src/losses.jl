@@ -295,7 +295,7 @@ LogisticLoss(scale=1.0::Float64; domain=BoolDomain()) = LogisticLoss(scale, doma
 
 evaluate(l::LogisticLoss, u::Float64, a::Bool) = l.scale*log(1+exp(-(2a-1)*u))
 
-grad(l::LogisticLoss, u::Float64, a::Bool) = -a*l.scale/(1+exp((2a-1)*u))
+grad(l::LogisticLoss, u::Float64, a::Bool) = (aa = 2a-1; -aa*l.scale/(1+exp(aa*u)))
 
 function M_estimator(l::LogisticLoss, a::AbstractArray{Bool,1})
     d, N = sum(a), length(a)
@@ -607,6 +607,7 @@ function grad(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   end
   return mygrad
 end
+# now for multidimensional losses
 function grad(l::Loss, u::Array{Float64,2}, a::AbstractArray)
   @assert size(u,1) == length(a)
   mygrad = zeros(size(u))
