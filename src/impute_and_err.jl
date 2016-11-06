@@ -27,7 +27,7 @@
 export impute, error_metric, errors
 
 # function for general use
-roundcutoff(x,a,b) = min(max(round(x),a),b)
+roundcutoff{T<:Number}(x,a::T,b::T) = T(min(max(round(x),a),b))
 
 # Error metrics for general use
 squared_error(a_imputed::Float64, a::Number) = (a_imputed-a)^2
@@ -90,8 +90,8 @@ impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
 # the most probable value a is the index of the first
 # positive entry of u
 function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
-    try assert(all(diff(u) .>= -1e-10))
-    catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing; instead, saw $u")
+  try assert(all(diff(u) .>= -1e-10))
+  catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing; instead, saw $u")
 	end
     for i=1:length(u)
     	if u[i] > 0
@@ -99,6 +99,11 @@ function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
     	end
     end
     return length(u) + 1
+end
+
+# generic method
+function impute(D::OrdinalDomain, l::Loss, u::AbstractArray)
+    (D.min:D.max)[indmin([evaluate(l, u, i) for i in D.min:D.max])]
 end
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)

@@ -296,12 +296,12 @@ function prox!(r::OrdinalReg,u::Array{Float64},alpha::Number)
         end
     end
     # this enforces rule 2) (increasing last row of u), but isn't exactly the prox function
-    for j=2:size(u,2)
-        if u[end,j-1] > u[end,j]
-            m = (u[end,j-1] + u[end,j])/2
-            u[end,j-1:j] = m
-        end
-    end
+    # for j=2:size(u,2)
+    #     if u[end,j-1] > u[end,j]
+    #         m = (u[end,j-1] + u[end,j])/2
+    #         u[end,j-1:j] = m
+    #     end
+    # end
     u
 end
 evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])

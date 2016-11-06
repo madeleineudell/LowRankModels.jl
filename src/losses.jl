@@ -42,7 +42,7 @@ export Loss,
        QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
        PoissonLoss, # losses for predicting integers
        HingeLoss, WeightedHingeLoss, LogisticLoss, # losses for predicting booleans
-       OrdinalHingeLoss, OrdisticLoss, MultinomialOrdinalLoss, # losses for predicting ordinals
+       OrdinalHingeLoss, OrdisticLoss, MultinomialOrdinalLoss, BvSLoss, # losses for predicting ordinals
        MultinomialLoss, OvALoss, # losses for predicting nominals (categoricals)
        PeriodicLoss, # losses for predicting periodic variables
        evaluate, grad, M_estimator, # methods on losses
@@ -246,6 +246,7 @@ end
 OrdinalHingeLoss(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = OrdinalHingeLoss(m1,m2,scale,domain)
 # this method should never be called directly but is needed to support copying
 OrdinalHingeLoss() = OrdinalHingeLoss(1, 10, 1.0, OrdinalDomain(1,10))
+OrdinalHingeLoss(m2) = OrdinalHingeLoss(1, m2, 1.0, OrdinalDomain(1, m2))
 
 function evaluate(l::OrdinalHingeLoss, u::Float64, a::Number)
     #a = round(a)
@@ -425,7 +426,7 @@ datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 function evaluate(l::OvALoss, u::Array{Float64,1}, a::Int)
     loss = 0
     for j in 1:length(u)
-        loss += evaluate(l.bin_loss, u[j], a==j ? 1 : -1)
+        loss += evaluate(l.bin_loss, u[j], a==j)
     end
     return l.scale*loss
 end
@@ -436,15 +437,58 @@ end
 function grad(l::OvALoss, u::Array{Float64,1}, a::Int)
   g = zeros(length(u))
   for j in 1:length(u)
-      g[j] = grad(l.bin_loss, u[j], a==j ? 1 : -1)
+      g[j] = grad(l.bin_loss, u[j], a==j)
   end
   return l.scale*g
 end
 
 function M_estimator(l::OvALoss, a::AbstractArray)
     u = zeros(l.max)
-    for i = 1:l.max
-        u[i] = M_estimator(l.bin_loss, a==j ? 1 : -1)
+    for j = 1:l.max
+        u[j] = M_estimator(l.bin_loss, a==j)
+    end
+    return u
+end
+
+########################################## Bigger vs Smaller loss ##########################################
+# f: ℜx{1, 2, ..., max-1, max} -> ℜ
+type BvSLoss<:Loss
+    max::Integer
+    bin_loss::Loss
+    scale::Float64
+    domain::Domain
+end
+BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=HingeLoss(scale)) = BvSLoss(m,bin_loss,scale,domain)
+BvSLoss() = BvSLoss(1) # for copying correctly
+embedding_dim(l::BvSLoss) = l.max-1
+datalevels(l::BvSLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
+
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function evaluate(l::BvSLoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
+function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
+    loss = 0
+    for j in 1:length(u)
+        loss += evaluate(l.bin_loss, u[j], a>j)
+    end
+    return l.scale*loss
+end
+
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function grad(l::BvSLoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
+function grad(l::BvSLoss, u::Array{Float64,1}, a::Int)
+  g = zeros(length(u))
+  for j in 1:length(u)
+      g[j] = grad(l.bin_loss, u[j], a>j)
+  end
+  return l.scale*g
+end
+
+function M_estimator(l::BvSLoss, a::AbstractArray)
+    u = zeros(l.max)
+    for j = 1:l.max-1
+        u[j] = M_estimator(l.bin_loss, a.>j)
     end
     return u
 end
