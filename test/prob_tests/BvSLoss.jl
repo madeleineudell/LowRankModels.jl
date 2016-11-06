@@ -45,7 +45,7 @@ XYplusT = XYplusT .- mean(XYplusT, 2)
 
 # and the model
 losses = BvSLoss(nlevels)
-rx, ry = lastentry1(QuadReg(.1)), OrdinalReg(QuadReg(.1)) #lastentry_unpenalized(QuadReg(10));
+rx, ry = lastentry1(QuadReg(.01)), OrdinalReg(QuadReg(.01)) #lastentry_unpenalized(QuadReg(10));
 glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,D));
 
 # fit w/o initialization
