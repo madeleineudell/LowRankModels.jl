@@ -459,7 +459,7 @@ type BvSLoss<:Loss
     domain::Domain
 end
 BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=LogisticLoss(scale)) = BvSLoss(m,bin_loss,scale,domain)
-BvSLoss() = BvSLoss(1) # for copying correctly
+BvSLoss() = BvSLoss(10) # for copying correctly
 embedding_dim(l::BvSLoss) = l.max-1
 datalevels(l::BvSLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
