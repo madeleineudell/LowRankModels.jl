@@ -415,7 +415,7 @@ type OvALoss<:Loss
     scale::Float64
     domain::Domain
 end
-OvALoss(m::Integer, scale::Float64=1.0; domain=CategoricalDomain(m), bin_loss::Loss=HingeLoss(scale)) = OvALoss(m,bin_loss,scale,domain)
+OvALoss(m::Integer, scale::Float64=1.0; domain=CategoricalDomain(m), bin_loss::Loss=LogisticLoss(scale)) = OvALoss(m,bin_loss,scale,domain)
 OvALoss() = OvALoss(1) # for copying correctly
 embedding_dim(l::OvALoss) = l.max
 datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
@@ -458,7 +458,7 @@ type BvSLoss<:Loss
     scale::Float64
     domain::Domain
 end
-BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=HingeLoss(scale)) = BvSLoss(m,bin_loss,scale,domain)
+BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=LogisticLoss(scale)) = BvSLoss(m,bin_loss,scale,domain)
 BvSLoss() = BvSLoss(1) # for copying correctly
 embedding_dim(l::BvSLoss) = l.max-1
 datalevels(l::BvSLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
