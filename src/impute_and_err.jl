@@ -90,15 +90,10 @@ impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
 # the most probable value a is the index of the first
 # positive entry of u
 function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
-  try assert(all(diff(u) .>= -1e-10))
-  catch warn("parameter vector u for MultinomialOrdinalLoss should be increasing; instead, saw $u")
-	end
-    for i=1:length(u)
-    	if u[i] > 0
-    		return i
-    	end
-    end
-    return length(u) + 1
+	enforce_MNLOrdRules!(u)
+	eu = exp(u)
+	p = [1-eu[1], -diff(eu)..., eu[end]]
+	return indmax(p)
 end
 
 # generic method

@@ -13,7 +13,7 @@ export Regularizer, ProductRegularizer, # abstract types
        lastentry1, lastentry_unpenalized,
        fixed_latent_features, FixedLatentFeaturesConstraint,
        fixed_last_latent_features, FixedLastLatentFeaturesConstraint,
-       OrdinalReg,
+       OrdinalReg, MNLOrdinalReg,
        # methods on regularizers
        prox!, prox,
        # utilities
@@ -287,7 +287,7 @@ type OrdinalReg<:Regularizer
 end
 OrdinalReg() = OrdinalReg(ZeroReg())
 prox(r::OrdinalReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
-function prox!(r::OrdinalReg,u::Array{Float64},alpha::Number)
+function prox!(r::OrdinalReg,u::AbstractArray,alpha::Number)
     um = mean(u[1:end-1, :], 2)
     prox!(r.r,um,alpha)
     for i=1:size(u,1)-1
@@ -310,6 +310,35 @@ scale!(r::OrdinalReg, newscale::Number) = scale!(r.r, newscale)
 
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::OrdinalReg) = r
+
+
+type MNLOrdinalReg<:Regularizer
+    r::Regularizer
+end
+MNLOrdinalReg() = MNLOrdinalReg(ZeroReg())
+prox(r::MNLOrdinalReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
+function prox!(r::MNLOrdinalReg,u::AbstractArray,alpha::Number; TOL=1e-3)
+    um = mean(u[1:end-1, :], 2)
+    prox!(r.r,um,alpha)
+    for i=1:size(u,1)-1
+        for j=1:size(u,2)
+            u[i,j] = um[i]
+        end
+    end
+    # this enforces rule 2) (decreasing last row of u, all less than 0), but isn't exactly the prox function
+    u[end,1] = min(-TOL, u[end,1])
+    for j=2:size(u,2)
+      u[end,j] = min(u[end,j], u[end,j-1]-TOL)
+    end
+    u
+end
+evaluate(r::MNLOrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
+scale(r::MNLOrdinalReg) = scale(r.r)
+scale!(r::MNLOrdinalReg, newscale::Number) = scale!(r.r, newscale)
+# make sure we don't add two offsets cuz that's weird
+lastentry_unpenalized(r::MNLOrdinalReg) = r
+
+
 
 ## simpler method for numbers, not arrays
 evaluate(r::Regularizer, u::Number) = evaluate(r, [u])

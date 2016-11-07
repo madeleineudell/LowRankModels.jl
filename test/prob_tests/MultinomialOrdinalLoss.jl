@@ -1,11 +1,11 @@
 using LowRankModels
 import StatsBase: sample, WeightVec
 
-# test ordistic loss
+# test MNL Ordinal loss
 
 ## generate data
 srand(1);
-m,n,k = 100,100,3;
+m,n,k = 100,100,2;
 kfit = k+1
 nlevels = 5; # number of levels
 d = nlevels-1 # embedding dimension
@@ -45,8 +45,13 @@ XYplusT = XYplusT .- mean(XYplusT, 2)
 
 # and the model
 losses = fill(MultinomialOrdinalLoss(nlevels),n)
-rx, ry = lastentry1(QuadReg(.1)), OrdinalReg(QuadReg(.1)) #lastentry_unpenalized(QuadReg(10));
-glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=randn(kfit,D));
+rx, ry = lastentry1(QuadReg(.01)), MNLOrdinalReg(QuadReg(.01)) #lastentry_unpenalized(QuadReg(10));
+Yord = randn(kfit,D)
+yidxs = get_yidxs(losses)
+for j=1:n
+	prox!(ry, view(Yord,:,yidxs[j]), 1)
+end
+glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=Yord);
 
 # fit w/o initialization
 @time X,Y,ch = fit!(glrm);

@@ -573,39 +573,47 @@ type MultinomialOrdinalLoss<:Loss
     domain::Domain
 end
 MultinomialOrdinalLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = MultinomialOrdinalLoss(m,scale,domain)
+MultinomialOrdinalLoss() = MultinomialOrdinalLoss(10) # for copying
 embedding_dim(l::MultinomialOrdinalLoss) = l.max - 1
 datalevels(l::MultinomialOrdinalLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
+function enforce_MNLOrdRules!(u; TOL=1e-3)
+  u[1] = min(-TOL, u[1])
+  for j=2:length(u)
+    u[j] = min(u[j], u[j-1]-TOL)
+  end
+  u
+end
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 # todo: increase numerical stability
 function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
-    diffs = zeros(l.max)
-    for i=1:l.max
-        diffs[i] = sum(u[1:i-1]) - sum(u[i:end])
-    end
-    M = maximum(diffs) # enhanced numerical stability: exp of small numbers only
-    expdiffs = exp(diffs .- M)
-    loss = diffs[a] + M + log(sum(expdiffs))
-    return l.scale*loss
+  enforce_MNLOrdRules!(u)
+  if a == 1
+    return -l.scale*log(exp(0) - exp(u[1])) # (log(1 - exp(u[a] - 1)))
+  elseif a == l.max
+    return -l.scale*u[a-1]
+  else
+    return -l.scale*log(exp(u[a-1]) - exp(u[a])) # (u[a-1] + log(1 - exp(u[a] - u[a-1])))
+  end
 end
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 function grad(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
-    signedsums = Array(Float64, l.max-1, l.max)
-    for i=1:l.max-1
-        for j=1:l.max
-            signedsums[i,j] = i<j ? 1 : -1
-        end
-    end
-    g = signedsums[:,a]
-    diffs = signedsums'*u
-    M = maximum(diffs) # enhanced numerical stability: exp of small numbers only
-    expdiffs = exp(diffs .- M)
-    sumexpdiffs = sum(expdiffs)
-    for i=1:l.max
-        g += expdiffs[i]/sumexpdiffs*signedsums[:,i]
-    end
-    return l.scale*g
+  enforce_MNLOrdRules!(u)
+  g = zeros(size(u))
+  if a == 1
+    g[1] = -exp(u[1])/(exp(0) - exp(u[1]))
+    # g[1] = 1/(1 - exp(-u[1]))
+  elseif a == l.max
+    g[a-1] = 1
+  else
+    # d = exp(u[a] - u[a-1])
+    # g[a] = d/(1-d)
+    # g[a-1] = - g[a] - 1
+    g[a] = -exp(u[a])/(exp(u[a-1]) - exp(u[a]))
+    g[a-1] = exp(u[a-1])/(exp(u[a-1]) - exp(u[a]))
+  end
+  return -l.scale*g
 end
 
 ## we'll compute it via a stochastic gradient method
@@ -619,7 +627,6 @@ function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
     end
     return u
 end
-
 
 ### convenience methods for evaluating and computing gradients on vectorized arguments
 
