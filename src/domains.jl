@@ -4,14 +4,14 @@
 # the loss that was used in the GLRM. The reason for doing this is to evaluate the performance of GLRMS.
 # For instance, let's say we use PCA (QuadLoss losses) to model a binary data frame (not the best idea).
 # In order to override the standard imputation with `impute(QuadLoss(), u)`, which assumes imputation over the reals,
-# we can use `impute(BoolDomain(), QuadLoss(), u)` and see which of {-1,1} is best. The reason we want to be able to 
-# do this is to compare a baseline model (e.g. PCA) with a more logical model using heterogenous losses, 
+# we can use `impute(BoolDomain(), QuadLoss(), u)` and see which of {-1,1} is best. The reason we want to be able to
+# do this is to compare a baseline model (e.g. PCA) with a more logical model using heterogenous losses,
 # yet still give each model the same amount of information regarding how imputation should be done.
 
-# In order to accomplish this we define a series of domains that tell imputation methods 
+# In order to accomplish this we define a series of domains that tell imputation methods
 # what values the data can take. The imputation methods are defined in impute_and_err.jl
 
-# Domains should be assigned to each column of the data and are not part of the low-rank model itself. 
+# Domains should be assigned to each column of the data and are not part of the low-rank model itself.
 # They serve as a way to evaluate the performance of the low-rank model.
 
 export Domain, # the abstract type
@@ -26,7 +26,7 @@ immutable RealDomain<:Domain
 end
 
 ########################################## BOOLS ##########################################
-# Boolean data should take values from {-1,1}
+# Boolean data should take values from {true, false}
 immutable BoolDomain<:Domain
 end
 
@@ -46,13 +46,15 @@ end
 ########################################## ORDINALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
 immutable CategoricalDomain<:Domain
+	min::Int
 	max::Int
 end
+CategoricalDomain(m::Int) = CategoricalDomain(1,m)
 
 ########################################## PERIODIC ##########################################
 # Periodic data can take values from ℜ, but given a period T, we should have error_metric(a,a+T) = 0
 immutable PeriodicDomain<:Domain
-	T::Float64 # the period 
+	T::Float64 # the period
 end
 
 ########################################## COUNTS ##########################################
