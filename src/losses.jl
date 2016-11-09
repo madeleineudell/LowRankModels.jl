@@ -47,7 +47,7 @@ export Loss,
        PeriodicLoss, # losses for predicting periodic variables
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, *,
-       embedding_dim, get_yidxs, datalevels
+       embedding_dim, get_yidxs, datalevels, domain
 
 abstract Loss
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
@@ -59,6 +59,8 @@ abstract ClassificationLoss<:Loss
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 *(newscale::Number, l::Loss) = (newl = copy(l); scale!(newl, newscale))
+
+domain(l::Loss) = l.domain
 
 ### embedding dimensions: mappings from losses/columns of A to columns of Y
 

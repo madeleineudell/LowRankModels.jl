@@ -21,6 +21,7 @@
 # DataTypes are assigned to each column of the data and are not part of the low-rank model itself, they just serve
 # as a way to evaluate the performance of the low-rank model.
 
+import StatsBase: sample
 export sample, sample_missing
 
 ########################################## REALS ##########################################
@@ -104,17 +105,27 @@ end
 
 # sample missing entries in A according to the fit model (X,Y)
 function sample_missing(glrm::GLRM)
+		do_sample(e::Int, f::Int) = !(e in glrm.observed_examples[f])
+		return sample(glrm, do_sample)
+end
+
+all_entries(e::Int,f::Int) = true
+
+# sample all entries in A according to the fit model (X,Y)
+function sample(glrm::GLRM, do_sample::Function=all_entries)
+	U = glrm.X'*glrm.Y
 	m, d = size(U)
-	n = length(losses)
-	yidxs = get_yidxs(losses)
-	A_sampled = copy(glrm.A);
+	n = length(glrm.losses)
+	yidxs = get_yidxs(glrm.losses)
+	domains = Domain[domain(l) for l in glrm.losses]
+	A_sampled = Matrix(copy(glrm.A));
 	for f in 1:n
-		for i in 1:m
-			if !(i in glrm.observed_examples[f])
+		for e in 1:m
+			if do_sample(e,f)
 				if length(yidxs[f]) > 1
-					A_sampled[i,f] = sample(domains[f], losses[f], vec(U[i,yidxs[f]]))
+					A_sampled[e,f] = sample(domains[f], glrm.losses[f], U[e,yidxs[f]])
 				else
-					A_sampled[i,f] = sample(domains[f], losses[f], U[i,yidxs[f]])
+					A_sampled[e,f] = sample(domains[f], glrm.losses[f], U[e,yidxs[f]])
 				end
 			end
 		end
@@ -122,25 +133,7 @@ function sample_missing(glrm::GLRM)
 	return A_sampled
 end
 
-# sample all entries in A according to the fit model (X,Y)
-function sample(glrm::GLRM)
-	m, d = size(U)
-	n = length(losses)
-	yidxs = get_yidxs(losses)
-	A_sampled = copy(glrm.A);
-	for f in 1:n
-		for i in 1:m
-			if length(yidxs[f]) > 1
-				A_sampled[i,f] = sample(domains[f], losses[f], vec(U[i,yidxs[f]]))
-			else
-				A_sampled[i,f] = sample(domains[f], losses[f], U[i,yidxs[f]])
-			end
-		end
-	end
-	return A_sampled
-end
-
 function sample{LossSubtype<:Loss}(losses::Array{LossSubtype,1}, U::Array{Float64,2})
-	domains = Domain[l.domain for l in losses]
+	domains = Domain[domain(l) for l in losses]
 	sample(domains, losses, U)
 end
