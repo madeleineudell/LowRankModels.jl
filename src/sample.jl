@@ -112,13 +112,20 @@ end
 all_entries(e::Int,f::Int) = true
 
 # sample all entries in A according to the fit model (X,Y)
-function sample(glrm::GLRM, do_sample::Function=all_entries)
+# do_sample is a function that takes an example-feature pair (e,f)
+# and returns true if that entry should be replaced by a sample from the model
+# is_dense controls whether the output should be a dense matrix
+# it's true by default because we sample all entries by default
+function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true)
 	U = glrm.X'*glrm.Y
 	m, d = size(U)
 	n = length(glrm.losses)
 	yidxs = get_yidxs(glrm.losses)
 	domains = Domain[domain(l) for l in glrm.losses]
-	A_sampled = Matrix(copy(glrm.A));
+	A_sampled = copy(glrm.A);
+	if is_dense
+		A_sampled = Matrix(A_sampled)
+	end
 	for f in 1:n
 		for e in 1:m
 			if do_sample(e,f)
