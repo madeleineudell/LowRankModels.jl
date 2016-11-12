@@ -53,7 +53,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     # form model
     rys = Array(Regularizer, length(losses))
     for i=1:length(losses)
-        if isa(losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
+        if isa(losses[i].domain, OrdinalDomain) && embedding_dim(losses[i])>1 #losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
             rys[i] = OrdinalReg(copy(ry))
         else
             rys[i] = copy(ry)
