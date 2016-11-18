@@ -11,6 +11,7 @@ type ConvergenceHistory
     optval
 end
 ConvergenceHistory(name::AbstractString,optval=0) = ConvergenceHistory(name,Float64[],Float64[],Float64[],Float64[],Float64[],Float64[],optval)
+ConvergenceHistory() = ConvergenceHistory("unnamed_convergence_history")
 
 function update_ch!(ch::ConvergenceHistory, dt::Number, obj::Number,
                     stepsize::Number=0, pr::Number=0, dr::Number=0)
