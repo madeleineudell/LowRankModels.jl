@@ -24,8 +24,11 @@ include("evaluate_fit.jl")
 
 # fitting algorithms
 include("fit.jl")
-include("algorithms/proxgrad_multithread.jl")
-# include("algorithms/proxgrad.jl")
+if Threads.nthreads() > 1
+  include("algorithms/proxgrad_multithread.jl")
+else
+  include("algorithms/proxgrad.jl")
+end
 include("algorithms/sparse_proxgrad.jl")
 
 # initialization methods
