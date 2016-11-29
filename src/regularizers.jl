@@ -295,12 +295,6 @@ end
 prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number=0) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
 
-function prox(r::UnitOneSparseConstraint, u::AbstractMatrix, alpha::Number=0)
-    
-  for i in 1:size(a,2)
-    
-end
-
 function evaluate(r::UnitOneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
