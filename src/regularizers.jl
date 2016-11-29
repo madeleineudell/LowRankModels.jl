@@ -8,8 +8,9 @@ import Base.scale!, Base.*, Roots.fzero
 export Regularizer, ProductRegularizer, # abstract types
        # concrete regularizers
        QuadReg, QuadConstraint,
-       OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
+       OneReg, ZeroReg, NonNegConstraint, NonNegOneReg, NonNegQuadReg,
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
+       KSparseConstraint,
        lastentry1, lastentry_unpenalized,
        fixed_latent_features, FixedLatentFeaturesConstraint,
        fixed_last_latent_features, FixedLastLatentFeaturesConstraint,
