@@ -8,8 +8,9 @@ import Base.scale!, Base.*, Roots.fzero
 export Regularizer, ProductRegularizer, # abstract types
        # concrete regularizers
        QuadReg, QuadConstraint,
-       OneReg, ZeroReg, NonNegConstraint, NonNegOneReg,
+       OneReg, ZeroReg, NonNegConstraint, NonNegOneReg, NonNegQuadReg,
        OneSparseConstraint, UnitOneSparseConstraint, SimplexConstraint,
+       KSparseConstraint,
        lastentry1, lastentry_unpenalized,
        fixed_latent_features, FixedLatentFeaturesConstraint,
        fixed_last_latent_features, FixedLastLatentFeaturesConstraint,
@@ -26,6 +27,7 @@ TOL = 1e-12
 # regularizers r should have the method `prox` defined such that
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
 abstract Regularizer
+abstract MatrixRegularizer <: LowRankModels.Regularizer
 
 # default inplace prox operator (slower than if inplace prox is implemented)
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
@@ -78,7 +80,12 @@ type OneReg<:Regularizer
 end
 OneReg() = OneReg(1)
 prox(r::OneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
+prox!(r::OneReg,u::AbstractArray,alpha::Number) = begin
+  softthreshold = (x::Number -> max(x-alpha,0) + min(x+alpha,0))
+  map!(softthreshold, u)
+end
 evaluate(r::OneReg,a::AbstractArray) = r.scale*sumabs(a)
+
 
 ## no regularization
 type ZeroReg<:Regularizer
@@ -113,6 +120,12 @@ type NonNegOneReg<:Regularizer
 end
 NonNegOneReg() = NonNegOneReg(1)
 prox(r::NonNegOneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
+
+prox!(r::NonNegOneReg,u::AbstractArray,alpha::Number) = begin
+  nonnegsoftthreshold = (x::Number -> max(x-alpha,0))
+  map!(nonnegsoftthreshold, u)
+end
+
 function evaluate(r::NonNegOneReg,a::AbstractArray)
     for ai in a
         if ai<0
@@ -123,6 +136,27 @@ function evaluate(r::NonNegOneReg,a::AbstractArray)
 end
 scale(r::NonNegOneReg) = 1
 scale!(r::NonNegOneReg, newscale::Number) = 1
+
+## Quadratic regularization restricted to nonnegative domain
+## (Enforces nonnegativity alongside quadratic regularization)
+type NonNegQuadReg
+    scale::Float64
+end
+NonNegQuadReg() = NonNegQuadReg(1)
+prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max(1/(1+2*alpha*r.scale)*u, 0)
+prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = begin
+  scale!(u, 1/(1+2*alpha*r.scale))
+  maxval = maximum(u)
+  clamp!(u, 0, maxval)  
+end
+function evaluate(r::NonNegQuadReg,a::AbstractArray)
+    for ai in a
+        if ai<0
+            return Inf
+        end
+    end
+    return r.scale*sumabs2(a)
+end
 
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
@@ -196,7 +230,7 @@ evaluate(r::fixed_last_latent_features, a::AbstractArray) = a[length(a)-r.n+1:en
 scale(r::fixed_last_latent_features) = scale(r.r)
 scale!(r::fixed_last_latent_features, newscale::Number) = scale!(r.r, newscale)
 
-## indicator of 1-sparse unit vectors
+## indicator of 1-sparse vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
 type OneSparseConstraint<:Regularizer
 end
@@ -220,12 +254,48 @@ end
 scale(r::OneSparseConstraint) = 1
 scale!(r::OneSparseConstraint, newscale::Number) = 1
 
+## Indicator of k-sparse vectors
+type KSparseConstraint<:Regularizer
+  k::Int
+end
+function evaluate(r::KSparseConstraint, a::AbstractArray)
+    nonzcount = 0
+    for ai in a
+      if nonzcount == k
+        if ai != 0
+          return Inf
+        end
+      else
+        if ai != 0
+          nonzcount += 1
+        end
+      end
+    end
+    return 0
+end
+function prox(r::KSparseConstraint, u::AbstractArray, alpha::Number)
+  k = r.k
+  ids = selectperm(u, 1:k, by=abs, rev=true)
+  uk = zeros(u)
+  uk[ids] = u[ids]
+  uk
+end
+function prox!(r::KSparseConstraint, u::Array, alpha::Number)
+  k = r.k
+  ids = selectperm(u, 1:k, by=abs, rev=true)
+  vals = u[ids]
+  scale!(u,0)
+  u[ids] = vals
+  u
+end
+
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
 type UnitOneSparseConstraint<:Regularizer
 end
 prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
 prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number=0) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+
 function evaluate(r::UnitOneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
