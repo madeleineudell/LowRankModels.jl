@@ -38,7 +38,7 @@
 import Base: scale!, *, convert
 import Optim.optimize
 export Loss,
-       DiffLoss, # a category of Losses
+       DiffLoss, ClassificationLoss, # a category of Losses
        QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
        PoissonLoss, # losses for predicting integers
        HingeLoss, WeightedHingeLoss, LogisticLoss, # losses for predicting booleans
