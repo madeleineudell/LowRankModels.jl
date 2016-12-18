@@ -47,9 +47,6 @@ function col_objective(glrm::AbstractGLRM, j::Int, y::AbstractArray, X::Array{Fl
     @inbounds XYj = XY[obsex,colind]
     @inbounds Aj = convert(Array, glrm.A[obsex,j])
     err += evaluate(glrm.losses[j], XYj, Aj)
-    #=for i in glrm.observed_examples[j]
-        err += evaluate(glrm.losses[j], XY[i,colind], glrm.A[i,j])
-    end=#
     # add regularization penalty
     if include_regularization
         err += evaluate(glrm.ry[j], y)
