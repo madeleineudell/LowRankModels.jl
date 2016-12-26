@@ -75,7 +75,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
             ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
             axpy!(1,g,ve[e])
             ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
-            prox!(rx,ve[e],alpha/l)
+            prox!(rx[e],ve[e],alpha/l)
         end
     	end
 # STEP 2: Y update
