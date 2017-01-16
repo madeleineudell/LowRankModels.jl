@@ -21,7 +21,7 @@
 # DataTypes are assigned to each column of the data and are not part of the low-rank model itself, they just serve
 # as a way to evaluate the performance of the low-rank model.
 
-import StatsBase: sample
+import StatsBase: sample, WeightVec
 export sample, sample_missing
 
 ########################################## REALS ##########################################
@@ -47,6 +47,14 @@ end
 
 ########################################## ORDINALS ##########################################
 # Ordinal data should take integer values ranging from `min` to `max`
+
+# a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
+# for example, QuadLoss(u,a)=(u-a)² and we can write f(x)=x² and x=u-a
+function sample(D::OrdinalDomain, l::DiffLoss, u::Float64)
+		uint = round(Int, u)
+		uclip = max(D.min, min(D.max, uint))
+		return uclip
+end
 
 # generic method
 function sample(D::OrdinalDomain, l::Loss, u::AbstractArray)
@@ -122,18 +130,21 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	n = length(glrm.losses)
 	yidxs = get_yidxs(glrm.losses)
 	domains = Domain[domain(l) for l in glrm.losses]
+	# make sure we don't mutate the type of the array A
+	# even if all data for some real loss take integer values
+	for j=1:n
+		if isa(domains[j], RealDomain) && isa(glrm.A[j], DataArray{Int64,1})
+			domains[j] = OrdinalDomain(minimum(dropna(glrm.A[j])), maximum(dropna(glrm.A[j])))
+		end
+	end
 	A_sampled = copy(glrm.A);
-	if is_dense
+	if is_dense && isa(A_sampled, SparseMatrixCSC)
 		A_sampled = Matrix(A_sampled)
 	end
 	for f in 1:n
 		for e in 1:m
 			if do_sample(e,f)
-				if length(yidxs[f]) > 1
-					A_sampled[e,f] = sample(domains[f], glrm.losses[f], U[e,yidxs[f]])
-				else
-					A_sampled[e,f] = sample(domains[f], glrm.losses[f], U[e,yidxs[f]])
-				end
+				A_sampled[e,f] = sample(domains[f], glrm.losses[f], U[e,yidxs[f]])
 			end
 		end
 	end
