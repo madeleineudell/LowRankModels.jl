@@ -36,7 +36,7 @@
 #           Finds a = argmin l(u,a), the most likely value for an observation given a parameter u
 
 import Base: scale!, *, convert
-import Optim.optimize
+import Optim: optimize, LBFGS
 export Loss,
        DiffLoss, ClassificationLoss, SingleDimLoss, # categories of Losses
        QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
@@ -112,12 +112,12 @@ M_estimator(l::ClassificationLoss, a::AbstractArray{Int,1}) = M_estimator(l,Bool
 # general-purpose optimizing M_estimator.
 function M_estimator(l::Loss, a::AbstractArray; test="test")
     # the function to optimize over
-    f = u -> sum(map(ai->evaluate(l,u[1],ai), a)) # u is indexed because `optim` assumes input is a vector
+    f = (u -> sum(map(ai->evaluate(l,u[1],ai), a))) # u is indexed because `optim` assumes input is a vector
     # the gradient of that function
     function g!(u::Vector, storage::Vector) # this is the format `optim` expects
         storage[1] = sum(map(ai->grad(l,u[1],ai), a))
     end
-    m = optimize(f, g!, [median(a)], method=:l_bfgs).minimum[1]
+    m = optimize(f, g!, [median(a)], LBFGS()).minimum[1]
 end
 
 # Uses uₒ = argmin ∑l(u,aᵢ) to find (1/n)*∑l(uₒ,aᵢ) which is the
