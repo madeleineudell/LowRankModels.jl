@@ -455,7 +455,7 @@ function M_estimator(l::OvALoss, a::AbstractArray)
 end
 
 ########################################## Bigger vs Smaller loss ##########################################
-# f: ℜx{1, 2, ..., max-1, max} -> ℜ
+# f: ℜx{1, 2, ..., max-1} -> ℜ
 type BvSLoss<:Loss
     max::Integer
     bin_loss::Loss
@@ -552,6 +552,9 @@ end
 # the number of levels of the second argument a,
 # since the entries of u correspond to the division between each level
 # and the one above it.
+#
+# XXX warning XXX
+# the documentation in the comment below this point is defunct
 #
 # To yield a sensible pdf, the entries of u should be increasing
 # (b/c they're basically the -log of the cdf at the boundary between each level)
