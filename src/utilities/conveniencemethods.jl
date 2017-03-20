@@ -26,7 +26,7 @@ function copy(r::AbstractGLRM)
   end
   newr
 end
-# points to all the same problem data as the original input GLRM, 
+# points to all the same problem data as the original input GLRM,
 # but copies the estimate of the model parameters
 function copy_estimate(g::GLRM)
   return GLRM(g.A,g.losses,g.rx,g.ry,g.k,
@@ -68,3 +68,7 @@ GLRM(A, losses::Array, rx::Array, ry::Regularizer, k::Int; kwargs...) =
     GLRM(A, losses, rx, fillcopies(ry, size(A, 2), arraytype=Regularizer), k::Int; kwargs...)
 GLRM(A, losses::Array, rx::Regularizer, ry::Regularizer, k::Int; kwargs...) =
     GLRM(A, losses, fillcopies(rx, size(A, 1), arraytype=Regularizer), fillcopies(ry, size(A, 2), arraytype=Regularizer), k::Int; kwargs...)
+
+# singleton everything
+GLRM(A, loss::Loss, rx::Regularizer, ry::Regularizer, k::Int; kwargs...) =
+    GLRM(A, fillcopies(loss, size(A, 2), arraytype=Loss), fillcopies(rx, size(A, 1), arraytype=Regularizer), fillcopies(ry, size(A, 2), arraytype=Regularizer), k::Int; kwargs...)
