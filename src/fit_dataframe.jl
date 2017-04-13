@@ -1,5 +1,10 @@
 import Base: isnan
-import DataArrays: DataArray, isna, dropna, NA, NAtype, array
+import DataArrays: DataArray, isna, dropna, NA, NAtype
+if VERSION < v"0.6.0-pre"
+  import DataArrays: array
+else
+  import DataArrays: isnan
+end
 import DataFrames: DataFrame, ncol, convert
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!
@@ -246,7 +251,7 @@ function expand_categoricals!(df::DataFrame,categoricals::Array)
 end
 
 # convert NaNs to NAs
-isnan(x::NAtype) = false
+# isnan(x::NAtype) = false
 isnan(x::AbstractString) = false
 function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)

@@ -8,10 +8,10 @@ println("censored data example")
 # example with only entries greater than threshold t observed
 m,n,k,ktrue = 100,100,1,1
 A = rand(m,ktrue)*rand(ktrue,n)
-B = round(Int, ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
+B = round.(Int, ktrue*rand(m,n) .>= A) # Bernoulli samples with probability proportional to A
 losses = fill(QuadLoss(),n)
 r = QuadReg(.1)
-@compat obs = Array(Tuple{Int,Int}, 0)
+@compat obs = @compat Array{Tuple{Int,Int}}(0)
 for i=1:m
     for j=1:n
         if B[i,j] == 1
@@ -20,22 +20,22 @@ for i=1:m
     end
 end
 (train_observed_features, train_observed_examples,
-    test_observed_features,  test_observed_examples) = 
+    test_observed_features,  test_observed_examples) =
     get_train_and_test(obs, m, n, .2)
 
 train_glrm = GLRM(B,losses,r,r,k, observed_features=train_observed_features, observed_examples=train_observed_examples,)
 test_glrm = GLRM(B,losses,r,r,k, observed_features=test_observed_features, observed_examples=test_observed_examples)
 
-function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), 
+function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5),
                                          holdout_proportion=.1, verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     m,n = size(train_glrm.A)
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
-    train_error = Array(Float64, length(reg_params))
-    test_error = Array(Float64, length(reg_params))
-    @compat solution = Array(Tuple{Float64,Float64}, length(reg_params))
-    train_time = Array(Float64, length(reg_params))
+    train_error = @compat Array{Float64}(length(reg_params))
+    test_error = @compat Array{Float64}(length(reg_params))
+    @compat solution = @compat Array{Tuple{Float64,Float64}}(length(reg_params))
+    train_time = @compat Array{Float64}(length(reg_params))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train and test error
@@ -56,9 +56,9 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
     return train_error, test_error, train_time, reg_params, solution
 end
 
-train_error, test_error, train_time, reg_params, solution = 
-    censored_regularization_path(train_glrm, test_glrm, params=Params(1,50,.001,.1), 
-                                 reg_params=logspace(2,-2,3))    
+train_error, test_error, train_time, reg_params, solution =
+    censored_regularization_path(train_glrm, test_glrm, params=Params(1,50,.001,.1),
+                                 reg_params=logspace(2,-2,3))
 df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, reg_param = reg_params, solution_1norm = [s[2] for s in solution])
 println(df)

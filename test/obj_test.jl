@@ -13,7 +13,7 @@ LogisticLoss(),
 
 #for test_iteration = 1:5
 	# Create the configuration for the model (random losses)
-	config = round(Int, abs(round(5*rand(length(test_losses)))));
+	config = round.(Int, abs(round(5*rand(length(test_losses)))));
 	# config = [1,1,1,1,1,1,10]
 	losses, doms = Array(Loss,1), Array(Domain,1);
 	for (n,l) in zip(config, test_losses)
@@ -28,7 +28,7 @@ LogisticLoss(),
 	# doms = Domain[l.domain for l in losses]
 
 	# Make a low rank matrix as our data precursor
-	m, n, true_k = 1000, length(doms), round(Int, round(length(losses)/2)); 
+	m, n, true_k = 1000, length(doms), round.(Int, round(length(losses)/2)); 
 	X_real, Y_real = 2*randn(m,true_k), 2*randn(true_k,n);
 	A_real = X_real*Y_real;
 

@@ -26,8 +26,8 @@ TOL = 1e-12
 # regularizers
 # regularizers r should have the method `prox` defined such that
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
-abstract Regularizer
-abstract MatrixRegularizer <: LowRankModels.Regularizer
+@compat abstract type Regularizer end
+@compat abstract type MatrixRegularizer <: LowRankModels.Regularizer end
 
 # default inplace prox operator (slower than if inplace prox is implemented)
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
@@ -147,7 +147,7 @@ prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max(1/(1+2*alpha*r.scale
 prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = begin
   scale!(u, 1/(1+2*alpha*r.scale))
   maxval = maximum(u)
-  clamp!(u, 0, maxval)  
+  clamp!(u, 0, maxval)
 end
 function evaluate(r::NonNegQuadReg,a::AbstractArray)
     for ai in a

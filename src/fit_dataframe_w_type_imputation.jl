@@ -1,5 +1,10 @@
 import Base: isnan
-import DataArrays: DataArray, isna, dropna, NA, NAtype, array
+import DataArrays: DataArray, isna, dropna, NA, NAtype
+if VERSION < v"0.6.0"
+  import DataArrays: array
+else
+  import DataArrays: isnan
+end
 import DataFrames: DataFrame, ncol, convert
 export GLRM
 

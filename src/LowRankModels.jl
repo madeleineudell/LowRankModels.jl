@@ -4,7 +4,7 @@ module LowRankModels
 
 using Compat
 
-import Base: scale!, scale, show
+import Base: scale!, show
 import StatsBase: fit!, mode
 
 # define losses, regularizers, convergence history

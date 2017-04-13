@@ -20,7 +20,7 @@ for j=1:n # this scheme doesn't work to ensure uniform sampling
 	T_real[:,j] = sort(T_real[:,j])
 end
 
-signedsums = Array(Float64, d, nlevels)
+signedsums = @compat Array{Float64}(d, nlevels)
 for i=1:d
     for j=1:nlevels
         signedsums[i,j] = i<j ? 1 : -1

@@ -49,12 +49,12 @@ export Loss,
        avgerror, scale, scale!, *,
        embedding_dim, get_yidxs, datalevels
 
-abstract Loss
+@compat abstract type Loss end
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
 # for example, QuadLoss(u,a)=(u-a)² and we can write f(x)=x² and x=u-a
-abstract DiffLoss<:Loss
+@compat abstract type DiffLoss<:Loss end
 # a ClassificationLoss is one in which observed values are true = 1 or false = 0 = -1 AND argmin_a L(u,a) = u>=0 ? true : false
-abstract ClassificationLoss<:Loss
+@compat abstract type ClassificationLoss<:Loss end
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
