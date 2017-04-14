@@ -45,7 +45,7 @@ function rsvd_direct(A, Q)
     SVD(Q*S[:U], S[:S], S[:Vt])
 end
 
-function onepass_svd(A::Array, r::Int)
+function onepass_svd(A::AbstractArray, r::Int)
   m, n = size(A)
   k = 2r + 1
   l = 4r + 3

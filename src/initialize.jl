@@ -118,7 +118,8 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     # Astd *= diagm(m./map(length, glrm.observed_examples))
     # 3) scale columns proportional to scale of regularizer & so that column mean is same as mean of observations in it
     # Astd *= diagm(m./map(scale, glrm.ry))
-    ASVD = rsvd(Astd, k)
+		# ASVD = rsvd(Astd, k) - slower than built-in svds, and fails for sparse matrices
+		ASVD = svds(Astd, nsv = k)[1]
     # initialize with the top k components of the SVD,
     # rescaling by the variances
     @assert(size(glrm.X, 1) >= k)
@@ -126,7 +127,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     @assert(size(glrm.Y, 1) >= k)
     @assert(size(glrm.Y, 2) >= d)
     glrm.X[1:k,1:m] = diagm(sqrt(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
-    glrm.Y[1:k,1:d] = diagm(sqrt(ASVD[:S]))*ASVD[:Vt]*diagm(stds)
+    glrm.Y[1:k,1:d] = diagm(sqrt(ASVD[:S]))*ASVD[:V]*diagm(stds)
     return glrm
 end
 
