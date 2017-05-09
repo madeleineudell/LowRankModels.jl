@@ -44,3 +44,17 @@ function rsvd_direct(A, Q)
     S=svdfact!(B)
     SVD(Q*S[:U], S[:S], S[:Vt])
 end
+
+function onepass_svd(A::AbstractArray, r::Int)
+  m, n = size(A)
+  k = 2r + 1
+  l = 4r + 3
+  Omega = randn(n,k)
+  Psi   = randn(m,l)
+  Y     = A*Omega
+  W     = A'*Psi
+  Q,_ = qr(view(Y,:,1:k))
+  B = view(W,:,1:l) / (Q'*view(Psi,:,1:l)) # Q's.Psi is k x l, its pinv is l x k, so B is n x k
+  mysvd,_ = svds(B, nsv=r) # U is n x r
+  return SVD(Q*mysvd.Vt, mysvd.S, mysvd.U)
+end

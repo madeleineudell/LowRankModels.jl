@@ -32,7 +32,7 @@ function row_objective(glrm::AbstractGLRM, i::Int, x::AbstractArray, Y::Array{Fl
     end
     # add regularization penalty
     if include_regularization
-        err += evaluate(glrm.rx, x)
+        err += evaluate(glrm.rx[i], x)
     end
     return err
 end
@@ -95,7 +95,7 @@ function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,
     @assert(size(X)==(glrm.k,m))
     penalty = 0.0
     for i=1:m
-        penalty += evaluate(glrm.rx, view(X,:,i))
+        penalty += evaluate(glrm.rx[i], view(X,:,i))
     end
     for f=1:n
         penalty += evaluate(glrm.ry[f], view(Y,:,yidxs[f]))
