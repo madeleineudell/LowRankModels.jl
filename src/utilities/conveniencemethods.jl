@@ -5,26 +5,11 @@
 import Base.copy
 export copy, copy_estimate, GLRM
 
-function copy(r::Regularizer)
-  newr = typeof(r)()
-  for field in @compat fieldnames(r)
-    setfield!(newr, field, copy(getfield(r, field)))
+for T in :[Loss, Regularizer, AbstractGLRM].args
+  @eval function copy(r::$T)
+    fieldvals = [getfield(r, f) for f in fieldnames(r)]
+    return typeof(r)(fieldvals...)
   end
-  newr
-end
-function copy(r::Loss)
-  newr = typeof(r)()
-  for field in @compat fieldnames(r)
-    setfield!(newr, field, copy(getfield(r, field)))
-  end
-  newr
-end
-function copy(r::AbstractGLRM)
-  newr = typeof(r)()
-  for field in @compat fieldnames(r)
-    setfield!(newr, field, copy(getfield(r, field)))
-  end
-  newr
 end
 # points to all the same problem data as the original input GLRM,
 # but copies the estimate of the model parameters
@@ -33,16 +18,6 @@ function copy_estimate(g::GLRM)
               g.observed_features,g.observed_examples,
               copy(g.X),copy(g.Y))
 end
-# function copy_estimate(r::GLRM)
-#   newr = typeof(r)()
-#   for field in @compat fieldnames(r)
-#     setfield!(newr, field, getfield(r, field))
-#   end
-#   newr.X = copy(r.X)
-#   newr.Y = copy(r.Y)
-#   newr
-# end
-
 # domains are immutable, so this is ok
 copy(d::Domain) = d
 

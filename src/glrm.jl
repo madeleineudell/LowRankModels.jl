@@ -1,7 +1,6 @@
 import Base: size, axpy!
 import Base.LinAlg.scale!
 import Base.BLAS: gemm!
-import ArrayViews: view, StridedView, ContiguousView
 
 @compat abstract type AbstractGLRM end
 

@@ -56,11 +56,12 @@ export Loss,
 # a ClassificationLoss is one in which observed values are true = 1 or false = 0 = -1 AND argmin_a L(u,a) = u>=0 ? true : false
 @compat abstract type ClassificationLoss<:Loss end
 # Single Dimensional losses are DiffLosses or ClassificationLosses, which allow optimized evaluate and grad functions
-typealias SingleDimLoss Union{DiffLoss, ClassificationLoss}
+@compat const SingleDimLoss = Union{DiffLoss, ClassificationLoss}
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 *(newscale::Number, l::Loss) = (newl = copy(l); scale!(newl, newscale))
+*(l::Loss, newscale::Number) = (newl = copy(l); scale!(newl, newscale))
 
 domain(l::Loss) = l.domain
 

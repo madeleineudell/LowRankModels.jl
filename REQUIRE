@@ -1,7 +1,6 @@
 julia 0.5
 DataFrames 0.8
 StatsBase 0.10
-ArrayViews 0.6
 Optim 0.6
 Roots 0.2
 NMF 0.2.5
@@ -9,3 +8,6 @@ Compat 0.9
 ScikitLearnBase 0.0.4
 DataArrays 0.4
 FactCheck 0.4
+NullableArrays
+LossFunctions
+PenaltyFunctions

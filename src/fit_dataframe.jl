@@ -109,7 +109,6 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
     end
 
     # for after the Nullapocalypse
-    # df[j] = NullableArray(Int, length(df[j]))
     df[j] = DataArray(Int, length(df[j]))
     for i in 1:length(col)
         if !isna(col[i])
