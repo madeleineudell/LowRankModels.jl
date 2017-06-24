@@ -36,7 +36,7 @@
 #           Finds a = argmin l(u,a), the most likely value for an observation given a parameter u
 
 import Base: scale!, *, convert
-import Optim.optimize
+import Optim: optimize, LBFGS
 export Loss,
        DiffLoss, ClassificationLoss, SingleDimLoss, # categories of Losses
        QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
@@ -47,7 +47,7 @@ export Loss,
        PeriodicLoss, # losses for predicting periodic variables
        evaluate, grad, M_estimator, # methods on losses
        avgerror, scale, scale!, *,
-       embedding_dim, get_yidxs, datalevels
+       embedding_dim, get_yidxs, datalevels, domain
 
 @compat abstract type Loss end
 # a DiffLoss is one in which l(u,a) = f(u-a) AND argmin f(x) = 0
@@ -61,6 +61,8 @@ typealias SingleDimLoss Union{DiffLoss, ClassificationLoss}
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 *(newscale::Number, l::Loss) = (newl = copy(l); scale!(newl, newscale))
+
+domain(l::Loss) = l.domain
 
 ### embedding dimensions: mappings from losses/columns of A to columns of Y
 
@@ -110,12 +112,12 @@ M_estimator(l::ClassificationLoss, a::AbstractArray{Int,1}) = M_estimator(l,Bool
 # general-purpose optimizing M_estimator.
 function M_estimator(l::Loss, a::AbstractArray; test="test")
     # the function to optimize over
-    f = u -> sum(map(ai->evaluate(l,u[1],ai), a)) # u is indexed because `optim` assumes input is a vector
+    f = (u -> sum(map(ai->evaluate(l,u[1],ai), a))) # u is indexed because `optim` assumes input is a vector
     # the gradient of that function
     function g!(u::Vector, storage::Vector) # this is the format `optim` expects
         storage[1] = sum(map(ai->grad(l,u[1],ai), a))
     end
-    m = optimize(f, g!, [median(a)], method=:l_bfgs).minimum[1]
+    m = optimize(f, g!, [median(a)], LBFGS()).minimum[1]
 end
 
 # Uses uₒ = argmin ∑l(u,aᵢ) to find (1/n)*∑l(uₒ,aᵢ) which is the
@@ -453,7 +455,7 @@ function M_estimator(l::OvALoss, a::AbstractArray)
 end
 
 ########################################## Bigger vs Smaller loss ##########################################
-# f: ℜx{1, 2, ..., max-1, max} -> ℜ
+# f: ℜx{1, 2, ..., max-1} -> ℜ
 type BvSLoss<:Loss
     max::Integer
     bin_loss::Loss
@@ -550,6 +552,9 @@ end
 # the number of levels of the second argument a,
 # since the entries of u correspond to the division between each level
 # and the one above it.
+#
+# XXX warning XXX
+# the documentation in the comment below this point is defunct
 #
 # To yield a sensible pdf, the entries of u should be increasing
 # (b/c they're basically the -log of the cdf at the boundary between each level)

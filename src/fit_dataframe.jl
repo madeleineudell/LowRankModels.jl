@@ -6,6 +6,7 @@ else
   import DataArrays: isnan
 end
 import DataFrames: DataFrame, ncol, convert
+import NullableArrays: NullableArray
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!
 
@@ -58,7 +59,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     # form model
     rys = Array(Regularizer, length(losses))
     for i=1:length(losses)
-        if isa(losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
+        if isa(losses[i].domain, OrdinalDomain) && embedding_dim(losses[i])>1 #losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
             rys[i] = OrdinalReg(copy(ry))
         else
             rys[i] = copy(ry)
@@ -76,10 +77,17 @@ end
 
 ## transform data to numbers
 
+function is_number_or_null(x)
+  isa(x, Number) || (:value in fieldnames(x) && isa(x.value, Number))
+end
+function is_int_or_null(x)
+  isa(x, Int) || (:value in fieldnames(x) && isa(x.value, Int))
+end
+
 function map_to_numbers!(df, j::Int, datatype::Symbol)
     # easy case
     if datatype == :real
-        if all(xi -> isa(xi, Number), df[j][!isna(df[j])])
+        if all(xi -> is_number_or_null(xi), df[j][!isna(df[j])])
             return df[j]
         else
             error("column contains non-numerical values")
@@ -99,17 +107,27 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
     else
         error("datatype $datatype not recognized")
     end
+
+    # for after the Nullapocalypse
+    # df[j] = NullableArray(Int, length(df[j]))
     df[j] = DataArray(Int, length(df[j]))
     for i in 1:length(col)
         if !isna(col[i])
-            df[j][i] = colmap[col[i]]
+            df[j][i] = getval(colmap[col[i]])
         end
     end
     return df[j]
 end
 
+function getval{T}(x::Nullable{T})
+  x.value
+end
+function getval{T<:Number}(x::T)
+  x
+end
+
 function map_to_numbers!(df, j::Int, loss::Type{QuadLoss})
-    if all(xi -> isa(xi, Number), df[j][!isna(df[j])])
+    if all(xi -> is_number_or_null(xi), df[j][!isna(df[j])])
         return df[j]
     else
         error("column contains non-numerical values")
@@ -174,7 +192,7 @@ function pick_loss(l::Type{LogisticLoss}, col)
 end
 
 function pick_loss(l::Type{MultinomialLoss}, col)
-    if all(xi -> isna(xi) || (isa(xi, Int) && xi >= 1), col)
+    if all(xi -> isna(xi) || (is_int_or_null(xi) && xi >= 1), col)
         return l(maximum(col[!isna(col)]))
     else
         error("MultinomialLoss can only be used on data taking positive integer values")
@@ -253,6 +271,7 @@ end
 # convert NaNs to NAs
 # isnan(x::NAtype) = false
 isnan(x::AbstractString) = false
+isnan{T}(x::Nullable{T}) = isnan(x.value)
 function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop

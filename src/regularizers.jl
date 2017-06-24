@@ -382,7 +382,6 @@ scale!(r::OrdinalReg, newscale::Number) = scale!(r.r, newscale)
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::OrdinalReg) = r
 
-
 type MNLOrdinalReg<:Regularizer
     r::Regularizer
 end
@@ -409,7 +408,6 @@ scale!(r::MNLOrdinalReg, newscale::Number) = scale!(r.r, newscale)
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::MNLOrdinalReg) = r
 
-
 ## Quadratic regularization with non-zero mean
 type RemQuadReg<:Regularizer
         scale::Float64
@@ -423,7 +421,6 @@ prox!(r::RemQuadReg, u::Array{Float64}, alpha::Number) = begin
         scale!(u, 1 / (1 + 2 * alpha * r.scale))
 end
 evaluate(r::RemQuadReg, a::AbstractArray) = r.scale * sumabs2(a - r.m)
-
 
 ## simpler method for numbers, not arrays
 evaluate(r::Regularizer, u::Number) = evaluate(r, [u])

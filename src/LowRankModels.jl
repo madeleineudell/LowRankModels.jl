@@ -39,6 +39,7 @@ include("initialize.jl")
 include("simple_glrms.jl")
 include("cross_validate.jl")
 include("fit_dataframe.jl")
+include("sample.jl")
 # this takes to long to load for normal use
 # include("plot.jl")
 

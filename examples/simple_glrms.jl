@@ -34,7 +34,7 @@ function fit_pca_nucnorm(m,n,k)
 	loss = QuadLoss()
 	r = QuadReg(.1)
 	glrm = GLRM(A,loss,r,r,k)
-	X,Y,ch = fit!(glrm)	
+	X,Y,ch = fit!(glrm)
 	println("Convergence history:",ch.objective)
 	return A,X,Y,ch
 end
@@ -49,9 +49,9 @@ function fit_kmeans(m,n,k)
 	end
 	loss = QuadLoss()
 	ry = ZeroReg()
-	rx = UnitOneSparseConstraint() 
+	rx = UnitOneSparseConstraint()
 	glrm = GLRM(A,loss,rx,ry,k+4)
-	X,Y,ch = fit!(glrm)	
+	X,Y,ch = fit!(glrm)
 	println("Convergence history:",ch.objective)
 	return A,X,Y,ch
 end
@@ -64,7 +64,7 @@ function fit_pca_nucnorm_sparse(m,n,k,s)
 	obsx = sample(1:m,s); obsy = sample(1:n,s)
 	obs = [(obsx[i],obsy[i]) for i=1:s]
 	glrm = GLRM(A,loss,r,r,k, obs=obs)
-	X,Y,ch = fit!(glrm)	
+	X,Y,ch = fit!(glrm)
 	println("Convergence history:",ch.objective)
 	return A,X,Y,ch
 end
@@ -74,11 +74,11 @@ function fit_pca_nucnorm_sparse_nonuniform(m,n,k,s)
 	A = randn(m,k)*randn(k,n)
 	loss = QuadLoss()
 	r = QuadReg(.1)
-	obsx = [sample(1:round.(Int,m/4),round.(Int,s/2)); sample(round.(Int,m/4)+1:m,s-round.(Int,s/2))] 
+	obsx = [sample(1:round(Int,m/4),round(Int,s/2)); sample(round(Int,m/4)+1:m,s-round(Int,s/2))]
 	obsy = sample(1:n,s)
 	obs = [(obsx[i],obsy[i]) for i=1:s]
 	glrm = GLRM(A,loss,r,r,k, obs=obs)
-	X,Y,ch = fit!(glrm)	
+	X,Y,ch = fit!(glrm)
 	println("Convergence history:",ch.objective)
 	return A,X,Y,ch
 end
@@ -94,7 +94,7 @@ function fit_soft_kmeans(m,n,k)
 	rx = SimplexConstraint()
 	ry = ZeroReg()
 	glrm = GLRM(A,loss,rx,ry,k)
-	X,Y,ch = fit!(glrm)	
+	X,Y,ch = fit!(glrm)
 	println("Convergence history:",ch.objective)
 	return A,X,Y,ch
 end

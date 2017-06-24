@@ -26,7 +26,7 @@ immutable RealDomain<:Domain
 end
 
 ########################################## BOOLS ##########################################
-# Boolean data should take values from {-1,1}
+# Boolean data should take values from {true, false}
 immutable BoolDomain<:Domain
 end
 
@@ -46,8 +46,10 @@ end
 ########################################## ORDINALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
 immutable CategoricalDomain<:Domain
+	min::Int
 	max::Int
 end
+CategoricalDomain(m::Int) = CategoricalDomain(1,m)
 
 ########################################## PERIODIC ##########################################
 # Periodic data can take values from ℜ, but given a period T, we should have error_metric(a,a+T) = 0

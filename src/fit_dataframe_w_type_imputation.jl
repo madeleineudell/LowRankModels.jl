@@ -34,8 +34,17 @@ function GLRM(df::DataFrame, k::Int;
     # initialize X and Y
     X = randn(k,size(A,1))
     Y = randn(k,size(A,2))
+
     # form model
-    glrm = GLRM(A, losses, rx, ry, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
+    rys = Array(Regularizer, length(losses))
+    for i=1:length(losses)
+        if isa(losses[i].domain, OrdinalDomain) && embedding_dim(losses[i])>1 #losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
+            rys[i] = OrdinalReg(copy(ry))
+        else
+            rys[i] = copy(ry)
+        end
+    end
+    glrm = GLRM(A, losses, rx, rys, k, obs=obs, X=X, Y=Y, offset=offset, scale=scale)
 
     # scale model so it really computes the MAP estimator of the parameters
     if prob_scale
