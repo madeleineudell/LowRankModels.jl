@@ -138,11 +138,11 @@ function fit!(glrm::GLRM, params::ProxGradParams;
             obj_by_row[e] = row_objective(glrm, e, ve[e]) # previous row objective value
             while alpharow[e] > params.min_stepsize
                 stepsize = alpharow[e]/l
-                # newx = prox(rx, ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version with linesearch below
+                # newx = prox(rx[e], ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version with linesearch below
                 ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
                 axpy!(-stepsize,g[Threads.threadid()],newve[e])
                 ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
-                prox!(rx,newve[e],stepsize)
+                prox!(rx[e],newve[e],stepsize)
                 if row_objective(glrm, e, newve[e]) < obj_by_row[e]
                     copy!(ve[e], newve[e])
                     alpharow[e] *= 1.05 # choose a more aggressive stepsize

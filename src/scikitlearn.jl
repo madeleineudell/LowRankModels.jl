@@ -51,7 +51,7 @@ function do_fit!(skglrm::SkGLRM, glrm::GLRM)
     fit!(glrm, fit_params; verbose=skglrm.verbose)
 end
 
-function build_glrm(skglrm::SkGLRM, X, missing_values::Matrix)
+function build_glrm(skglrm::SkGLRM, X, missing_values)
     k = skglrm.k == -1 ? size(X, 2) : skglrm.k
     obs = [ind2sub(missing_values, x) for x in find(!missing_values)]
     rx, ry = skglrm.rx, skglrm.ry
@@ -68,7 +68,7 @@ end
 
 # The input matrix is called X (instead of A) following ScikitLearn's convention
 function ScikitLearnBase.fit_transform!(skglrm::SkGLRM, X, y=nothing;
-                                        missing_values::Matrix=isnan(X))
+                                        missing_values=isnan.(X))
     @assert size(X)==size(missing_values)
 
     # Reuse the standard GLRM constructor and fitting machinery
@@ -87,7 +87,7 @@ end
 
 """ `transform(skglrm::SkGLRM, X)` brings X to low-rank-space """
 function ScikitLearnBase.transform(skglrm::SkGLRM, X;
-                                   missing_values::Matrix=isnan(X))
+                                   missing_values=isnan.(X))
     glrm = skglrm.glrm
     ry_fixed = [FixedLatentFeaturesConstraint(glrm.Y[:, i])
                 for i=1:size(glrm.Y, 2)]

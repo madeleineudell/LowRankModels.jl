@@ -38,7 +38,7 @@
 import Base: scale!, *, convert
 import Optim.optimize
 export Loss,
-       DiffLoss, # a category of Losses
+       DiffLoss, ClassificationLoss, SingleDimLoss, # categories of Losses
        QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
        PoissonLoss, # losses for predicting integers
        HingeLoss, WeightedHingeLoss, LogisticLoss, # losses for predicting booleans
@@ -55,6 +55,8 @@ export Loss,
 @compat abstract type DiffLoss<:Loss end
 # a ClassificationLoss is one in which observed values are true = 1 or false = 0 = -1 AND argmin_a L(u,a) = u>=0 ? true : false
 @compat abstract type ClassificationLoss<:Loss end
+# Single Dimensional losses are DiffLosses or ClassificationLosses, which allow optimized evaluate and grad functions
+typealias SingleDimLoss Union{DiffLoss, ClassificationLoss}
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
@@ -619,7 +621,7 @@ end
 ## we'll compute it via a stochastic gradient method
 ## with fixed step size
 ## (we don't need a hyper accurate estimate for this)
-function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
+function M_estimator(l::MultinomialOrdinalLoss, a::AbstractVector)
     u = zeros(l.max-1)'
     for i = 1:length(a)
         ai = a[i]
@@ -629,8 +631,7 @@ function M_estimator(l::MultinomialOrdinalLoss, a::AbstractArray)
 end
 
 ### convenience methods for evaluating and computing gradients on vectorized arguments
-
-function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractArray)
+function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractVector)
   @assert size(u) == size(a)
   out = 0
   for i=1:length(a)
@@ -638,8 +639,17 @@ function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   end
   return out
 end
+
+#Optimized vector evaluate on single-dimensional losses
+function evaluate(l::SingleDimLoss, u::Vector{Float64}, a::AbstractVector)
+  losseval = (x::Float64, y::Number) -> evaluate(l, x, y)
+  mapped = zeros(u)
+  map!(losseval, mapped, u, a)
+  reduce(+, mapped)
+end
+
 # now for multidimensional losses
-function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractArray)
+function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractVector)
   # @show size(u,1)
   # @show size(a)
   @assert size(u,1) == length(a)
@@ -650,7 +660,7 @@ function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractArray)
   return out
 end
 
-function grad(l::Loss, u::Array{Float64,1}, a::AbstractArray)
+function grad(l::Loss, u::Array{Float64,1}, a::AbstractVector)
   @assert size(u) == size(a)
   mygrad = zeros(size(u))
   for i=1:length(a)
@@ -658,8 +668,16 @@ function grad(l::Loss, u::Array{Float64,1}, a::AbstractArray)
   end
   return mygrad
 end
+
+# Optimized vector grad on single-dimensional losses
+function grad(l::SingleDimLoss, u::Vector{Float64}, a::AbstractVector)
+  lossgrad = (x::Float64,y::Number) -> grad(l, x, y)
+  mapped = zeros(u)
+  map!(lossgrad, mapped, u, a)
+end
+
 # now for multidimensional losses
-function grad(l::Loss, u::Array{Float64,2}, a::AbstractArray)
+function grad(l::Loss, u::Array{Float64,2}, a::AbstractVector)
   @assert size(u,1) == length(a)
   mygrad = zeros(size(u))
   for i=1:length(a)

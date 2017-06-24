@@ -15,6 +15,7 @@ export Regularizer, ProductRegularizer, # abstract types
        fixed_latent_features, FixedLatentFeaturesConstraint,
        fixed_last_latent_features, FixedLastLatentFeaturesConstraint,
        OrdinalReg, MNLOrdinalReg,
+       RemQuadReg,
        # methods on regularizers
        prox!, prox,
        # utilities
@@ -408,6 +409,20 @@ scale!(r::MNLOrdinalReg, newscale::Number) = scale!(r.r, newscale)
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::MNLOrdinalReg) = r
 
+
+## Quadratic regularization with non-zero mean
+type RemQuadReg<:Regularizer
+        scale::Float64
+        m::Array{Float64, 1}
+end
+RemQuadReg(m::Array{Float64, 1}) = RemQuadReg(1, m)
+prox(r::RemQuadReg, u::AbstractArray, alpha::Number) =
+     (u + 2 * alpha * r.scale * r.m) / (1 + 2 * alpha * r.scale)
+prox!(r::RemQuadReg, u::Array{Float64}, alpha::Number) = begin
+        broadcast!(.+, u, u, 2 * alpha * r.scale * r.m)
+        scale!(u, 1 / (1 + 2 * alpha * r.scale))
+end
+evaluate(r::RemQuadReg, a::AbstractArray) = r.scale * sumabs2(a - r.m)
 
 
 ## simpler method for numbers, not arrays

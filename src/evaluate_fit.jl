@@ -32,7 +32,7 @@ function row_objective(glrm::AbstractGLRM, i::Int, x::AbstractArray, Y::Array{Fl
     end
     # add regularization penalty
     if include_regularization
-        err += evaluate(glrm.rx, x)
+        err += evaluate(glrm.rx[i], x)
     end
     return err
 end
@@ -43,9 +43,10 @@ function col_objective(glrm::AbstractGLRM, j::Int, y::AbstractArray, X::Array{Fl
     if length(sz) == 1 colind = 1 else colind = 1:sz[2] end
     err = 0.0
     XY = X'*y
-    for i in glrm.observed_examples[j]
-        err += evaluate(glrm.losses[j], XY[i,colind], glrm.A[i,j])
-    end
+    obsex = glrm.observed_examples[j]
+    @inbounds XYj = XY[obsex,colind]
+    @inbounds Aj = convert(Array, glrm.A[obsex,j])
+    err += evaluate(glrm.losses[j], XYj, Aj)
     # add regularization penalty
     if include_regularization
         err += evaluate(glrm.ry[j], y)
@@ -59,6 +60,7 @@ function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2};
     @assert(size(Y)==(glrm.k,yidxs[end][end]))
     @assert(size(X)==(glrm.k,size(glrm.A,1)))
     XY = @compat Array{Float64}((size(X,2), size(Y,2)))
+    XY = Array(Float64, (size(X,2), size(Y,2)))
     if sparse
         # Calculate X'*Y only at observed entries of A
         m,n = size(glrm.A)
@@ -94,7 +96,7 @@ function calc_penalty(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,
     @assert(size(X)==(glrm.k,m))
     penalty = 0.0
     for i=1:m
-        penalty += evaluate(glrm.rx, view(X,:,i))
+        penalty += evaluate(glrm.rx[i], view(X,:,i))
     end
     for f=1:n
         penalty += evaluate(glrm.ry[f], view(Y,:,yidxs[f]))
