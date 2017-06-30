@@ -79,7 +79,8 @@ function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
     d = sum(ds)
     featurestartidxs = cumsum(append!([1], ds))
     # find which columns of Y map to which columns of A (for multidimensional losses)
-    @compat yidxs = Array(Union{Range{Int}, Int}, n)
+    U = Union{Range{Int}, Int}
+    @compat yidxs = Array{U}(n)
 
     for f = 1:n
         if ds[f] == 1

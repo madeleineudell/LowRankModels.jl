@@ -55,7 +55,7 @@ end
 QuadReg() = QuadReg(1)
 prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+2*alpha*r.scale)*u
 prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+2*alpha*r.scale))
-evaluate(r::QuadReg,a::AbstractArray) = r.scale*sumabs2(a)
+evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(abs2, a)
 
 ## constrained QuadLoss regularization
 ## the function r such that
@@ -262,7 +262,7 @@ end
 function evaluate(r::KSparseConstraint, a::AbstractArray)
     nonzcount = 0
     for ai in a
-      if nonzcount == k
+      if nonzcount == r.k
         if ai != 0
           return Inf
         end
@@ -420,7 +420,7 @@ prox!(r::RemQuadReg, u::Array{Float64}, alpha::Number) = begin
         broadcast!(.+, u, u, 2 * alpha * r.scale * r.m)
         scale!(u, 1 / (1 + 2 * alpha * r.scale))
 end
-evaluate(r::RemQuadReg, a::AbstractArray) = r.scale * sumabs2(a - r.m)
+evaluate(r::RemQuadReg, a::AbstractArray) = r.scale * sum(abs2, a - r.m)
 
 ## simpler method for numbers, not arrays
 evaluate(r::Regularizer, u::Number) = evaluate(r, [u])

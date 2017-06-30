@@ -155,3 +155,6 @@ function sample{LossSubtype<:Loss}(losses::Array{LossSubtype,1}, U::Array{Float6
 	domains = Domain[domain(l) for l in losses]
 	sample(domains, losses, U)
 end
+
+### Hack to sample from non-probabilistic losses
+sample(D::Domain, l::Loss, u) = impute(D, l, u)

@@ -19,7 +19,7 @@ end
 
 ### FITTING
 function fit!(glrm::GLRM, params::SparseProxGradParams;
-			  ch::ConvergenceHistory=ConvergenceHistory("SparseProxGradGLRM"), 
+			  ch::ConvergenceHistory=ConvergenceHistory("SparseProxGradGLRM"),
 			  verbose=true,
 			  kwargs...)
 	println(params)
@@ -36,8 +36,8 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
 	m,n = size(A)
 
     # check that we didn't initialize to zero (otherwise we will never move)
-    if norm(Y) == 0 
-    	Y = .1*randn(k,n) 
+    if norm(Y) == 0
+    	Y = .1*randn(k,n)
     end
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
@@ -53,8 +53,8 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
     g = zeros(k)
 
     # cache views
-    ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
-    vf = ContiguousView{Float64,1,Array{Float64,2}}[view(Y,:,f) for f=1:n]
+    ve = [view(X,:,e) for e=1:m]
+    vf = [view(Y,:,f) for f=1:n]
 
     for i=1:params.max_iter
 # STEP 1: X update
@@ -83,7 +83,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
         for f=1:n
             scale!(g, 0) # reset gradient to 0
             # compute gradient of L with respect to Yⱼ as follows:
-            # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ 
+            # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ
             for e in glrm.observed_examples[f]
                 # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
                 # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
@@ -93,13 +93,13 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
             l = length(glrm.observed_examples[f]) + 1
             scale!(g, -alpha/l)
             ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
-            axpy!(1,g,vf[f]) 
+            axpy!(1,g,vf[f])
             ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)
             prox!(ry[f],vf[f],alpha/l)
         end
         end
 # STEP 3: Check objective
-        obj = objective(glrm, X, Y; sparse=true) 
+        obj = objective(glrm, X, Y; sparse=true)
         # record the best X and Y yet found
         if obj < ch.objective[end]
             t = time() - t
@@ -119,8 +119,8 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
         if i>10 && (steps_in_a_row > 3 && ch.objective[end-1] - obj < tol) || alpha <= params.min_stepsize
             break
         end
-        if verbose && i%10==0 
-            println("Iteration $i: objective value = $(ch.objective[end])") 
+        if verbose && i%10==0
+            println("Iteration $i: objective value = $(ch.objective[end])")
         end
     end
     t = time() - t

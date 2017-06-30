@@ -86,26 +86,23 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     obj_by_col = zeros(n)
 
     # cache views for better memory management
-    # first a type hack
-    @compat const Yview  = Union{ContiguousView{Float64,1,Array{Float64,2}},
-                                  ContiguousView{Float64,2,Array{Float64,2}}}
     # make sure we don't try to access memory not allocated to us
     @assert(size(Y) == (k,d))
     @assert(size(X) == (k,m))
     # views of the columns of X corresponding to each example
-    ve = ContiguousView{Float64,1,Array{Float64,2}}[view(X,:,e) for e=1:m]
+    ve = [view(X,:,e) for e=1:m]
     # views of the column-chunks of Y corresponding to each feature y_j
     # vf[f] == Y[:,f]
-    vf = Yview[view(Y,:,yidxs[f]) for f=1:n]
+    vf = [view(Y,:,yidxs[f]) for f=1:n]
     # views of the column-chunks of G corresponding to the gradient wrt each feature y_j
     # these have the same shape as y_j
-    gf = Yview[view(G,:,yidxs[f]) for f=1:n]
+    gf = [view(G,:,yidxs[f]) for f=1:n]
 
     # working variables
     newX = copy(X)
     newY = copy(Y)
-    newve = ContiguousView{Float64,1,Array{Float64,2}}[view(newX,:,e) for e=1:m]
-    newvf = Yview[view(newY,:,yidxs[f]) for f=1:n]
+    newve = [view(newX,:,e) for e=1:m]
+    newvf = [view(newY,:,yidxs[f]) for f=1:n]
 
     for i=1:params.max_iter
 # STEP 1: X update
