@@ -126,8 +126,8 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     @assert(size(glrm.X, 2) >= m)
     @assert(size(glrm.Y, 1) >= k)
     @assert(size(glrm.Y, 2) >= d)
-    glrm.X[1:k,1:m] = diagm(sqrt(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
-    glrm.Y[1:k,1:d] = diagm(sqrt(ASVD[:S]))*ASVD[:V]*diagm(stds)
+    glrm.X[1:k,1:m] = Diagonal(sqrt.(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
+    glrm.Y[1:k,1:d] = Diagonal(sqrt.(ASVD[:S]))*ASVD[:Vt]*Diagonal(stds)
     return glrm
 end
 

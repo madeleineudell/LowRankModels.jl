@@ -1,5 +1,5 @@
 using LowRankModels
-import StatsBase: sample, WeightVec
+import StatsBase: sample, Weights
 
 # test quadratic loss
 
@@ -36,7 +36,7 @@ XYh = X'*Y;
 println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
+println("After fitting, imputed entries are off by $(sum(abs.(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, 50\% of entries would be wrong.)\n")
 
 # initialize
@@ -45,7 +45,7 @@ XYh = glrm.X' * glrm.Y
 println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
+println("After fitting, imputed entries are off by $(sum(abs.(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, 50\% of entries would be wrong.)\n")
 
 # fit w/ initialization
@@ -54,5 +54,5 @@ XYh = X'*Y;
 println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
+println("After fitting, imputed entries are off by $(sum(abs.(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, 50\% of entries would be wrong.)\n")

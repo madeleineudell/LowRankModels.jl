@@ -1,5 +1,5 @@
 using LowRankModels
-import StatsBase: sample, WeightVec
+import StatsBase: sample, Weights
 
 # test quadratic loss
 
@@ -13,7 +13,7 @@ sigmasq = .1
 # coordinates of covariates
 X_real = randn(m,k)
 # directions of observations
-Y_real = randn(k,n) 
+Y_real = randn(k,n)
 
 XY = X_real*Y_real;
 A = XY + sqrt(sigmasq)*randn(m,n)

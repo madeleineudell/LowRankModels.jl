@@ -17,8 +17,8 @@ function cross_validate(glrm::AbstractGLRM;
     obs = flatten_observations(glrm.observed_features)
     if verbose println("computing CV folds") end
     folds = getfolds(obs, nfolds, size(glrm.A)..., do_check = do_obs_check)
-    train_glrms = Array(typeof(glrm), nfolds)
-    test_glrms = Array(typeof(glrm), nfolds)
+    train_glrms = Array{typeof(glrm)}(nfolds)
+    test_glrms = Array{typeof(glrm)}(nfolds)
     train_error = @compat Array{Float64}(nfolds)
     test_error = @compat Array{Float64}(nfolds)
     for ifold=1:use_folds

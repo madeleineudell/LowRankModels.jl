@@ -1,5 +1,5 @@
 using LowRankModels
-import StatsBase: sample, WeightVec
+import StatsBase: sample, Weights
 
 # test MNL Ordinal loss
 
@@ -35,7 +35,7 @@ for i=1:m
 		u = XY[i,j] + T_real[:,j]
 		XYplusT[i,(j-1)*d+(1:d)] = u
 		diffs = u'*signedsums
-		wv = WeightVec(Float64[exp(-diffs[l]) for l in 1:nlevels])
+		wv = Weights(Float64[exp(-diffs[l]) for l in 1:nlevels])
 		l = sample(wv)
 		A[i,j] = l
 	end
@@ -60,7 +60,7 @@ XYh = X'*Y#[:,1:d:D];
 println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
+println("After fitting, imputed entries are off by $(sum(abs.(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
 
 # initialize
@@ -69,7 +69,7 @@ XYh = glrm.X' * glrm.Y
 println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
 println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After initialization with the svd, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
+println("After initialization with the svd, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
 
 # fit w/ initialization
@@ -79,7 +79,7 @@ XYh = X'*Y#[:,1:d:D];
 println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
 println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs(A_imputed - A)) / prod(size(A))*100)\% on average")
+println("After fitting, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)\% on average")
 println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
 
 # test scaling

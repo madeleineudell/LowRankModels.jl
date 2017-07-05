@@ -1,5 +1,5 @@
 using LowRankModels
-import StatsBase: sample, WeightVec
+import StatsBase: sample, Weights
 
 # tests MNL loss
 
@@ -11,7 +11,7 @@ d = n*K;
 # matrix to encode
 X_real, Y_real = randn(m,k), randn(k,d);
 XY = X_real*Y_real;
-# subtract the mean so we can compare the truth with the fit; 
+# subtract the mean so we can compare the truth with the fit;
 # the loss function is invariant under shifts
 losses = fill(MultinomialLoss(K),n)
 yidxs = get_yidxs(losses)
@@ -25,7 +25,7 @@ end
 A = zeros(Int, (m, n))
 for i=1:m
 	for j=1:n
-		wv = WeightVec(Float64[exp(-XY[i, K*(j-1) + l]) for l in 1:K])
+		wv = Weights(Float64[exp(-XY[i, K*(j-1) + l]) for l in 1:K])
 		l = sample(wv)
 		A[i,j] = l
 	end

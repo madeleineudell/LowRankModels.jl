@@ -516,7 +516,7 @@ datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.ma
 function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
     diffusquared = u[a]^2 .- u.^2
     M = maximum(diffusquared)
-    invlik = sum(exp(diffusquared .- M))
+    invlik = sum(exp, (diffusquared .- M))
     loss = M + log(invlik)
     return l.scale*loss
 end
@@ -529,7 +529,7 @@ function grad(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
     for j in 1:length(u)
         diffusquared = u[j]^2 .- u.^2
         M = maximum(diffusquared)
-        invlik = sum(exp(diffusquared .- M))
+        invlik = sum(exp,(diffusquared .- M))
         g[j] -= 2 * u[j] * exp(- M) / invlik
     end
     return l.scale*g

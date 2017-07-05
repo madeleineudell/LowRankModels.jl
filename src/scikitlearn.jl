@@ -53,7 +53,7 @@ end
 
 function build_glrm(skglrm::SkGLRM, X, missing_values)
     k = skglrm.k == -1 ? size(X, 2) : skglrm.k
-    obs = [ind2sub(missing_values, x) for x in find(!missing_values)]
+    obs = [ind2sub(missing_values, x) for x in find(.!missing_values)]
     rx, ry = skglrm.rx, skglrm.ry
     if skglrm.rx_scale !== nothing
         rx = copy(rx)
