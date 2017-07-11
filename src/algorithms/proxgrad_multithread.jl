@@ -30,6 +30,69 @@ function ProxGradParams(stepsize::Number=1.0; # initial stepsize
                           convert(Float64, min_stepsize))
 end
 
+#Makes some performance optimizations
+#Finds all of the gradients in a column so that the size of the column gradient is consistent
+#as opposed to the row gradient which has column-chunks and whatnot
+@inline function _threadedupdateGradX!{T <: AbstractMatrix{Float64}}(g::GLRM, XY::T, gx::Matrix{Float64})
+  yidxs = get_yidxs(g.losses)
+  scale!(gx,0)
+
+  #Update the gradient, go by column then by row
+  Threads.@threads for j in 1:length(g.losses)
+    #Yj for computing gradient
+    @inbounds Yj = view(g.Y, :, yidxs[j])
+    obsex = g.observed_examples[j]
+
+    #Take whole columns of XY and A and take the gradient of those
+    @inbounds Aj = convert(Array, g.A[obsex, j])
+    @inbounds XYj = convert(Array, XY[obsex, yidxs[j]])
+    grads = grad(g.losses[j], XYj, Aj)
+
+    #Single dimensional losses
+    if isa(grads, Vector)
+      for e in 1:length(obsex)
+        #i = obsex[e], so update that portion of gx
+        @inbounds gxi = view(gx, :, obsex[e])
+        axpy!(grads[e], Yj, gxi)
+      end
+    else
+      for e in 1:length(obsex)
+        @inbounds gxi = view(gx, :, obsex[e])
+        gemm!('N','N',1.0,Yj, grads[e,:], 1.0, gxi)
+      end
+    end
+  end
+end
+
+@inline function _threadedupdateGradY!{T <: AbstractMatrix{Float64}}(g::GLRM, XY::T, gy::Matrix{Float64})
+  yidxs = get_yidxs(g.losses)
+  #scale y gradient to zero
+  scale!(gy, 0)
+
+  #Update the gradient
+  Threads.@threads for j in 1:length(g.losses)
+    @inbounds gyj = view(gy, :, yidxs[j])
+    obsex = g.observed_examples[j]
+    #Take whole columns of XY and A and take the gradient of those
+    @inbounds Aj = convert(Array, g.A[obsex, j])
+    @inbounds XYj = convert(Array, XY[obsex, yidxs[j]])
+    grads = grad(g.losses[j], XYj, Aj)
+    #Single dimensional losses
+    if isa(grads, Vector)
+      for e in 1:length(obsex)
+        #i = obsex[e], so use that for Xi
+        @inbounds Xi = view(g.X, :, obsex[e])
+        axpy!(grads[e], Xi, gyj)
+      end
+    else
+      for e in 1:length(obsex)
+        @inbounds Xi = view(g.X, :, obsex[e])
+        gemm!('N','T',1.0, Xi, grads[e,:], 1.0, gyj)
+      end
+    end
+  end
+end
+
 ### FITTING
 function fit!(glrm::GLRM, params::ProxGradParams;
 			  ch::ConvergenceHistory=ConvergenceHistory("ProxGradGLRM"),
@@ -76,10 +139,10 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     update_ch!(ch, 0, objective(glrm, X, Y, XY, yidxs=yidxs))
     t = time()
     steps_in_a_row = 0
-    # gradient wrt columns of X
-    g = [zeros(k) for t in 1:Threads.nthreads()]
-    # gradient wrt column-chunks of Y
-    G = zeros(k, d)
+    # gradient wrt X
+    gx = zeros(X)
+    # gradient wrt Y
+    gy = zeros(k, d)
     # rowwise objective value
     obj_by_row = zeros(m)
     # columnwise objective value
@@ -91,12 +154,14 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     @assert(size(X) == (k,m))
     # views of the columns of X corresponding to each example
     ve = [view(X,:,e) for e=1:m]
+    # corresponding views of columns of gx
+    ge = [view(gx,:,e) for e=1:m]
     # views of the column-chunks of Y corresponding to each feature y_j
     # vf[f] == Y[:,f]
     vf = [view(Y,:,yidxs[f]) for f=1:n]
     # views of the column-chunks of G corresponding to the gradient wrt each feature y_j
     # these have the same shape as y_j
-    gf = [view(G,:,yidxs[f]) for f=1:n]
+    gf = [view(gy,:,yidxs[f]) for f=1:n]
 
     # working variables
     newX = copy(X)
@@ -115,21 +180,13 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         end
 
         for inneri=1:params.inner_iter_X
+
+            _threadedupdateGradX!(glrm, XY, gx)
+
         Threads.@threads for e=1:m # for every example x_e == ve[e]
-            scale!(g[Threads.threadid()], 0) # reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
-            for f in glrm.observed_features[e]
-                # but we have no function dLⱼ/dXᵢ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
-                # by chain rule, the result is: Σⱼ (dLⱼ(XᵢYⱼ)/du * Yⱼ), where dLⱼ/du is our grad() function
-                curgrad = grad(losses[f],XY[e,yidxs[f]],A[e,f])
-                if isa(curgrad, Number)
-                    axpy!(curgrad, vf[f], g[Threads.threadid()])
-                else
-                    # on v0.4: gemm!('N', 'T', 1.0, vf[f], curgrad, 1.0, g)
-                    gemm!('N', 'N', 1.0, vf[f], curgrad, 1.0, g[Threads.threadid()])
-                end
-            end
+
             # take a proximal gradient step to update ve[e]
             l = length(glrm.observed_features[e]) + 1 # if each loss function has lipshitz constant 1 this bounds the lipshitz constant of this example's objective
             obj_by_row[e] = row_objective(glrm, e, ve[e]) # previous row objective value
@@ -137,7 +194,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 stepsize = alpharow[e]/l
                 # newx = prox(rx[e], ve[e] - stepsize*g, stepsize) # this will use much more memory than the inplace version with linesearch below
                 ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
-                axpy!(-stepsize,g[Threads.threadid()],newve[e])
+                axpy!(-stepsize,ge[e],newve[e])
                 ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
                 prox!(rx[e],newve[e],stepsize)
                 if row_objective(glrm, e, newve[e]) < obj_by_row[e]
@@ -158,21 +215,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         end # inner iteration
 # STEP 2: Y update
         for inneri=1:params.inner_iter_Y
-        scale!(G, 0)
+            # compute gradient of L with respect to Y as follows:
+            # ∇{Y}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ
+            _threadedupdateGradY!(glrm, XY, gy)
+
         Threads.@threads for f=1:n
-            # compute gradient of L with respect to Yⱼ as follows:
-            # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ
-            for e in glrm.observed_examples[f]
-                # but we have no function dLⱼ/dYⱼ, only dLⱼ/d(XᵢYⱼ) aka dLⱼ/du
-                # by chain rule, the result is: Σⱼ dLⱼ(XᵢYⱼ)/du * Xᵢ, where dLⱼ/du is our grad() function
-                curgrad = grad(losses[f],XY[e,yidxs[f]],A[e,f])
-                if isa(curgrad, Number)
-                    axpy!(curgrad, ve[e], gf[f])
-                else
-                    # on v0.4: gemm!('N', 'T', 1.0, ve[e], curgrad, 1.0, gf[f])
-                    gemm!('N', 'T', 1.0, ve[e], curgrad, 1.0, gf[f])
-                end
-            end
+
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
             obj_by_col[f] = col_objective(glrm, f, vf[f])

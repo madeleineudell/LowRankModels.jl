@@ -11,9 +11,10 @@ function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2},
     @assert(size(X)==(glrm.k,m))
     err = 0.0
     for j=1:n
-        for i in glrm.observed_examples[j]
-            err += evaluate(glrm.losses[j], XY[i,yidxs[j]], glrm.A[i,j])
-        end
+        obsex = glrm.observed_examples[j]
+        @inbounds Aj = convert(Array, glrm.A[obsex, j])
+        @inbounds XYj = convert(Array, XY[obsex, yidxs[j]])
+        err += evaluate(glrm.losses[j], XYj, Aj)
     end
     # add regularization penalty
     if include_regularization
