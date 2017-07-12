@@ -260,19 +260,20 @@ type KSparseConstraint<:Regularizer
   k::Int
 end
 function evaluate(r::KSparseConstraint, a::AbstractArray)
-    nonzcount = 0
-    for ai in a
-      if nonzcount == r.k
-        if ai != 0
-          return Inf
-        end
-      else
-        if ai != 0
-          nonzcount += 1
-        end
+  k = r.k
+  nonzcount = 0
+  for ai in a
+    if nonzcount == k
+      if ai != 0
+        return Inf
+      end
+    else
+      if ai != 0
+        nonzcount += 1
       end
     end
-    return 0
+  end
+  return 0
 end
 function prox(r::KSparseConstraint, u::AbstractArray, alpha::Number)
   k = r.k
