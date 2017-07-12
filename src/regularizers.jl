@@ -148,7 +148,7 @@ prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max(1/(1+2*alpha*r.scale
 prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = begin
   scale!(u, 1/(1+2*alpha*r.scale))
   maxval = maximum(u)
-  clamp!(u, 0, maxval)  
+  clamp!(u, 0, maxval)
 end
 function evaluate(r::NonNegQuadReg,a::AbstractArray)
     for ai in a
@@ -260,19 +260,20 @@ type KSparseConstraint<:Regularizer
   k::Int
 end
 function evaluate(r::KSparseConstraint, a::AbstractArray)
-    nonzcount = 0
-    for ai in a
-      if nonzcount == k
-        if ai != 0
-          return Inf
-        end
-      else
-        if ai != 0
-          nonzcount += 1
-        end
+  k = r.k
+  nonzcount = 0
+  for ai in a
+    if nonzcount == k
+      if ai != 0
+        return Inf
+      end
+    else
+      if ai != 0
+        nonzcount += 1
       end
     end
-    return 0
+  end
+  return 0
 end
 function prox(r::KSparseConstraint, u::AbstractArray, alpha::Number)
   k = r.k
