@@ -41,7 +41,7 @@ end
 # Evaluate w/ a=-1 and a=1 and see which is better according to that loss.
 # This is fast and works for any loss.
 function sample(D::BoolDomain, l::Loss, u::AbstractArray)
-    prob = exp(-[evaluate(l, u, i) for i in (true, false)])
+    prob = exp.(-[evaluate(l, u, i) for i in (true, false)])
 		return sample(WeightVec(prob))
 end
 
@@ -58,7 +58,7 @@ end
 
 # generic method
 function sample(D::OrdinalDomain, l::Loss, u::AbstractArray)
-    prob = exp(-[evaluate(l, u, i) for i in D.min:D.max])
+    prob = exp.(-[evaluate(l, u, i) for i in D.min:D.max])
 		return sample(WeightVec(prob))
 end
 
@@ -66,14 +66,14 @@ end
 # Categorical data should take integer values ranging from 1 to `max`
 
 function sample(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64})
-	return sample(WeightVec(exp(u)))
+	return sample(WeightVec(exp.(u)))
 end
 
 # sample(D::CategoricalDomain, l::OvALoss, u::Array{Float64}) = ??
 
 # generic method
 function sample(D::CategoricalDomain, l::Loss, u::AbstractArray)
-    prob = exp(-[evaluate(l, u, i) for i in D.min:D.max])
+    prob = exp.(-[evaluate(l, u, i) for i in D.min:D.max])
 		return sample(WeightVec(prob))
 end
 
