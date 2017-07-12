@@ -83,9 +83,9 @@ OneReg() = OneReg(1)
 prox(r::OneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
 prox!(r::OneReg,u::AbstractArray,alpha::Number) = begin
   softthreshold = (x::Number -> max(x-alpha,0) + min(x+alpha,0))
-  map!(softthreshold, u)
+  map!(softthreshold, u, u)
 end
-evaluate(r::OneReg,a::AbstractArray) = r.scale*sumabs(a)
+evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs,a)
 
 
 ## no regularization
