@@ -50,14 +50,15 @@ function censored_regularization_path(train_glrm::GLRM, test_glrm::GLRM; params=
         if verbose println("\ttrain error: $(train_error[iparam])") end
         test_error[iparam] = objective(test_glrm, X, Y, include_regularization=false) / ntest
         if verbose println("\ttest error:  $(test_error[iparam])") end
-        solution[iparam] = (sum(X)+sum(Y), sum(abs(X))+sum(abs(Y)))
+        solution[iparam] = (sum(X)+sum(Y), sum(abs.(X))+sum(abs.(Y)))
         if verbose println("\tsum of solution, one norm of solution:  $(solution[iparam])") end
     end
     return train_error, test_error, train_time, reg_params, solution
 end
 
 train_error, test_error, train_time, reg_params, solution =
-    censored_regularization_path(train_glrm, test_glrm, params=Params(1,50,.001,.1),
+    censored_regularization_path(train_glrm, test_glrm,
+                                 params=ProxGradParams(1, max_iter=50, abs_tol=.001, min_stepsize=.1),
                                  reg_params=logspace(2,-2,3))
 df = DataFrame(train_error = train_error, test_error = test_error,
                    train_time = train_time, reg_param = reg_params, solution_1norm = [s[2] for s in solution])
