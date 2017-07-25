@@ -3,7 +3,7 @@
 # the abstract type Regularizer.
 # Regularizers should implement `evaluate` and `prox`.
 
-import Base.scale!, Base.*, Roots.fzero
+import Base.scale!, Base.*
 
 export Regularizer, ProductRegularizer, # abstract types
        # concrete regularizers
