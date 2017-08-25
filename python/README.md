@@ -3,7 +3,7 @@
 This workflow relies on two major tools.
 
 * [PyCall](https://github.com/JuliaPy/PyCall.jl): first make sure the `PYTHON` environment variable is set:
-at the shell, `export PYTHON=\`which python\``.
+at the shell, ``export PYTHON=`which python` ``.
 Then start julia and run
 ```
 Pkg.add("PyCall")
