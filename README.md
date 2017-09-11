@@ -131,7 +131,7 @@ Similiarly, the `ry` argument can be an array of regularizers,
 with one for each column (in order). For example,
 for a data set with 3 columns, you could use
 
-    ry = Regularizer[QuadReg(1), QuadReg(10), FixedLatentFeatureConstraint([1,2,3])]
+    ry = Regularizer[QuadReg(1), QuadReg(10), FixedLatentFeaturesConstraint([1.,2.,3.])]
 
 This regularizes the first to columns of `Y` with `||Y[:,1]||^2 + 10||Y[:,2]||^2`
 and constrains the third (and last) column of `Y` to be equal to `[1,2,3]`.
