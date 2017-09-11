@@ -57,6 +57,10 @@ export Loss,
 @compat abstract type ClassificationLoss<:Loss end
 # Single Dimensional losses are DiffLosses or ClassificationLosses, which allow optimized evaluate and grad functions
 @compat const SingleDimLoss = Union{DiffLoss, ClassificationLoss}
+# a OrdinalLoss is one in which observed values are ordinals (as Ints)
+@compat abstract type OrdinalLoss<:Loss end
+# a CategoricalLoss is one in which observed values are categoricals (as Ints)
+@compat abstract type CategoricalLoss<:Loss end
 
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
@@ -104,6 +108,14 @@ convert(::Type{Bool}, x::Int) = x==1 ? true : (x==-1 || x==0) ? false : throw(In
 evaluate(l::ClassificationLoss, u::Float64, a::Int) = evaluate(l,u,Bool(a))
 grad(l::ClassificationLoss, u::Float64, a::Int) = grad(l,u,Bool(a))
 M_estimator(l::ClassificationLoss, a::AbstractArray{Int,1}) = M_estimator(l,Bool(a))
+
+### Numbers are translated to Integers if loss is not defined on that number type
+IntLoss = Union{ClassificationLoss,OrdinalLoss,CategoricalLoss}
+evaluate(l::IntLoss, u::Float64, a::Number) = evaluate(l,u,Int(a))
+grad(l::IntLoss, u::Float64, a::Number) = grad(l,u,Int(a))
+evaluate(l::IntLoss, u::AbstractArray, a::Number) = evaluate(l,u,Int(a))
+grad(l::IntLoss, u::AbstractArray, a::Number) = grad(l,u,Int(a))
+M_estimator(l::IntLoss, a::AbstractArray{T,1} where T<:Number) = M_estimator(l,Array{Int}(a))
 
 ### M-estimators
 
@@ -243,7 +255,7 @@ M_estimator(l::PoissonLoss, a::AbstractArray) = log(mean(a))
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
-type OrdinalHingeLoss<:Loss
+type OrdinalHingeLoss<:OrdinalLoss
     min::Integer
     max::Integer
     scale::Float64
@@ -356,7 +368,7 @@ end
 # often known as the softmax function
 # f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
 #         = 1         / (sum_{a'} exp(u[a'] - u[a]))
-type MultinomialLoss<:Loss
+type MultinomialLoss<:CategoricalLoss
     max::Integer
     scale::Float64
     domain::Domain
@@ -415,7 +427,7 @@ end
 
 ########################################## One vs All loss ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
-type OvALoss<:Loss
+type OvALoss<:CategoricalLoss
     max::Integer
     bin_loss::Loss
     scale::Float64
@@ -458,7 +470,7 @@ end
 
 ########################################## Bigger vs Smaller loss ##########################################
 # f: ℜx{1, 2, ..., max-1} -> ℜ
-type BvSLoss<:Loss
+type BvSLoss<:OrdinalLoss
     max::Integer
     bin_loss::Loss
     scale::Float64
@@ -504,7 +516,7 @@ end
 # f computes the (negative log likelihood of the) multinomial logit,
 # often known as the softmax function
 # f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
-type OrdisticLoss<:Loss
+type OrdisticLoss<:OrdinalLoss
     max::Integer
     scale::Float64
     domain::Domain
@@ -576,7 +588,7 @@ end
 # the most probable value a is the index of the first
 # positive entry of u
 
-type MultinomialOrdinalLoss<:Loss
+type MultinomialOrdinalLoss<:OrdinalLoss
     max::Integer
     scale::Float64
     domain::Domain
@@ -636,6 +648,10 @@ function M_estimator(l::MultinomialOrdinalLoss, a::AbstractVector)
     end
     return u
 end
+
+#######################
+### Convenience methods
+#######################
 
 ### convenience methods for evaluating and computing gradients on vectorized arguments
 function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractVector)
