@@ -80,9 +80,9 @@ type OneReg<:Regularizer
     scale::Float64
 end
 OneReg() = OneReg(1)
-prox(r::OneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0) + min(u+alpha,0)
+prox(r::OneReg,u::AbstractArray,alpha::Number) = max.(u-alpha,0) + min.(u+alpha,0)
 prox!(r::OneReg,u::AbstractArray,alpha::Number) = begin
-  softthreshold = (x::Number -> max(x-alpha,0) + min(x+alpha,0))
+  softthreshold = (x::Number -> max.(x-alpha,0) + min.(x+alpha,0))
   map!(softthreshold, u, u)
 end
 evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs,a)
@@ -120,10 +120,10 @@ type NonNegOneReg<:Regularizer
     scale::Float64
 end
 NonNegOneReg() = NonNegOneReg(1)
-prox(r::NonNegOneReg,u::AbstractArray,alpha::Number) = max(u-alpha,0)
+prox(r::NonNegOneReg,u::AbstractArray,alpha::Number) = max.(u-alpha,0)
 
 prox!(r::NonNegOneReg,u::AbstractArray,alpha::Number) = begin
-  nonnegsoftthreshold = (x::Number -> max(x-alpha,0))
+  nonnegsoftthreshold = (x::Number -> max.(x-alpha,0))
   map!(nonnegsoftthreshold, u)
 end
 
@@ -144,7 +144,7 @@ type NonNegQuadReg
     scale::Float64
 end
 NonNegQuadReg() = NonNegQuadReg(1)
-prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max(1/(1+2*alpha*r.scale)*u, 0)
+prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max.(1/(1+2*alpha*r.scale)*u, 0)
 prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = begin
   scale!(u, 1/(1+2*alpha*r.scale))
   maxval = maximum(u)
@@ -334,7 +334,7 @@ function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number=0)
             break
         end
     end
-    max(u - t, 0)
+    max.(u - t, 0)
 end
 function evaluate(r::SimplexConstraint,a::AbstractArray)
     # check it's a unit vector
