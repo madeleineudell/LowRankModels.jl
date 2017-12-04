@@ -220,10 +220,30 @@ Right now, all other data types are ignored.
 
 The full call signature is
 ```
-GLRM(df::DataFrame, k::Int;
-    losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
-    offset = true, scale = false,
-    prob_scale = true, NaNs_to_NAs = true)
+function GLRM(df::DataFrame, k::Int;
+              losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
+              offset = true, scale = false,
+              prob_scale = true, NaNs_to_NAs = true)
+```
+You can modify the losses or regularizers, or turn off offsets or scaling,
+using these keyword arguments.
+
+Or to specify a map from data types to losses, define a new loss_map from datatypes to losses (like probabilistic_losses, below):
+```
+probabilistic_losses = Dict{Symbol, Any}(
+    :real        => QuadLoss,
+    :bool        => LogisticLoss,
+    :ord         => MultinomialOrdinalLoss,
+    :cat         => MultinomialLoss
+)
+```
+and input an array of datatypes (one for each column of your data frame: `GLRM(A, k, datatypes; loss_map = loss_map)`. The full call signature is
+```
+function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
+              loss_map = probabilistic_losses,
+              rx = QuadReg(.01), ry = QuadReg(.01),
+              offset = true, scale = false, prob_scale = true,
+              transform_data_to_numbers = true, NaNs_to_NAs = true)
 ```
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.
