@@ -9,7 +9,7 @@ export sort_observations, add_offset!, fix_latent_features!,
         @inbounds push!(observed_features[i],j)
         @inbounds push!(observed_examples[j],i)
     end
-    if check_empty && (any(map(x->length(x)==0,observed_examples)) || 
+    if check_empty && (any(map(x->length(x)==0,observed_examples)) ||
             any(map(x->length(x)==0,observed_features)))
         error("Every row and column must contain at least one observation")
     end
@@ -18,11 +18,11 @@ end
 
 ### SCALINGS AND OFFSETS ON GLRM
 function add_offset!(glrm::AbstractGLRM)
-    glrm.rx, glrm.ry = lastentry1(glrm.rx), map(lastentry_unpenalized, glrm.ry)
+    glrm.rx, glrm.ry = map(lastentry1, glrm.rx), map(lastentry_unpenalized, glrm.ry)
     return glrm
 end
 function fix_latent_features!(glrm::AbstractGLRM, n)
-    glrm.ry = Regularizer[fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i]) 
+    glrm.ry = Regularizer[fixed_latent_features(glrm.ry[i], glrm.Y[1:n,i])
                             for i in 1:length(glrm.ry)]
     return glrm
 end
@@ -64,14 +64,14 @@ function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
     		  scale!(glrm.losses[i], 1/(2*varlossi)) # this is the correct -loglik of gaussian with variance fixed at estimate
     	    else
     		  warn("column $i has a variance of $varlossi; not scaling it to avoid dividing by zero.")
-    	    end 
+    	    end
         elseif typeof(glrm.losses[i]) == HuberLoss && length(nomissing) > 0
             varlossi = avgerror(glrm.losses[i], nomissing) # estimate the width of the distribution
             if varlossi > TOL
               scale!(glrm.losses[i], 1/(2*varlossi)) # this is not the correct -loglik of huber with estimates for variance and mean of poisson, but that's probably ok
             else
               warn("column $i has a variance of $varlossi; not scaling it to avoid dividing by zero.")
-            end 
+            end
         else # none of the other distributions have any free parameters to estimate, so this is the correct -loglik
             scale!(glrm.losses[i], 1)
         end

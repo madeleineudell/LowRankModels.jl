@@ -275,7 +275,7 @@ function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
-            if isnan(df[i,j])
+            if !isna(df[i,j]) && isnan(df[i,j])
                 df[i,j] = NA
             end
         end

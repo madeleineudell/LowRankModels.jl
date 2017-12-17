@@ -116,7 +116,7 @@ function M_estimator(l::Loss, a::AbstractArray; test="test")
     # the function to optimize over
     f = (u -> sum(map(ai->evaluate(l,u[1],ai), a))) # u is indexed because `optim` assumes input is a vector
     # the gradient of that function
-    function g!(u::Vector, storage::Vector) # this is the format `optim` expects
+    function g!(storage::Vector, u::Vector) # this is the format `optim` expects
         storage[1] = sum(map(ai->grad(l,u[1],ai), a))
     end
     m = optimize(f, g!, [median(a)], LBFGS()).minimum[1]
