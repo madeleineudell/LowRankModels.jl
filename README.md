@@ -9,6 +9,10 @@ principal components analysis (PCA), matrix completion, robust PCA,
 nonnegative matrix factorization, k-means, and many more.
 
 For more information on GLRMs, see [our paper][glrmpaper].
+There is a [python interface](https://github.com/udellgroup/pyglrm) to this package,
+and a GLRM implementation in
+[the H2O machine learning platform](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/glrm.html)
+with interfaces in a variety of languages.
 
 LowRankModels.jl makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
