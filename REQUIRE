@@ -7,4 +7,4 @@ Compat 0.9
 ScikitLearnBase 0.0.4
 DataArrays 0.4
 FactCheck 0.4
-NullableArrays
+Missings
