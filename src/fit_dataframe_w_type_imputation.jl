@@ -8,20 +8,27 @@ end
 import DataFrames: DataFrame, ncol, convert
 export GLRM
 
+import Missings: Missing, missing, ismissing
+
+
 # TODO: identify categoricals automatically from PooledDataArray columns
 
 function GLRM(df::DataFrame, k::Int;
               losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
               offset = true, scale = false,
-              prob_scale = true, NaNs_to_NAs = true)
-    if NaNs_to_NAs
+              prob_scale = true, NaNs_to_Missing = true)
+    if NaNs_to_Missing
         df = copy(df)
-        NaNs_to_NAs!(df)
+        NaNs_to_Missing!(df)
     end
     if losses == Loss[] # if losses not specified, identify ordinal, boolean and real columns
-        reals, real_losses = get_reals(df)
-        bools, bool_losses = get_bools(df)
-        ordinals, ordinal_losses = get_ordinals(df)
+        # change the wal get_reals, etc work.
+
+        #reals, real_losses = get_reals(df)
+        #bools, bool_losses = get_bools(df)
+        #ordinals, ordinal_losses = get_ordinals(df)
+        #easier to use just one function for this usecase.
+        reals, real_losses, bools, bool_losses, ordinals, ordinal_losses = get_loss_types(df)
         A = [df[reals] df[bools] df[ordinals]]
         labels = [names(df)[reals]; names(df)[bools]; names(df)[ordinals]]
         losses = [real_losses; bool_losses; ordinal_losses]
@@ -53,6 +60,57 @@ function GLRM(df::DataFrame, k::Int;
     return glrm, labels
 end
 
+function get_loss_types(df::DataFrame)
+    m,n = size(df)
+    reals = fill(false,n)
+    bools = fill(false,n)
+    ordinals = fill(false,n)
+
+    for j in 1:n
+        # assuming there are no columns with *all* values missing. (which would make it a redundant column)
+        t = eltype(collect(skipmissing(df[j]))[1])
+        if(t == Float64)
+            reals[j] = true
+        elseif t == Bool
+            bools[j] = true
+        elseif t == (Int || Int32 || Int64)
+            ordinals[j] = true
+        end
+    end
+
+    n1 = sum(reals)
+    real_losses = Array(Loss,n1)
+    for i=1:n1
+        real_losses[i] = QuadLoss()
+    end
+
+    n2 = sum(bools)
+    bool_losses = Array(Loss,n2)
+    for i in 1:n2
+        bool_losses[i] = HingeLoss()
+    end
+
+    n3 = sum(ordinals)
+    ord_idx = (1:size(df,2))[ordinals]
+    maxs = zeros(n3,1)
+    mins = zeros(n3,1)
+    for j in 1:n3
+        col = df[ord_idx[j]]
+        try
+            maxs[j] = maximum(skipmissing(col))
+            mins[j] = minimum(skipmissing(col))
+        end
+    end
+
+    # set losses and regularizers
+    ord_losses = Array(Loss,n3)
+    for j=1:n3
+        ord_losses[i] = OrdinalHinge(mins[i],maxs[i])
+    end
+    return reals,real_losses,bools,bool_losses,ordinals,ord_losses
+end
+
+# leaving the functions below untouched for now.
 function get_reals(df::DataFrame)
     m,n = size(df)
     reals = [typeof(df[i])<:AbstractArray{Float64,1} for i in 1:n]

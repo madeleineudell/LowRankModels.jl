@@ -125,6 +125,7 @@ end
 # Uses uₒ = argmin ∑l(u,aᵢ) to find (1/n)*∑l(uₒ,aᵢ) which is the
 # average error incurred by using the estimate uₒ for every aᵢ
 function avgerror(l::Loss, a::AbstractArray)
+    b = collect(skipmissing(a))
     m = M_estimator(l,a)
     sum(map(ai->evaluate(l,m,ai),a))/length(a)
 end
