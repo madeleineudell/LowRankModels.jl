@@ -55,18 +55,19 @@ end
 # scale loss function to fit -loglik of joint distribution
 # makes sense when all functions used are -logliks of sensible distributions
 # todo: option to scale to account for nonuniform sampling in rows or columns or both
+# skipmissing(Array with missing) gives an iterator. 
 function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
     for i in columns_to_scale
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if typeof(glrm.losses[i]) == QuadLoss && length(nomissing) > 0
-            varlossi = var(nomissing) # estimate the variance
+            varlossi = var(skipmissing(glrm.A[i])) # estimate the variance
             if varlossi > TOL
     		  scale!(glrm.losses[i], 1/(2*varlossi)) # this is the correct -loglik of gaussian with variance fixed at estimate
     	    else
     		  warn("column $i has a variance of $varlossi; not scaling it to avoid dividing by zero.")
     	    end
         elseif typeof(glrm.losses[i]) == HuberLoss && length(nomissing) > 0
-            varlossi = avgerror(glrm.losses[i], nomissing) # estimate the width of the distribution
+            varlossi = avgerror(glrm.losses[i], glrm.A[i]) # estimate the width of the distribution
             if varlossi > TOL
               scale!(glrm.losses[i], 1/(2*varlossi)) # this is not the correct -loglik of huber with estimates for variance and mean of poisson, but that's probably ok
             else

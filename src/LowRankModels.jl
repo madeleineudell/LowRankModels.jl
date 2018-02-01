@@ -3,6 +3,7 @@ __precompile__()
 module LowRankModels
 
 using Compat
+using Missings
 
 import Base: scale!, show
 import StatsBase: fit!, mode
