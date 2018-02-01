@@ -6,10 +6,7 @@ else
   import DataArrays: isnan
 end
 import DataFrames: DataFrame, ncol, convert
-import NullableArrays: NullableArray
-
 import Missings: Missing, missing, ismissing
-
 
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!, NaNs_to_Missing!, ismissing_vec
@@ -212,7 +209,7 @@ end
 
 observations(da::DataArray) = df_observations(da)
 observations(df::DataFrame) = df_observations(df)
-# isnan -> ismissing 
+# isnan -> ismissing
 function df_observations(da)
     obs = @compat Tuple{Int, Int}[]
     m,n = size(da)
