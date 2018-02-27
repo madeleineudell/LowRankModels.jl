@@ -1,7 +1,7 @@
 using LowRankModels
 using Distributions
 
-p = Params(0.00001,min_stepsize=0.00000000001,max_iter=20)
+p = Params(0.00001,min_stepsize=0.00000000001,max_iter=5000)
 
 # This is just to create a low-rank representation of some count data, I don't care how accurate it is.
 m,n = 100, 50;
