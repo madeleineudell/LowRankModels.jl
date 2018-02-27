@@ -232,10 +232,10 @@ type PoissonLoss<:Loss
     scale::Float64
     domain::Domain
 end
-PoissonLoss(max_count::Int, scale=1.0::Float64; domain=CountDomain(max_count)::Domain) = PoissonLoss(scale, domain)
+PoissonLoss(max_count=2^31::Int, scale=1.0::Float64; domain=CountDomain(max_count)::Domain) = PoissonLoss(scale, domain)
 
 function evaluate(l::PoissonLoss, u::Float64, a::Number)
-    l.scale*(exp(u) - a*u) # in reality this should be: e^u - a*u + a*log(a) - a, but a*log(a) - a is constant wrt a!
+    l.scale*(exp(u) - a*u + a*log(a) - a)
 end
 
 grad(l::PoissonLoss, u::Float64, a::Number) = l.scale*(exp(u) - a)

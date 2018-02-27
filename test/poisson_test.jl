@@ -4,10 +4,13 @@ using Distributions
 # This is just to create a low-rank representation of some count data, I don't care how accurate it is.
 m,n = 100, 50;
 k = 2;
-A = rand(Poisson(),(m,n));
+A = rand(Poisson(2), m, n) # Data is Poisson with mean 2
 losses = convert(Array{Loss,1}, fill(PoissonLoss(10),n));
 rx, ry = ZeroReg(), ZeroReg();
 g_pre = GLRM(A, losses, rx, ry, k, scale=false, offset=false);
+
+# let's check a different syntax works, too
+g_pre = GLRM(A, PoissonLoss(), rx, ry, k, scale=false, offset=false);
 X_real, Y_real, ch = fit!(g_pre, params=Params(0.00001,min_stepsize=0.00000000001,max_iter=10000));
 
 # Now we do the actual model using the perfect data and try to recapture it.
@@ -18,5 +21,5 @@ X, Y, ch = fit!(g, params=Params(0.00001,min_stepsize=0.00000000001,max_iter=100
 U = X'*Y;
 A_imputed = impute(losses, X'*Y);
 
-error_metric(g)
+@show error_metric(g)
 errors(Domain[l.domain for l in losses], losses, U, A_real);

@@ -30,7 +30,7 @@ export impute, error_metric, errors
 roundcutoff{T<:Number}(x,a::T,b::T) = T(min(max(round(x),a),b))
 
 # Error metrics for general use
-squared_error(a_imputed::Float64, a::Number) = (a_imputed-a)^2
+squared_error(a_imputed::Number, a::Number) = (a_imputed-a)^2
 misclassification{T}(a_imputed::T, a::T) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
 
 # use the default loss domain imputation if no domain provided
