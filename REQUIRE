@@ -1,10 +1,10 @@
 julia 0.6
-DataFrames 0.8
-StatsBase 0.10
-Optim 0.6
-NMF 0.2.5
-Compat 0.9
-ScikitLearnBase 0.0.4
-DataArrays 0.4
-FactCheck 0.4
+DataFrames
+StatsBase
+Optim
+NMF
+Compat
+ScikitLearnBase
+DataArrays
+FactCheck
 Missings
