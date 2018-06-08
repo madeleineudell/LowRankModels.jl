@@ -32,7 +32,7 @@ fillcopies(foo, n::Int; arraytype=typeof(foo)) = arraytype[copy(foo) for i=1:n]
 GLRM(A, loss::Loss, rx::Array, ry::Regularizer, k::Int; kwargs...) =
     GLRM(A, fillcopies(loss, size(A, 2), arraytype=Loss), rx, fillcopies(ry, size(A, 2), arraytype=Regularizer), k; kwargs...)
 GLRM(A, loss::Loss, rx::Regularizer, ry::Array, k::Int; kwargs...) =
-    GLRM(A, fillcopies(loss, size(A, 2), arraytype=Loss), fillcopies(loss, size(A, 1), arraytype=Regularizer), ry, k; kwargs...)
+    GLRM(A, fillcopies(loss, size(A, 2), arraytype=Loss), fillcopies(rx, size(A, 1), arraytype=Regularizer), ry, k; kwargs...)
 GLRM(A, loss::Loss, rx::Array, ry::Array, k::Int; kwargs...) =
     GLRM(A, fillcopies(loss, size(A, 2), arraytype=Loss), rx, ry, k; kwargs...)
 
