@@ -43,7 +43,7 @@ function GLRM(df::DataFrame, k::Int;
     Y = randn(k,size(A,2))
 
     # form model
-    rys = Array(Regularizer, length(losses))
+    rys = Array{Regularizer}(length(losses))
     for i=1:length(losses)
         if isa(losses[i].domain, OrdinalDomain) && embedding_dim(losses[i])>1 #losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
             rys[i] = OrdinalReg(copy(ry))
@@ -79,13 +79,13 @@ function get_loss_types(df::DataFrame)
     end
 
     n1 = sum(reals)
-    real_losses = Array(Loss,n1)
+    real_losses = Array{Loss}(n1)
     for i=1:n1
         real_losses[i] = QuadLoss()
     end
 
     n2 = sum(bools)
-    bool_losses = Array(Loss,n2)
+    bool_losses = Array{Loss}(n2)
     for i in 1:n2
         bool_losses[i] = HingeLoss()
     end
@@ -103,7 +103,7 @@ function get_loss_types(df::DataFrame)
     end
 
     # set losses and regularizers
-    ord_losses = Array(Loss,n3)
+    ord_losses = Array{Loss}(n3)
     for j=1:n3
         ord_losses[i] = OrdinalHinge(mins[i],maxs[i])
     end
@@ -115,7 +115,7 @@ function get_reals(df::DataFrame)
     m,n = size(df)
     reals = [typeof(df[i])<:AbstractArray{Float64,1} for i in 1:n]
     n1 = sum(reals)
-    losses = Array(Loss,n1)
+    losses = Array{Loss}(n1)
     for i=1:n1
         losses[i] = QuadLoss()
     end
@@ -126,7 +126,7 @@ function get_bools(df::DataFrame)
     m,n = size(df)
     bools = [isa(df[i], AbstractArray{Bool,1}) for i in 1:n]
     n1 = sum(bools)
-    losses = Array(Loss,n1)
+    losses = Array{Loss}(n1)
     for i=1:n1
         losses[i] = HingeLoss()
     end
@@ -152,7 +152,7 @@ function get_ordinals(df::DataFrame)
     end
 
     # set losses and regularizers
-    losses = Array(Loss,nord)
+    losses = Array{Loss}(nord)
     for i=1:nord
         losses[i] = OrdinalHinge(mins[i],maxs[i])
     end
