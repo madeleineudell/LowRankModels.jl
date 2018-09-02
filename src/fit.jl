@@ -22,8 +22,8 @@ end
 
 # fit without modifying the glrm object
 function fit(glrm::AbstractGLRM, args...; kwargs...)
-    X0 = @compat Array{Float64}(size(glrm.X))
-    Y0 = @compat Array{Float64}(size(glrm.Y))
+    X0 = @compat Array{Float64}(undef, size(glrm.X))
+    Y0 = @compat Array{Float64}(undef, size(glrm.Y))
     copy!(X0, glrm.X); copy!(Y0, glrm.Y)
     X,Y,ch = fit!(glrm, args...; kwargs...)
     copy!(glrm.X, X0); copy!(glrm.Y, Y0)

@@ -3,7 +3,7 @@ println("loading LowRankModels")
 
 function fit_pca(m,n,k)
 	# matrix to encode
-	srand(1)
+	Random.seed!(1)
 	A = randn(m,k)*randn(k,n)
 	X=randn(k,m)
 	Y=randn(k,n)
@@ -19,5 +19,5 @@ function fit_pca(m,n,k)
 	return A,X,Y,ch
 end
 
-@everywhere srand(1)
+@everywhere Random.seed!(1)
 fit_pca(100,100,50)	

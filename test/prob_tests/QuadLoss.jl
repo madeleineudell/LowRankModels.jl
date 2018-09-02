@@ -1,10 +1,11 @@
-using LowRankModels
-import StatsBase: sample, Weights
+using LowRankModels,  Random
+import StatsBase: sample, Weights, std
+import LinearAlgebra: norm 
 
 # test quadratic loss
 
 ## generate data
-srand(1);
+Random.seed!(1);
 m,n,k = 300,300,3;
 kfit = k+1
 # variance of measurement
@@ -27,14 +28,14 @@ glrm = GLRM(A,losses,rx,ry,kfit)
 # fit w/o initialization
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE\n")
+println("After fitting, parameters differ from true parameters by $(norm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE\n")
 
 # initialize
 init_svd!(glrm)
 XYh = glrm.X' * glrm.Y
-println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE\n")
+println("After initialization with the svd, parameters differ from true parameters by $(norm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE\n")
 
 # fit w/ initialization
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(norm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")

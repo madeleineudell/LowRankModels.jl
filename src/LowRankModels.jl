@@ -4,9 +4,14 @@ module LowRankModels
 
 using Compat
 using Missings
+using Printf
+using SharedArrays
+using SparseArrays
+using Random
 
-import Base: scale!, show
-import StatsBase: fit!, mode
+import LinearAlgebra: dot, norm, scale!, Diagonal, rmul!
+import Base: show
+import StatsBase: fit!, mode, mean, var, std
 
 # define losses, regularizers, convergence history
 include("domains.jl")
@@ -15,7 +20,7 @@ include("impute_and_err.jl")
 include("regularizers.jl")
 include("convergence.jl")
 
-# define basic data type(s)
+# define basic data mutable struct(s)
 include("glrm.jl")
 include("shareglrm.jl")
 

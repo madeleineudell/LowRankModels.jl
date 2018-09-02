@@ -1,5 +1,5 @@
 using LowRankModels
-using Base.Test
+using Test
 
 TOL = 1e-5
 

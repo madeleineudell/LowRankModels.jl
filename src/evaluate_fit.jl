@@ -59,8 +59,7 @@ function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    yidxs = get_yidxs(glrm.losses), kwargs...)
     @assert(size(Y)==(glrm.k,yidxs[end][end]))
     @assert(size(X)==(glrm.k,size(glrm.A,1)))
-    XY = @compat Array{Float64}((size(X,2), size(Y,2)))
-    XY = Array{Float64}((size(X,2), size(Y,2)))
+    XY = Array{Float64}(undef, (size(X,2), size(Y,2)))
     if sparse
         # Calculate X'*Y only at observed entries of A
         m,n = size(glrm.A)

@@ -1,6 +1,6 @@
-import Base: size, axpy!
-import Base.LinAlg.scale!
-import Base.BLAS: gemm!
+
+import LinearAlgebra: size, axpy!
+import LinearAlgebra.BLAS: gemm!
 
 @compat abstract type AbstractGLRM end
 
@@ -9,7 +9,7 @@ export AbstractGLRM, GLRM, getindex, size, scale_regularizer!
 @compat const ObsArray = @compat(Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}})
 
 ### GLRM TYPE
-type GLRM<:AbstractGLRM
+mutable struct GLRM<:AbstractGLRM
     A                            # The data table
     losses::Array{Loss,1}        # array of loss functions
     rx::Array{Regularizer,1}               # Array of regularizers to be applied to each column of X
@@ -29,7 +29,7 @@ end
 # * offset and scale are *false* by default to avoid unexpected behavior
 # * convenience methods for calling are defined in utilities/conveniencemethods.jl
 function GLRM(A, losses::Array, rx::Array, ry::Array, k::Int;
-# the following tighter definition fails when you form an array of a tighter subtype than the abstract type, eg Array{QuadLoss,1}
+# the following tighter definition fails when you form an array of a tighter submutable struct than the abstract type, eg Array{QuadLoss,1}
 # function GLRM(A::AbstractArray, losses::Array{Loss,1}, rx::Array{Regularizer,1}, ry::Array{Regularizer,1}, k::Int;
               X = randn(k,size(A,1)), Y = randn(k,embedding_dim(losses)),
               obs = nothing,                                    # [(i₁,j₁), (i₂,j₂), ... (iₒ,jₒ)]

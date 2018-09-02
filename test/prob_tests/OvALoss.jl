@@ -1,9 +1,9 @@
-using LowRankModels
-import StatsBase: sample, Weights
-
+using LowRankModels, Random
+import StatsBase: sample, Weights, mean
+import LinearAlgebra: norm 
 # tests OvALoss
 
-srand(1);
+Random.seed!(1);
 m,n,k = 200,50,2;
 kfit = k+1
 K = 4; # number of categories
@@ -18,7 +18,7 @@ yidxs = get_yidxs(losses)
 for i=1:m
 	for j=1:n
 		mef = mean(XY[i,yidxs[j]])
-		XY[i,yidxs[j]] = XY[i,yidxs[j]] - mef
+		XY[i,yidxs[j]] = XY[i,yidxs[j]] .- mef
 	end
 end
 
@@ -40,24 +40,24 @@ glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=r
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
 @show ch.objective
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(norm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
-println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("(Picking randomly, $((K-1)/K*100)\% of entries would be wrong.)\n")
+println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)% of imputed entries are wrong")
+println("(Picking randomly, $((K-1)/K*100)% of entries would be wrong.)\n")
 
 # initialize
 init_svd!(glrm)
 XYh = glrm.X' * glrm.Y
-println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After initialization with the svd, parameters differ from true parameters by $(norm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
-println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("(Picking randomly, $((K-1)/K*100)\% of entries would be wrong.)\n")
+println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A))*100)% of imputed entries are wrong")
+println("(Picking randomly, $((K-1)/K*100)% of entries would be wrong.)\n")
 
 # fit w/ initialization
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
 @show ch.objective
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(norm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
 A_imputed = impute(glrm)
-println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("(Picking randomly, $((K-1)/K*100)\% of entries would be wrong.)\n")
+println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)% of imputed entries are wrong")
+println("(Picking randomly, $((K-1)/K*100)% of entries would be wrong.)\n")

@@ -7,7 +7,7 @@ export copy, copy_estimate, GLRM
 
 for T in :[Loss, Regularizer, AbstractGLRM].args
   @eval function copy(r::$T)
-    fieldvals = [getfield(r, f) for f in fieldnames(r)]
+    fieldvals = [getfield(r, f) for f in fieldnames(typeof(r))]
     return typeof(r)(fieldvals...)
   end
 end
@@ -18,7 +18,7 @@ function copy_estimate(g::GLRM)
               g.observed_features,g.observed_examples,
               copy(g.X),copy(g.Y))
 end
-# domains are immutable, so this is ok
+# domains are struct, so this is ok
 copy(d::Domain) = d
 
 ##############################################################

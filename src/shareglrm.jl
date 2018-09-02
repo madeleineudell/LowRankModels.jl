@@ -1,12 +1,12 @@
-import Base: size, axpy!
-import Base.LinAlg: scale!
-import Base.BLAS: gemm!
-import Base: shmem_rand, shmem_randn
+
+import LinearAlgebra: size, axpy!
+import LinearAlgebra.BLAS: gemm!
+#import Base: shmem_rand, shmem_randn
 
 export ShareGLRM, share
 
 ### GLRM TYPE
-type ShareGLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
+mutable struct ShareGLRM{L<:Loss, R<:Regularizer}<:AbstractGLRM
     A::SharedArray               # The data table transformed into a coded array
     losses::Array{L,1}           # array of loss functions
     rx::Regularizer              # The regularization to be applied to each row of Xᵀ (column of X)

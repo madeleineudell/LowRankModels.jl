@@ -1,6 +1,6 @@
 using LowRankModels
 # tests basic functionality of glrm.jl
-srand(1);
+Random.seed!(1);
 m,n,k,s = 100,100,5,100*100;
 # matrix to encode
 X_real, Y_real = randn(m,k), randn(k,n);

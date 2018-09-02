@@ -1,7 +1,7 @@
 ### Proximal gradient method
 export SparseProxGradParams, fit!
 
-type SparseProxGradParams<:AbstractParams
+mutable struct SparseProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)

@@ -1,7 +1,7 @@
 ### Proximal gradient method
 export ProxGradParams, fit!
 
-type ProxGradParams<:AbstractParams
+mutable struct ProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter_X::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
@@ -62,7 +62,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         glrm.Y = randn(glrm.k, d)
     end
 
-    XY = @compat Array{Float64}((m, d))
+    XY = @compat Array{Float64}(undef, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
