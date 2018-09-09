@@ -2,12 +2,12 @@ export sort_observations, add_offset!, fix_latent_features!,
        equilibrate_variance!, prob_scale!
 
 ### OBSERVATION TUPLES TO ARRAYS
-@compat function sort_observations(obs::Array{Tuple{Int,Int},1}, m::Int, n::Int; check_empty=false)
+function sort_observations(obs::Array{Tuple{Int,Int},1}, m::Int, n::Int; check_empty=false)
     observed_features = Array{Int,1}[Int[] for i=1:m]
     observed_examples = Array{Int,1}[Int[] for j=1:n]
     for (i,j) in obs
-        @inbounds push!(observed_features[i],j)
-        @inbounds push!(observed_examples[j],i)
+        push!(observed_features[i],j)
+        push!(observed_examples[j],i)
     end
     if check_empty && (any(map(x->length(x)==0,observed_examples)) ||
             any(map(x->length(x)==0,observed_features)))
@@ -55,7 +55,7 @@ end
 # scale loss function to fit -loglik of joint distribution
 # makes sense when all functions used are -logliks of sensible distributions
 # todo: option to scale to account for nonuniform sampling in rows or columns or both
-# skipmissing(Array with missing) gives an iterator. 
+# skipmissing(Array with missing) gives an iterator.
 function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
     for i in columns_to_scale
         nomissing = glrm.A[glrm.observed_examples[i],i]

@@ -21,9 +21,6 @@ type GLRM<:AbstractGLRM
     Y::AbstractArray{Float64,2}  # Representation of features in low-rank space. A ≈ X'Y
 end
 
-# Initialize with nothing; could be useful for copying
-# GLRM{L<:Loss, R<:Regularizer}() = GLRM([],Loss[],ZeroReg(),Regularizer[],0,UnitRange{Int}[],UnitRange{Int}[],Array(Float64,(0,0)),Array(Float64,(0,0)))
-
 # usage notes:
 # * providing argument `obs` overwrites arguments `observed_features` and `observed_examples`
 # * offset and scale are *false* by default to avoid unexpected behavior
@@ -47,8 +44,8 @@ function GLRM(A, losses::Array, rx::Array, ry::Array, k::Int;
 
     # Determine observed entries of data
     if obs==nothing && sparse_na && isa(A,SparseMatrixCSC)
-        I,J = findn(A) # observed indices (vectors)
-        obs = [(I[a],J[a]) for a = 1:length(I)] # observed indices (list of tuples)
+        ii,jj = findn(A) # observed indices (vectors)
+        obs = collect(zip(ii,jj)) # observed indices (list of tuples)
     end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")

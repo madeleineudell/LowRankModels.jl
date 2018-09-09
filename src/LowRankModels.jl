@@ -31,6 +31,7 @@ else
   include("algorithms/proxgrad.jl")
 end
 include("algorithms/sparse_proxgrad.jl")
+include("algorithms/quad_streaming.jl")
 
 # initialization methods
 include("rsvd.jl")
