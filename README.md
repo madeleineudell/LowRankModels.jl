@@ -386,6 +386,15 @@ The default parameters are: `ProxGradParams(stepsize=1.0;max_iter=100,inner_iter
 `ch.objective` stores the objective values, and `ch.times` captures the times these objective values were achieved.
 Try plotting this to see if you just need to increase `max_iter` to converge to a better model.
 
+# Imputation
+
+After fitting a GLRM, you can use it to impute values of `A` in
+four different ways:
+* `impute(glrm)` gives the maximum likelihood estimates for each entry
+* `impute_missing(glrm)` imputes missing entries and leaves observed entries unchanged
+* `sample(glrm)` gives a draw from the posterior distribution, conditioned on the fit values of `X` and `Y`, for each entry
+* `sample_missing(glrm)` samples missing entries and leaves observed entries unchanged
+
 # Cross validation
 
 A number of useful functions are available to help you check whether a given low rank model overfits to the test data set.
