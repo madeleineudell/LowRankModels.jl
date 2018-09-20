@@ -2,7 +2,7 @@
 #   only implemented for quadratic objectives
 #   TODO: add quadratic regularization
 
-export StreamingParams, streaming_fit!, streaming_impute!
+export StreamingParams, fit_streaming!, impute_streaming!
 
 type StreamingParams<:AbstractParams
     T0::Int # number of rows to use to initialize Y before streaming begins
@@ -13,13 +13,12 @@ function StreamingParams(
     T0::Int=1000; # number of rows to use to initialize Y before streaming begins
     stepsize::Number=1/T0, # (inverse of memory)
     Y_update_interval::Int=10 # how often to prox Y
-
 )
     return StreamingParams(T0, convert(Float64, stepsize), Y_update_interval)
 end
 
 ### FITTING
-function streaming_fit!(glrm::GLRM, params::StreamingParams=StreamingParams();
+function fit_streaming!(glrm::GLRM, params::StreamingParams=StreamingParams(2*size(glrm.A,2));
     ch::ConvergenceHistory=ConvergenceHistory("StreamingGLRM"),
     verbose=true)
 
@@ -31,6 +30,7 @@ function streaming_fit!(glrm::GLRM, params::StreamingParams=StreamingParams();
   # initialize Y and first T0 rows of X
   init_glrm = keep_rows(glrm, params.T0)
   init_svd!(init_glrm)
+  fit!(init_glrm, verbose=false)
   copy!(glrm.Y, init_glrm.Y)
   copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
 
@@ -42,7 +42,9 @@ function streaming_fit!(glrm::GLRM, params::StreamingParams=StreamingParams();
   k = glrm.k
   m,n = size(A)
 
-  # yscales = map(r->r.scale, ry)
+  if verbose
+    println("Streaming fit with parameters ", params)
+  end
 
   for i=params.T0+1:m
     # update x_i
@@ -75,7 +77,7 @@ function streaming_fit!(glrm::GLRM, params::StreamingParams=StreamingParams();
 end
 
 ### FITTING
-function streaming_impute!(glrm::GLRM, params::StreamingParams=StreamingParams();
+function impute_streaming!(glrm::GLRM, params::StreamingParams=StreamingParams();
     ch::ConvergenceHistory=ConvergenceHistory("StreamingGLRM"),
     verbose=true)
 
@@ -87,17 +89,20 @@ function streaming_impute!(glrm::GLRM, params::StreamingParams=StreamingParams()
   # initialize Y and first T0 rows of X
   init_glrm = keep_rows(glrm, params.T0)
   init_svd!(init_glrm)
+  fit!(init_glrm, verbose=false)
   copy!(glrm.Y, init_glrm.Y)
   copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
 
   ### initialization
   A = glrm.A # rename these for easier local access
-  Ahat = copy(glrm.A)
+  Ahat = copy(A)
   rx = glrm.rx
   ry = glrm.ry
   X = glrm.X; Y = glrm.Y
   k = glrm.k
   m,n = size(A)
+
+  Ahat[1:params.T0,:] = impute_missing(init_glrm)
 
   # yscales = map(r->r.scale, ry)
 
@@ -111,10 +116,14 @@ function streaming_impute!(glrm::GLRM, params::StreamingParams=StreamingParams()
     copy!(xi, (Yobs * Yobs' + 2 * rx[i].scale * I) \ (Yobs * Aobs))
 
     # impute
-    not_obs = setdiff(Set(1:n), Set(obs))
-    if length(not_obs)>0
-      ahat = xi'*Y
-      Ahat[i, not_obs] = ahat[not_obs]
+    not_obs = collect(setdiff(Set(1:n), Set(obs)))
+    ahat = xi'*Y
+    if length(obs) < n
+      for j=1:n
+        if !(j in obs)
+          Ahat[i, j] = ahat[j]
+        end
+      end
     end
 
     # update objective
@@ -150,7 +159,8 @@ function keep_rows(glrm, r::Range{Int})
   end
   of, oe = sort_observations(new_obs, length(r), size(glrm.A, 2))
   new_glrm = GLRM(glrm.A[r,:], glrm.losses, glrm.rx[r], glrm.ry, glrm.k,
-                  observed_features = of, observed_examples = oe)
+                  observed_features = of, observed_examples = oe,
+                  X = glrm.X[:,r], Y = glrm.Y)
   return new_glrm
 end
 keep_rows(glrm, T::Int) = keep_rows(glrm, 1:T)

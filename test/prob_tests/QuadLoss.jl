@@ -37,4 +37,9 @@ println("After initialization with the svd, parameters differ from true paramete
 # fit w/ initialization
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y;
-println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(vecnorm(XY - XYh)/sqrt(prod(size(XY)))) in RMSE\n")
+
+
+Ahat = impute(glrm);
+rmse = norm(A - Ahat) / sqrt(prod(size(A)))
+println("Imputations differ from true matrix values by $rmse in RMSE")
