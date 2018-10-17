@@ -28,11 +28,18 @@ function fit_streaming!(glrm::GLRM, params::StreamingParams=StreamingParams(2*si
   @assert all(map(l->isa(l, QuadReg), glrm.ry))
 
   # initialize Y and first T0 rows of X
-  init_glrm = keep_rows(glrm, params.T0)
-  init_svd!(init_glrm)
-  fit!(init_glrm, verbose=false)
-  copy!(glrm.Y, init_glrm.Y)
-  copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
+  if params.T0 >= glrm.k
+    if verbose println("Initializing Y with SVD on first $(params.T0) rows") end
+    init_glrm = keep_rows(glrm, params.T0)
+    init_svd!(init_glrm)
+    fit!(init_glrm, verbose=false)
+    copy!(glrm.Y, init_glrm.Y)
+    copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
+    first_row = params.T0 + 1
+  else
+    if verbose println("Initializing Y with glrm.Y") end
+    first_row = 1
+  end
 
   ### initialization
   A = glrm.A # rename these for easier local access
@@ -46,7 +53,7 @@ function fit_streaming!(glrm::GLRM, params::StreamingParams=StreamingParams(2*si
     println("Streaming fit with parameters ", params)
   end
 
-  for i=params.T0+1:m
+  for i=first_row:m
     # update x_i
     obs = glrm.observed_features[i]
     Yobs = Y[:, obs]
@@ -87,11 +94,18 @@ function impute_streaming!(glrm::GLRM, params::StreamingParams=StreamingParams()
   @assert all(map(l->isa(l, QuadReg), glrm.ry))
 
   # initialize Y and first T0 rows of X
-  init_glrm = keep_rows(glrm, params.T0)
-  init_svd!(init_glrm)
-  fit!(init_glrm, verbose=false)
-  copy!(glrm.Y, init_glrm.Y)
-  copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
+  if params.T0 >= glrm.k
+    if verbose println("Initializing Y with SVD on first $(params.T0) rows") end
+    init_glrm = keep_rows(glrm, params.T0)
+    init_svd!(init_glrm)
+    fit!(init_glrm, verbose=false)
+    copy!(glrm.Y, init_glrm.Y)
+    copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
+    first_row = params.T0 + 1
+  else
+    if verbose println("Initializing Y with glrm.Y") end
+    first_row = 1
+  end
 
   ### initialization
   A = glrm.A # rename these for easier local access
@@ -106,7 +120,7 @@ function impute_streaming!(glrm::GLRM, params::StreamingParams=StreamingParams()
 
   # yscales = map(r->r.scale, ry)
 
-  for i=params.T0+1:m
+  for i=first_row:m
     # update x_i
     obs = glrm.observed_features[i]
     Yobs = Y[:, obs]
