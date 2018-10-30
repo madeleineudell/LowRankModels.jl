@@ -40,6 +40,7 @@ impute(l::Loss, u::Float64) = impute(l.domain, l, u)
 # Real data can take values from ℜ
 
 impute(D::RealDomain, l::DiffLoss, u::Float64) = u # by the properties of any DiffLoss
+impute(D::RealDomain, l::TruncatedLoss, u::Float64) = min(l.ub, max(l.lb, u)) # by the properties of any DiffLoss
 impute(D::RealDomain, l::PoissonLoss, u::Float64) = exp(u)
 impute(D::RealDomain, l::OrdinalHingeLoss, u::Float64) = roundcutoff(u, l.min, l.max)
 impute(D::RealDomain, l::LogisticLoss, u::Float64) = error("Logistic loss always imputes either +∞ or -∞ given a∈ℜ")

@@ -38,7 +38,7 @@
 import Base: scale!, *, convert
 import Optim: optimize, LBFGS
 export Loss,
-       DiffLoss, ClassificationLoss, SingleDimLoss, # categories of Losses
+       DiffLoss, ClassificationLoss, SingleDimLoss, TruncatedLoss, # categories of Losses
        QuadLoss, L1Loss, HuberLoss, QuantileLoss, # losses for predicting reals
        PoissonLoss, # losses for predicting integers
        HingeLoss, WeightedHingeLoss, LogisticLoss, # losses for predicting booleans
@@ -201,6 +201,38 @@ function grad(l::QuantileLoss,u::Float64,a::Number)
 end
 
 M_estimator(l::QuantileLoss, a::AbstractArray) = quantile(a, l.quantile)
+
+##### Truncated #####
+
+type TruncatedLoss<:DiffLoss
+    loss::Loss
+    lb::Float64
+    ub::Float64
+    domain::Domain
+end
+TruncatedLoss(l::Loss, lb::Number, ub::Number; domain=l.domain) = TruncatedLoss(l, float(lb), float(ub), domain)
+
+function evaluate(l::TruncatedLoss, u::Float64, a::Number)
+    if u<=l.ub
+      if u>=l.lb
+        return evaluate(l.loss, u, a)
+      else
+        return evaluate(l.loss, l.lb, a)
+      end
+    else
+      return evaluate(l.loss, l.ub, a)
+    end
+end
+
+function grad(l::TruncatedLoss,u::Float64,a::Number)
+  if u<=l.ub && u>=l.lb
+    return grad(l.loss, u, a)
+  else
+    return 0
+  end
+end
+
+M_estimator(l::TruncatedLoss, a::AbstractArray) = min.(l.ub, max.(l.lb, M_estimator(l.loss, a)))
 
 ########################################## PERIODIC ##########################################
 # f: ℜxℜ -> ℜ
