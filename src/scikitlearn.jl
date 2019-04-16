@@ -51,9 +51,14 @@ function do_fit!(skglrm::SkGLRM, glrm::GLRM)
     fit!(glrm, fit_params; verbose=skglrm.verbose)
 end
 
+function ind2sub(a, i)
+    i2s[i]
+end
+
 function build_glrm(skglrm::SkGLRM, X, missing_values)
     k = skglrm.k == -1 ? size(X, 2) : skglrm.k
-    obs = [ind2sub(missing_values, x) for x in  (LinearIndices(.!missing_values))[findall(.!missing_values)] ]
+    i2s = CartesianIndices(missing_values)
+    obs = [i2s[x] for x in  (LinearIndices(.!missing_values))[findall(.!missing_values)] ]
     rx, ry = skglrm.rx, skglrm.ry
     if skglrm.rx_scale !== nothing
         rx = copy(rx)
