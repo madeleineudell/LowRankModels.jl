@@ -115,8 +115,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         end
 
         for inneri=1:params.inner_iter_X
-        # Threads.@threads for e=1:m # for every example x_e == ve[e]
-		for e=1:m # for every example x_e == ve[e]
+        Threads.@threads for e=1:m # for every example x_e == ve[e]
+		# for e=1:m # for every example x_e == ve[e]
             g[Threads.threadid()] .= 0 # reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
@@ -160,8 +160,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 # STEP 2: Y update
         for inneri=1:params.inner_iter_Y
         G .= 0
-        # Threads.@threads for f=1:n
-		for f=1:n
+        Threads.@threads for f=1:n
+		# for f=1:n
             # compute gradient of L with respect to Yⱼ as follows:
             # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ
             for e in glrm.observed_examples[f]
