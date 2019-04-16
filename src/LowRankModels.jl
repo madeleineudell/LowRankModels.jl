@@ -8,7 +8,7 @@ using SharedArrays
 using SparseArrays
 using Random
 
-import LinearAlgebra: dot, norm, scale!, Diagonal, rmul!
+import LinearAlgebra: dot, norm, Diagonal, rmul!
 import Base: show
 import StatsBase: fit!, mode, mean, var, std
 
