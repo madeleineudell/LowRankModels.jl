@@ -335,7 +335,7 @@ function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number=0)
             break
         end
     end
-    max.(u - t, 0)
+    max.(u .- t, 0)
 end
 function evaluate(r::SimplexConstraint,a::AbstractArray)
     # check it's a unit vector

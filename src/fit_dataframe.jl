@@ -4,7 +4,7 @@
 
 import Base: isnan
 import DataFrames: DataFrame, ncol, convert
-import Missings: Missing, missing, ismissing
+
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!, NaNs_to_Missing!, ismissing_vec
 
@@ -307,4 +307,3 @@ end
 
 # ismissing(Array{Union{T,Missing},1}) doesn't exist.
 ismissing_vec(V::Array{Any,1}) = Bool[ismissing(x) for x in V[:]]
-

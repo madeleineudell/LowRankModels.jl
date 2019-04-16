@@ -58,7 +58,7 @@ export Loss,
 # Single Dimensional losses are DiffLosses or ClassificationLosses, which allow optimized evaluate and grad functions
 @compat const SingleDimLoss = Union{DiffLoss, ClassificationLoss}
 
-#= LinearAlgebra.scale! deprecateed for v1.0 - use LinearAlgebra.rmul! ? 
+#= LinearAlgebra.scale! deprecateed for v1.0 - use LinearAlgebra.rmul! ?
 scale!(A::AbstractArray, b::Number) = rmul!(A,b)
 =#
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
@@ -82,7 +82,7 @@ function get_yidxs(losses::Array{LossSubtype,1}) where LossSubtype<:Loss
     d = sum(ds)
     featurestartidxs = cumsum(append!([1], ds))
     # find which columns of Y map to which columns of A (for multidimensional losses)
-    U = Union{Range{Int}, Int}
+    U = Union{UnitRange{Int}, Int}
     @compat yidxs = Array{U}(undef, n)
 
     for f = 1:n

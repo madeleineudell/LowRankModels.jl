@@ -3,7 +3,6 @@ __precompile__()
 module LowRankModels
 
 using Compat
-using Missings
 using Printf
 using SharedArrays
 using SparseArrays

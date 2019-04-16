@@ -5,12 +5,4 @@ Optim
 NMF
 Compat
 ScikitLearnBase
-FactCheck
-Missings
-Printf
-SharedArrays
-SparseArrays
-StatsBase
-Random
-LinearAlgebra
 Arpack

@@ -2,7 +2,6 @@ import Base: isnan
 import DataFrames: DataFrame, ncol, convert
 export GLRM
 
-import Missings: Missing, missing, ismissing
 
 
 # TODO: identify categoricals automatically from PooledDataArray columns
@@ -144,7 +143,7 @@ function get_ordinals(df::DataFrame)
         try
             maxs[i] = maximum(dropmissing(col))
             mins[i] = minimum(dropmissing(col))
-        catch 
+        catch
             nothing
         end
     end
