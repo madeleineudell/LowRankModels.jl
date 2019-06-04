@@ -1,9 +1,9 @@
 @everywhere using LowRankModels
-using Base.Test
+using Test
 
 function fit_pca(m,n,k)
 	# matrix to encode
-	srand(1)
+	Random.seed!(1)
 	# generate a matrix with rank k
 	A = randn(m,k)*randn(k,n)
 	# fit a PCA model with rank k
@@ -16,7 +16,7 @@ function fit_pca(m,n,k)
 	return A,X,Y,ch
 end
 
-@everywhere srand(1)
+@everywhere Random.seed!(1)
 A,X,Y,ch = fit_pca(100,100,50)	
 
 # make sure objective went down

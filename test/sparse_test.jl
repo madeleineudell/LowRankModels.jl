@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using LowRankModels
 
 # Check that sparse algorithm converges to the same solution

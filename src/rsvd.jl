@@ -1,6 +1,6 @@
 #### randomized SVD (from Jiahao Chen, based on http://arxiv.org/pdf/0909.4061.pdf)
 
-import Base.LinAlg.SVD
+import LinearAlgebra: SVD
 
 #The simplest possible randomized svd
 #Inputs

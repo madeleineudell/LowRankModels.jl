@@ -1,6 +1,7 @@
-import StatsBase.sample, StatsBase.wsample
+import StatsBase: sample, wsample
 export init_kmeanspp!, init_svd!, init_nndsvd!
 import NMF.nndsvd
+import Arpack: svds
 
 # kmeans++ initialization, but with missing data
 # we make sure never to look at "unobserved" entries in A
@@ -45,7 +46,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     d = maximum(yidxs[end])
 
     # create a matrix representation of A with the same dimensions as X*Y
-    # by expanding out all data types with embedding dimension greater than 1
+    # by expanding out all data mutable structs with embedding dimension greater than 1
     if all(map(length, yidxs) .== 1)
         Areal = glrm.A # save time, but in this case we'll still have a DataFrame
     else
@@ -74,7 +75,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
 	                    end
 									  end
                 else
-                    error("No default mapping to real valued matrix for domains of type $type(glrm.losses[f].domain)")
+                    error("No default mapping to real valued matrix for domains of mutable struct $mutable struct(glrm.losses[f].domain)")
                 end
             end
         end
@@ -95,7 +96,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
             if stds[j] < TOL || isnan(stds[j])
                 stds[j] = 1
             end
-            Astd[glrm.observed_examples[f],j] = Areal[glrm.observed_examples[f],j] - means[j]
+            Astd[glrm.observed_examples[f],j] = Areal[glrm.observed_examples[f],j] .- means[j]
         end
     end
     if offset
@@ -103,7 +104,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
         glrm.X[end,:] = 1
         glrm.Y[end,:] = means
         if scale
-            Astd = Astd*diagm(1./stds)
+            Astd = Astd*diagm(1 ./ stds)
         end
         if k <= 0
             warn("Using an offset on a rank 1 model fits *only* the offset. To fit an offset + 1 low rank component, use k=2.")
@@ -126,8 +127,8 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
     @assert(size(glrm.X, 2) >= m)
     @assert(size(glrm.Y, 1) >= k)
     @assert(size(glrm.Y, 2) >= d)
-    glrm.X[1:k,1:m] = Diagonal(sqrt.(ASVD[:S]))*ASVD[:U]' # recall X is transposed as per column major order.
-    glrm.Y[1:k,1:d] = Diagonal(sqrt.(ASVD[:S]))*ASVD[:Vt]*Diagonal(stds)
+    glrm.X[1:k,1:m] = Diagonal(sqrt.(ASVD.S))*ASVD.U' # recall X is transposed as per column major order.
+    glrm.Y[1:k,1:d] = Diagonal(sqrt.(ASVD.S))*ASVD.Vt*Diagonal(stds)
     return glrm
 end
 

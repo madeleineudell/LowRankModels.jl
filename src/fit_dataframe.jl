@@ -1,12 +1,10 @@
+# ========================================
+# REVIEW THIS IN LIGHT OF NEW DATAFRAMES
+# ========================================
+
 import Base: isnan
-import DataArrays: DataArray, isna, dropna, NA, NAtype
-if VERSION < v"0.6.0-pre"
-  import DataArrays: array
-else
-  import DataArrays: isnan
-end
 import DataFrames: DataFrame, ncol, convert
-import Missings: Missing, missing, ismissing
+
 
 export GLRM, observations, expand_categoricals!, NaNs_to_NAs!, NAs_to_0s!, NaNs_to_Missing!, ismissing_vec
 
@@ -31,7 +29,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     end
     # validate input
     # XXX check for undefined entry?
-    for dt in datatypes
+    for dt in datatype
         if !(dt in keys(loss_map))
             error("data types must be either :real, :bool, :ord, or :cat, not $dt")
         end
@@ -118,12 +116,9 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
     return df[j]
 end
 
-function getval{T}(x::Nullable{T})
-  x.value
-end
-function getval{T<:Number}(x::T)
-  x
-end
+getval(x::Union{T, Nothing}) where T = x.value
+getval(x::T) where T<:Number = x
+
 
 function map_to_numbers!(df, j::Int, loss::Type{QuadLoss})
     if all(xi -> is_number_or_null(xi), df[j][!ismissing_vec(df[j])])
@@ -177,7 +172,7 @@ end
 
 ## sanity check the choice of loss
 
-# this default definition could be tighter: only needs to be defined for arguments of types that subtype Loss
+# this default definition could be tighter: only needs to be defined for arguments of mutable structs that submutable struct Loss
 function pick_loss(l, col)
     return l()
 end
@@ -206,7 +201,7 @@ function pick_loss(l::Type{MultinomialOrdinalLoss}, col)
     end
 end
 
-observations(da::DataArray) = df_observations(da)
+observations(da::Array{Union{T, Missing}}) where T = df_observations(da)
 observations(df::DataFrame) = df_observations(df)
 # isnan -> ismissing
 function df_observations(da)
@@ -269,12 +264,13 @@ function expand_categoricals!(df::DataFrame,categoricals::Array)
 end
 
 # convert NaNs to NAs
-# isnan(x::NAtype) = false
+# isnan(x::NAmutable struct) = false
 isnan(x::AbstractString) = false
-isnan{T}(x::Nullable{T}) = isnan(x.value)
+isnan(x::Union{T, Nothing}) where T = isnan(x.value)
+
 
 # letting these two functions be here for now, just to catch bugs.
-function NaNs_to_NAs!(df::DataFrame)
+#= function NaNs_to_NAs!(df::DataFrame)
     m,n = size(df)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
@@ -285,6 +281,7 @@ function NaNs_to_NAs!(df::DataFrame)
     end
     return df
 end
+
 
 function NAs_to_0s!(df::DataFrame)
     m,n = size(df)
@@ -297,6 +294,7 @@ function NAs_to_0s!(df::DataFrame)
     end
     return df
 end
+=#
 
 # same functionality as above.
 function NaNs_to_Missing!(df::DataFrame)
@@ -308,6 +306,4 @@ function NaNs_to_Missing!(df::DataFrame)
 end
 
 # ismissing(Array{Union{T,Missing},1}) doesn't exist.
-function ismissing_vec(V::Array{Any,1})
-   return Bool[ismissing(x) for x in V[:]]
-end
+ismissing_vec(V::Array{Any,1}) = Bool[ismissing(x) for x in V[:]]

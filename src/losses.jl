@@ -13,29 +13,29 @@
 #   set of possible values of the data, etc.
 #
 #   Methods:
-#     `my_loss_type(args..., scale=1.0::Float64;
-#                   domain=natural_Domain(args[range]...), kwargs...) ::my_loss_type`
-#           Constructor for the loss type. The first few arguments are parameters for
+#     `my_loss_mutable struct(args..., scale=1.0::Float64;
+#                   domain=natural_Domain(args[range]...), kwargs...) ::my_loss_mutable struct`
+#           Constructor for the loss mutable struct. The first few arguments are parameters for
 #           which there isn't a rational default (a loss may not need any of these).
 #           The last positional argument should be the scale, which should default to 1.
 #           There must be a default domain which is a Domain, which may take arguments from
 #           the list of positional arguments. Parameters besides the scale for which there are
 #           reasonable defaults should be included as keyword arguments (there may be none).
-#     `evaluate(l::my_loss_type, u::Float64, a::Number) ::Float64`
+#     `evaluate(l::my_loss_mutable struct, u::Float64, a::Number) ::Float64`
 #           Evaluates the function l(u,a) where u is the approximation of a
-#     `grad(l::my_loss_type, u::Float64, a::Number) ::Float64`
+#     `grad(l::my_loss_mutable struct, u::Float64, a::Number) ::Float64`
 #           Evaluates the gradient of the loss at the given point (u,a)
 
 #   In addition, loss functions should preferably implement methods:
-#     `M_estimator(l::my_loss_type, a::AbstractArray) ::Float64`
+#     `M_estimator(l::my_loss_mutable struct, a::AbstractArray) ::Float64`
 #           Finds uₒ = argmin ∑l(u,aᵢ) which is the best single estimate of the array `a`
 #           If `M_estimator` is not implemented, a live optimization procedure will be used when this function is
 #           called in order to compute loss function scalings. The live optimization may be slow, so an analytic
 #           implementation is preferable.
-#     `impute(d::Domain, l::my_loss_type, u::Array{Float64})` (in impute_and_err.jl)
+#     `impute(d::Domain, l::my_loss_mutable struct, u::Array{Float64})` (in impute_and_err.jl)
 #           Finds a = argmin l(u,a), the most likely value for an observation given a parameter u
 
-import Base: scale!, *, convert
+import Base: *, convert
 import Optim: optimize, LBFGS
 export Loss,
        DiffLoss, ClassificationLoss, SingleDimLoss, # categories of Losses
@@ -58,6 +58,9 @@ export Loss,
 # Single Dimensional losses are DiffLosses or ClassificationLosses, which allow optimized evaluate and grad functions
 @compat const SingleDimLoss = Union{DiffLoss, ClassificationLoss}
 
+#= LinearAlgebra.scale! deprecateed for v1.0 - use LinearAlgebra.rmul! ?
+scale!(A::AbstractArray, b::Number) = rmul!(A,b)
+=#
 scale!(l::Loss, newscale::Number) = (l.scale = newscale; l)
 scale(l::Loss) = l.scale
 *(newscale::Number, l::Loss) = (newl = copy(l); scale!(newl, newscale))
@@ -70,17 +73,17 @@ domain(l::Loss) = l.domain
 # default number of columns
 # number of columns is higher for multidimensional losses
 embedding_dim(l::Loss) = 1
-embedding_dim{LossSubtype<:Loss}(l::Array{LossSubtype,1}) = sum(map(embedding_dim, l))
+embedding_dim(l::Array{LossSubtype,1}) where LossSubtype<:Loss = sum(map(embedding_dim, l))
 
 # find spans of loss functions (for multidimensional losses)
-function get_yidxs{LossSubtype<:Loss}(losses::Array{LossSubtype,1})
+function get_yidxs(losses::Array{LossSubtype,1}) where LossSubtype<:Loss
     n = length(losses)
     ds = map(embedding_dim, losses)
     d = sum(ds)
     featurestartidxs = cumsum(append!([1], ds))
     # find which columns of Y map to which columns of A (for multidimensional losses)
-    U = Union{Range{Int}, Int}
-    @compat yidxs = Array{U}(n)
+    U = Union{UnitRange{Int}, Int}
+    @compat yidxs = Array{U}(undef, n)
 
     for f = 1:n
         if ds[f] == 1
@@ -135,7 +138,7 @@ end
 
 ########################################## QUADRATIC ##########################################
 # f: ℜxℜ -> ℜ
-type QuadLoss<:DiffLoss
+mutable struct QuadLoss<:DiffLoss
     scale::Float64
     domain::Domain
 end
@@ -149,7 +152,7 @@ M_estimator(l::QuadLoss, a::AbstractArray) = mean(a)
 
 ########################################## L1 ##########################################
 # f: ℜxℜ -> ℜ
-type L1Loss<:DiffLoss
+mutable struct L1Loss<:DiffLoss
     scale::Float64
     domain::Domain
 end
@@ -163,7 +166,7 @@ M_estimator(l::L1Loss, a::AbstractArray) = median(a)
 
 ########################################## HUBER ##########################################
 # f: ℜxℜ -> ℜ
-type HuberLoss<:DiffLoss
+mutable struct HuberLoss<:DiffLoss
     scale::Float64
     domain::Domain
     crossover::Float64 # where QuadLoss loss ends and linear loss begins; =1 for standard HuberLoss
@@ -183,7 +186,7 @@ grad(l::HuberLoss,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.sca
 # define (u)_+ = max(u,0), (u)_- = max(-u,0) so (u)_+ + (u)_- = |u|
 # f(u,a) = {    quantile (a - u)_+ + (1-quantile) (a - u)_-
 # fits the `quantile`th quantile of the distribution
-type QuantileLoss<:DiffLoss
+mutable struct QuantileLoss<:DiffLoss
     scale::Float64
     domain::Domain
     quantile::Float64 # fit the alphath quantile
@@ -206,7 +209,7 @@ M_estimator(l::QuantileLoss, a::AbstractArray) = quantile(a, l.quantile)
 # f: ℜxℜ -> ℜ
 # f(u,a) = w * (1 - cos((a-u)*(2*pi)/T))
 # this measures how far away u and a are on a circle of circumference T.
-type PeriodicLoss<:DiffLoss
+mutable struct PeriodicLoss<:DiffLoss
     T::Float64 # the length of the period
     scale::Float64
     domain::Domain
@@ -228,14 +231,14 @@ end
 # BEWARE:
 # 1) this is a reparametrized poisson: we parametrize the mean as exp(u) so that u can take any real value and still produce a positive mean
 # 2) THIS LOSS MAY CAUSE MODEL INSTABLITY AND DIFFICULTY FITTING.
-type PoissonLoss<:Loss
+mutable struct PoissonLoss<:Loss
     scale::Float64
     domain::Domain
 end
 PoissonLoss(max_count=2^31::Int; domain=CountDomain(max_count)::Domain) = PoissonLoss(1.0, domain)
 
 function evaluate(l::PoissonLoss, u::Float64, a::Number)
-    l.scale*(exp(u) - a*u + (a==0? 0 : a*(log(a)-1))) # log(a!) ~ a==0? 0 : a*(log(a)-1)
+    l.scale*(exp(u) - a*u + (a==0 ? 0 : a*(log(a)-1))) # log(a!) ~ a==0 ? 0 : a*(log(a)-1)
 end
 
 grad(l::PoissonLoss, u::Float64, a::Number) = l.scale*(exp(u) - a)
@@ -244,7 +247,7 @@ M_estimator(l::PoissonLoss, a::AbstractArray) = log(mean(a))
 
 ########################################## ORDINAL HINGE ##########################################
 # f: ℜx{min, min+1... max-1, max} -> ℜ
-type OrdinalHingeLoss<:Loss
+mutable struct OrdinalHingeLoss<:Loss
     min::Integer
     max::Integer
     scale::Float64
@@ -295,7 +298,7 @@ M_estimator(l::OrdinalHingeLoss, a::AbstractArray) = median(a)
 
 ########################################## LOGISTIC ##########################################
 # f: ℜx{-1,1}-> ℜ
-type LogisticLoss<:ClassificationLoss
+mutable struct LogisticLoss<:ClassificationLoss
     scale::Float64
     domain::Domain
 end
@@ -314,7 +317,7 @@ end
 # f: ℜx{-1,1} -> ℜ
 # f(u,a) = {     w * max(1-a*u, 0) for a = -1
 #        = { c * w * max(1-a*u, 0) for a =  1
-type WeightedHingeLoss<:ClassificationLoss
+mutable struct WeightedHingeLoss<:ClassificationLoss
     scale::Float64
     domain::Domain
     case_weight_ratio::Float64 # >1 for trues to have more confidence than falses, <1 for opposite
@@ -357,7 +360,7 @@ end
 # often known as the softmax function
 # f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
 #         = 1         / (sum_{a'} exp(u[a'] - u[a]))
-type MultinomialLoss<:Loss
+mutable struct MultinomialLoss<:Loss
     max::Integer
     scale::Float64
     domain::Domain
@@ -416,7 +419,7 @@ end
 
 ########################################## One vs All loss ##########################################
 # f: ℜx{1, 2, ..., max-1, max} -> ℜ
-type OvALoss<:Loss
+mutable struct OvALoss<:Loss
     max::Integer
     bin_loss::Loss
     scale::Float64
@@ -459,7 +462,7 @@ end
 
 ########################################## Bigger vs Smaller loss ##########################################
 # f: ℜx{1, 2, ..., max-1} -> ℜ
-type BvSLoss<:Loss
+mutable struct BvSLoss<:Loss
     max::Integer
     bin_loss::Loss
     scale::Float64
@@ -505,7 +508,7 @@ end
 # f computes the (negative log likelihood of the) multinomial logit,
 # often known as the softmax function
 # f(u, a) = exp(u[a]) / (sum_{a'} exp(u[a']))
-type OrdisticLoss<:Loss
+mutable struct OrdisticLoss<:Loss
     max::Integer
     scale::Float64
     domain::Domain
@@ -577,7 +580,7 @@ end
 # the most probable value a is the index of the first
 # positive entry of u
 
-type MultinomialOrdinalLoss<:Loss
+mutable struct MultinomialOrdinalLoss<:Loss
     max::Integer
     scale::Float64
     domain::Domain
@@ -651,7 +654,7 @@ end
 #Optimized vector evaluate on single-dimensional losses
 function evaluate(l::SingleDimLoss, u::Vector{Float64}, a::AbstractVector)
   losseval = (x::Float64, y::Number) -> evaluate(l, x, y)
-  mapped = zeros(u)
+  mapped = fill!(similar(u),0.)
   map!(losseval, mapped, u, a)
   reduce(+, mapped)
 end
@@ -680,7 +683,7 @@ end
 # Optimized vector grad on single-dimensional losses
 function grad(l::SingleDimLoss, u::Vector{Float64}, a::AbstractVector)
   lossgrad = (x::Float64,y::Number) -> grad(l, x, y)
-  mapped = zeros(u)
+  mapped = fill!(similar(u),0.)
   map!(lossgrad, mapped, u, a)
 end
 

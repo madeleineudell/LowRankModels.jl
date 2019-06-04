@@ -1,5 +1,5 @@
 using LowRankModels
-using Base.Test
+using Test
 
 # Parameters
 n = 200
@@ -9,7 +9,7 @@ eta = 0.01
 delta = 1e-3
 
 # Generate problem
-srand(1)
+Random.seed!(1)
 Um = randn(r, n)
 Vm = randn(r, m)
 U = Um .+ sqrt(eta) * randn(r, n)

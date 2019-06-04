@@ -1,14 +1,7 @@
 import Base: isnan
-import DataArrays: DataArray, isna, dropna, NA, NAtype
-if VERSION < v"0.6.0"
-  import DataArrays: array
-else
-  import DataArrays: isnan
-end
 import DataFrames: DataFrame, ncol, convert
 export GLRM
 
-import Missings: Missing, missing, ismissing
 
 
 # TODO: identify categoricals automatically from PooledDataArray columns
@@ -99,6 +92,8 @@ function get_loss_types(df::DataFrame)
         try
             maxs[j] = maximum(skipmissing(col))
             mins[j] = minimum(skipmissing(col))
+        catch
+            nothing
         end
     end
 
@@ -135,7 +130,7 @@ end
 
 function get_ordinals(df::DataFrame)
     m,n = size(df)
-    # there must be a better way to check types...
+    # there must be a better way to check mutable structs...
     ordinals = [(isa(df[i], AbstractArray{Int,1}) ||
                  isa(df[i], AbstractArray{Int32,1}) ||
                  isa(df[i], AbstractArray{Int64,1})) for i in 1:n]
@@ -146,8 +141,10 @@ function get_ordinals(df::DataFrame)
     for i in 1:nord
         col = df[ord_idx[i]]
         try
-            maxs[i] = maximum(dropna(col))
-            mins[i] = minimum(dropna(col))
+            maxs[i] = maximum(dropmissing(col))
+            mins[i] = minimum(dropmissing(col))
+        catch
+            nothing
         end
     end
 

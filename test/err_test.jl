@@ -1,5 +1,5 @@
 using LowRankModels
-srand(1);
+Random.seed!(1);
 
 test_losses = Loss[
 QuadLoss(), 	
