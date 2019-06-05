@@ -103,7 +103,7 @@ function init_svd!(glrm::GLRM; offset=true, scale=true, TOL = 1e-10)
         glrm.X[end,:] = 1
         glrm.Y[end,:] = means
         if scale
-            Astd = Astd*diagm(1./stds)
+            Astd = Astd ./ stds
         end
         if k <= 0
             warn("Using an offset on a rank 1 model fits *only* the offset. To fit an offset + 1 low rank component, use k=2.")
