@@ -1,15 +1,15 @@
-import Base: size, axpy!
-import Base.LinAlg.scale!
-import Base.BLAS: gemm!
 
-@compat abstract type AbstractGLRM end
+import LinearAlgebra: size, axpy!
+import LinearAlgebra.BLAS: gemm!
+
+abstract type AbstractGLRM end
 
 export AbstractGLRM, GLRM, getindex, size, scale_regularizer!
 
-@compat const ObsArray = @compat(Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}})
+const ObsArray = Union{Array{Array{Int,1},1}, Array{UnitRange{Int},1}}
 
 ### GLRM TYPE
-type GLRM<:AbstractGLRM
+mutable struct GLRM<:AbstractGLRM
     A                            # The data table
     losses::Array{Loss,1}        # array of loss functions
     rx::Array{Regularizer,1}               # Array of regularizers to be applied to each column of X
@@ -84,7 +84,7 @@ parameter_estimate(glrm::GLRM) = (glrm.X, glrm.Y)
 
 
 function scale_regularizer!(glrm::GLRM, newscale::Number)
-    scale!(glrm.rx, newscale)
-    scale!(glrm.ry, newscale)
+    mul!(glrm.rx, newscale)
+    mul!(glrm.ry, newscale)
     return glrm
 end

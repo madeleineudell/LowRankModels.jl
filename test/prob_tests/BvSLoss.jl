@@ -1,10 +1,11 @@
-using LowRankModels
+using LowRankModels,  Random
 import StatsBase: sample, Weights
+import LinearAlgebra: norm
 
 # test ordistic loss
 
 ## generate data
-srand(1);
+Random.seed!(1);
 m,n,k = 100,100,3;
 kfit = k+1
 nlevels = 5; # number of levels
@@ -20,7 +21,7 @@ for j=1:n # this scheme doesn't work to ensure uniform sampling
 	T_real[:,j] = sort(T_real[:,j])
 end
 
-signedsums = @compat Array{Float64}(d, nlevels)
+signedsums = Array{Float64}(undef, d, nlevels)
 for i=1:d
     for j=1:nlevels
         signedsums[i,j] = i<j ? 1 : -1
@@ -32,8 +33,8 @@ XYplusT = zeros(Float64, (m,D))
 A = zeros(Int, (m, n))
 for i=1:m
 	for j=1:n
-		u = XY[i,j] + T_real[:,j]
-		XYplusT[i,(j-1)*d+(1:d)] = u
+		u = XY[i,j] .+ T_real[:,j]
+		XYplusT[i,(j-1)*d .+ (1:d)] = u
 		diffs = u'*signedsums
 		wv = Weights(Float64[exp(-diffs[l]) for l in 1:nlevels])
 		l = sample(wv)
@@ -41,7 +42,7 @@ for i=1:m
 	end
 end
 # loss is insensitive to shifts; regularizer should pick this shift
-XYplusT = XYplusT .- mean(XYplusT, 2)
+XYplusT = XYplusT .- mean(XYplusT, dims=2)
 
 # and the model
 losses = BvSLoss(nlevels)
@@ -52,30 +53,30 @@ glrm = GLRM(A,losses,rx,ry,kfit, scale=false, offset=false, X=randn(kfit,m), Y=r
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y#[:,1:d:D];
 @show ch.objective
-println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(norm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
-println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)\% on average")
-println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
+println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)% of imputed entries are wrong")
+println("After fitting, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)% on average")
+println("(Picking randomly, $((nlevels-1)/nlevels*100)% of entries would be wrong.)\n")
 
 # initialize
 init_svd!(glrm)
 XYh = glrm.X' * glrm.Y
-println("After initialization with the svd, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
+println("After initialization with the svd, parameters differ from true parameters by $(norm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
-println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After initialization with the svd, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)\% on average")
-println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
+println("After initialization with the svd, $(sum(A_imputed .!= A) / prod(size(A))*100)% of imputed entries are wrong")
+println("After initialization with the svd, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)% on average")
+println("(Picking randomly, $((nlevels-1)/nlevels*100)% of entries would be wrong.)\n")
 
 # fit w/ initialization
 @time X,Y,ch = fit!(glrm);
 XYh = X'*Y#[:,1:d:D];
 @show ch.objective
-println("After fitting, parameters differ from true parameters by $(vecnorm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
+println("After fitting, parameters differ from true parameters by $(norm(XYplusT - XYh)/sqrt(prod(size(XYplusT)))) in RMSE")
 A_imputed = impute(glrm)
-println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)\% of imputed entries are wrong")
-println("After fitting, imputed entries are off by $(sum(abs,(A_imputed - A)) / prod(size(A))*100)\% on average")
-println("(Picking randomly, $((nlevels-1)/nlevels*100)\% of entries would be wrong.)\n")
+println("After fitting, $(sum(A_imputed .!= A) / prod(size(A))*100)% of imputed entries are wrong")
+println("After fitting, imputed entries are off by $(sum(abs.(A_imputed - A)) / prod(size(A))*100)% on average")
+println("(Picking randomly, $((nlevels-1)/nlevels*100)% of entries would be wrong.)\n")
 
 # test scaling
-scale!(glrm.ry, 3)
+mul!(glrm.ry, 3)

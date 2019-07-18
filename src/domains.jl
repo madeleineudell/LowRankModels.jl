@@ -18,21 +18,21 @@ export Domain, # the abstract type
 	   RealDomain, BoolDomain, OrdinalDomain, PeriodicDomain, CountDomain, CategoricalDomain, # the domains
 	   copy
 
-@compat abstract type Domain end
+abstract type Domain end
 
 ########################################## REALS ##########################################
 # Real data can take values from ℜ
-immutable RealDomain<:Domain
+struct RealDomain<:Domain
 end
 
 ########################################## BOOLS ##########################################
 # Boolean data should take values from {true, false}
-immutable BoolDomain<:Domain
+struct BoolDomain<:Domain
 end
 
 ########################################## ORDINALS ##########################################
 # Ordinal data should take integer values ranging from `min` to `max`
-immutable OrdinalDomain<:Domain
+struct OrdinalDomain<:Domain
 	min::Int
 	max::Int
 	function OrdinalDomain(min, max)
@@ -45,7 +45,7 @@ end
 
 ########################################## ORDINALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
-immutable CategoricalDomain<:Domain
+struct CategoricalDomain<:Domain
 	min::Int
 	max::Int
 end
@@ -53,12 +53,12 @@ CategoricalDomain(m::Int) = CategoricalDomain(1,m)
 
 ########################################## PERIODIC ##########################################
 # Periodic data can take values from ℜ, but given a period T, we should have error_metric(a,a+T) = 0
-immutable PeriodicDomain<:Domain
+struct PeriodicDomain<:Domain
 	T::Float64 # the period
 end
 
 ########################################## COUNTS ##########################################
 # Count data can take values over ℕ, which we approximate as {0, 1, 2 ... `max_count`}
-immutable CountDomain<:Domain
+struct CountDomain<:Domain
 	max_count::Int # the biggest possible count
 end

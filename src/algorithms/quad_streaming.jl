@@ -4,7 +4,7 @@
 
 export StreamingParams, streaming_fit!, streaming_impute!
 
-type StreamingParams<:AbstractParams
+mutable struct StreamingParams<:AbstractParams
     T0::Int # number of rows to use to initialize Y before streaming begins
     stepsize::Float64 # stepsize (inverse of memory)
     Y_update_interval::Int # how often to prox Y
@@ -139,7 +139,7 @@ function streaming_impute!(glrm::GLRM, params::StreamingParams=StreamingParams()
 end
 
 """ Constructs new GLRM on subset of rows of the data from input glrm """
-function keep_rows(glrm, r::Range{Int})
+function keep_rows(glrm, r::UnitRange{Int})
   @assert maximum(r) <= size(glrm.A, 1)
   obs = flatten_observations(glrm.observed_features)
   first_row = minimum(r)

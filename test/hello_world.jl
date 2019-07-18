@@ -1,23 +1,23 @@
 using LowRankModels
 
-# loss types to test
-real_loss_types = [QuadLoss, HuberLoss]
-bool_loss_types = [HingeLoss]
-ordinal_loss_types = [OrdinalHingeLoss, BvSLoss]
-categorical_loss_types = [MultinomialLoss, OvALoss]
+# loss mutable structs to test
+real_loss_mutable structs = [QuadLoss, HuberLoss]
+bool_loss_mutable structs = [HingeLoss]
+ordinal_loss_mutable structs = [OrdinalHingeLoss, BvSLoss]
+categorical_loss_mutable structs = [MultinomialLoss, OvALoss]
 
 #instantiate losses
 ncat = 4 # maximum categorical levels
 nord = 5 # maximum ordinal levels
-real_losses = [l() for l in real_loss_types]
-bool_losses = [l() for l in bool_loss_types]
-ordinal_losses = [l(rand(3:nord)) for l in ordinal_loss_types]
-categorical_losses = [l(rand(3:ncat)) for l in categorical_loss_types]
+real_losses = [l() for l in real_loss_mutable structs]
+bool_losses = [l() for l in bool_loss_mutable structs]
+ordinal_losses = [l(rand(3:nord)) for l in ordinal_loss_mutable structs]
+categorical_losses = [l(rand(3:ncat)) for l in categorical_loss_mutable structs]
 losses = [real_losses..., bool_losses..., ordinal_losses..., categorical_losses...]
 
 # scale losses for different columns
 for loss in losses
-  scale!(loss, rand())
+  mul!(loss, rand())
 end
 
 # regularizers to test

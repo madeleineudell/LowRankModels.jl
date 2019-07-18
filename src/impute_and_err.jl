@@ -27,11 +27,11 @@
 export impute, error_metric, errors
 
 # function for general use
-roundcutoff{T<:Number}(x,a::T,b::T) = T(min(max(round(x),a),b))
+roundcutoff(x,a::T,b::T) where T<:Number = T(min(max(round(x),a),b))
 
 # Error metrics for general use
 squared_error(a_imputed::Number, a::Number) = (a_imputed-a)^2
-misclassification{T}(a_imputed::T, a::T) = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
+misclassification(a_imputed::T, a::T) where T = float(!(a_imputed==a)) # return 0.0 if equal, 1.0 else
 
 # use the default loss domain imputation if no domain provided
 impute(l::Loss, u::Float64) = impute(l.domain, l, u)
@@ -79,7 +79,7 @@ function impute(D::OrdinalDomain, l::WeightedHingeLoss, u::Float64)
 	a_imputed = (u>0 ? ceil(1/u) : floor(1/u))
 	roundcutoff(a_imputed, D.min, D.max)
 end
-impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = indmin(u.^2)
+impute(D::OrdinalDomain, l::OrdisticLoss, u::AbstractArray) = argmin(u.^2)
 
 # MultinomialOrdinalLoss
 # l(u, a) = -log(p(u, a))
@@ -93,12 +93,12 @@ function impute(D::OrdinalDomain, l::MultinomialOrdinalLoss, u::AbstractArray)
 	enforce_MNLOrdRules!(u)
 	eu = exp.(u)
 	p = [1-eu[1], -diff(eu)..., eu[end]]
-	return indmax(p)
+	return argmax(p)
 end
 
 # generic method
 function impute(D::OrdinalDomain, l::Loss, u::AbstractArray)
-    (D.min:D.max)[indmin([evaluate(l, u, i) for i in D.min:D.max])]
+    (D.min:D.max)[argmin([evaluate(l, u, i) for i in D.min:D.max])]
 end
 
 function error_metric(D::OrdinalDomain, l::Loss, u::Float64, a::Number)
@@ -109,8 +109,8 @@ end
 ########################################## CATEGORICALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
 
-impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64}) = indmax(u)
-impute(D::CategoricalDomain, l::OvALoss, u::Array{Float64}) = indmax(u)
+impute(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64}) = argmax(u)
+impute(D::CategoricalDomain, l::OvALoss, u::Array{Float64}) = argmax(u)
 
 function error_metric(D::CategoricalDomain, l::Loss, u::Array{Float64}, a::Number)
     a_imputed = impute(D, l, u)
@@ -144,14 +144,13 @@ end
 
 ####################################################################################
 # Use impute and error_metric over arrays
-function impute{DomainSubtype<:Domain,LossSubtype<:Loss}(
-			domains::Array{DomainSubtype,1},
+function impute(domains::Array{DomainSubtype,1},
 			losses::Array{LossSubtype,1},
-			U::Array{Float64,2})
+			U::Array{Float64,2}) where {DomainSubtype<:Domain, LossSubtype<:Loss}
 	m, d = size(U)
 	n = length(losses)
 	yidxs = get_yidxs(losses)
-	A_imputed = Array{Number}((m, n));
+	A_imputed = Array{Number}(undef, (m, n));
 	for f in 1:n
 		for i in 1:m
 			if length(yidxs[f]) > 1
@@ -163,7 +162,7 @@ function impute{DomainSubtype<:Domain,LossSubtype<:Loss}(
 	end
 	return A_imputed
 end
-function impute{LossSubtype<:Loss}(losses::Array{LossSubtype,1}, U::Array{Float64,2})
+function impute(losses::Array{LossSubtype,1}, U::Array{Float64,2}) where LossSubtype<:Loss
 	domains = Domain[l.domain for l in losses]
 	impute(domains, losses, U)
 end

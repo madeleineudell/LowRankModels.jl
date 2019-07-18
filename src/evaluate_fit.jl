@@ -59,8 +59,7 @@ function objective(glrm::GLRM, X::Array{Float64,2}, Y::Array{Float64,2};
                    yidxs = get_yidxs(glrm.losses), kwargs...)
     @assert(size(Y)==(glrm.k,yidxs[end][end]))
     @assert(size(X)==(glrm.k,size(glrm.A,1)))
-    XY = @compat Array{Float64}((size(X,2), size(Y,2)))
-    XY = Array{Float64}((size(X,2), size(Y,2)))
+    XY = Array{Float64}(undef, (size(X,2), size(Y,2)))
     if sparse
         # Calculate X'*Y only at observed entries of A
         m,n = size(glrm.A)
@@ -148,7 +147,7 @@ function error_metric(glrm::AbstractGLRM, XY::Array{Float64,2}, domains::Array{D
 end
 # The user can also pass in X and Y and `error_metric` will compute XY for them
 function error_metric(glrm::AbstractGLRM, X::Array{Float64,2}, Y::Array{Float64,2}, domains::Array{Domain,1}=Domain[l.domain for l in glrm.losses]; kwargs...)
-    XY = @compat Array{Float64}((size(X,2), size(Y,2)))
+    XY = Array{Float64}((size(X,2), size(Y,2)))
     gemm!('T','N',1.0,X,Y,0.0,XY)
     error_metric(glrm, XY, domains; kwargs...)
 end

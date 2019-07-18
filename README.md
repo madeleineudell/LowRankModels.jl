@@ -19,7 +19,7 @@ to construct a model suitable for a particular data set.
 In particular, it supports
 
 * using different loss functions for different columns of the data array,
-  which is useful when data types are heterogeneous
+  which is useful when data mutable structs are heterogeneous
   (eg, real, boolean, and ordinal columns);
 * fitting the model to only *some* of the entries in the table, which is useful for data tables with many missing (unobserved) entries; and
 * adding offsets and scalings to the model without destroying sparsity,
@@ -47,7 +47,7 @@ The data is modeled as `X'*Y`, where `X` is a `k`x`m` matrix and `Y` is a `k`x`n
 
     minimize sum_{(i,j) in obs} losses[j]((X'*Y)[i,j], A[i,j]) + sum_i rx(X[:,i]) + sum_j ry(Y[:,j])
 
-The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
+The basic mutable struct used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
 * the data `A` (any `AbstractArray`, such as an array, a sparse matrix, or a data frame)
@@ -68,7 +68,7 @@ see the discussion of [sparse matrices](https://github.com/madeleineudell/LowRan
 `X₀` and `Y₀` are initialization
 matrices that represent a starting guess for the optimization.
 
-Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
+Losses and regularizers must be of mutable struct `Loss` and `Regularizer`, respectively,
 and may be chosen from a list of supported losses and regularizers, which include
 
 Losses:
@@ -99,7 +99,7 @@ Regularizers:
 
 Each of these losses and regularizers can be scaled
 (for example, to increase the importance of the loss relative to the regularizer)
-by calling `scale!(loss, newscale)`.
+by calling `mul!(loss, newscale)`.
 Users may also implement their own losses and regularizers,
 or adjust internal parameters of the losses and regularizers;
 see [losses.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/src/losses.jl) and [regularizers.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/regularizers.jl) for more details.
@@ -151,7 +151,7 @@ Then initialize the model using
     GLRM(A,losses,rx,ry,k, obs=obs)
 
 If `A` is a DataFrame and you just want the model to ignore
-any entry that is of type `NA`, you can use
+any entry that is of mutable struct `NA`, you can use
 
     obs = observations(A)
 
@@ -219,7 +219,7 @@ and ordinal HingeLoss loss for integer columns,
 a small amount of QuadLoss regularization,
 and scaling and adding an offset to the model as described [here](#scaling).
 It returns the column labels for the columns it fit, along with the model.
-Right now, all other data types are ignored.
+Right now, all other data mutable structs are ignored.
 `NaN` values are treated as missing values (`NA`s) and ignored in the fit.
 
 The full call signature is
@@ -232,7 +232,7 @@ function GLRM(df::DataFrame, k::Int;
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.
 
-Or to specify a map from data types to losses, define a new loss_map from datatypes to losses (like probabilistic_losses, below):
+Or to specify a map from data mutable structs to losses, define a new loss_map from datatypes to losses (like probabilistic_losses, below):
 ```
 probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
@@ -413,7 +413,7 @@ These functions should help you choose adequate regularization for your model.
 
 ## Regularization paths
 
-* `regularization_path(glrm::GLRM; params=Params(), reg_params=logspace(2,-2,5), holdout_proportion=.1, verbose=true, ch::ConvergenceHistory=ConvergenceHistory("reg_path"))`: computes the train and test error for GLRMs varying the scaling of the regularization through any scaling factor in the array `reg_params`.
+* `regularization_path(glrm::GLRM; params=Params(), reg_params=exp10.(range(2,stop=-2,length=5)), holdout_proportion=.1, verbose=true, ch::ConvergenceHistory=ConvergenceHistory("reg_path"))`: computes the train and test error for GLRMs varying the scaling of the regularization through any scaling factor in the array `reg_params`.
 
 ## Utilities
 

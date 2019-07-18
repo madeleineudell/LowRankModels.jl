@@ -21,7 +21,7 @@
 # DataTypes are assigned to each column of the data and are not part of the low-rank model itself, they just serve
 # as a way to evaluate the performance of the low-rank model.
 
-import StatsBase: sample, WeightVec
+import StatsBase: sample, Weights
 export sample, sample_missing
 
 ########################################## REALS ##########################################
@@ -42,7 +42,7 @@ end
 # This is fast and works for any loss.
 function sample(D::BoolDomain, l::Loss, u::AbstractArray)
     prob = exp.(-[evaluate(l, u, i) for i in (true, false)])
-		return sample(WeightVec(prob))
+		return sample(Weights(prob))
 end
 
 ########################################## ORDINALS ##########################################
@@ -59,14 +59,14 @@ end
 # generic method
 function sample(D::OrdinalDomain, l::Loss, u::AbstractArray)
     prob = exp.(-[evaluate(l, u, i) for i in D.min:D.max])
-		return sample(WeightVec(prob))
+		return sample(Weights(prob))
 end
 
 ########################################## CATEGORICALS ##########################################
 # Categorical data should take integer values ranging from 1 to `max`
 
 function sample(D::CategoricalDomain, l::MultinomialLoss, u::Array{Float64})
-	return sample(WeightVec(exp.(u)))
+	return sample(Weights(exp.(u)))
 end
 
 # sample(D::CategoricalDomain, l::OvALoss, u::Array{Float64}) = ??
@@ -74,7 +74,7 @@ end
 # generic method
 function sample(D::CategoricalDomain, l::Loss, u::AbstractArray)
     prob = exp.(-[evaluate(l, u, i) for i in D.min:D.max])
-		return sample(WeightVec(prob))
+		return sample(Weights(prob))
 end
 
 ########################################## PERIODIC ##########################################
@@ -91,10 +91,10 @@ sample(D::CountDomain, l::Loss, u::Float64) = sample(OrdinalDomain(0,D.max_count
 
 ####################################################################################
 # Use impute and error_metric over arrays
-function sample{DomainSubtype<:Domain,LossSubtype<:Loss}(
+function sample(
 			domains::Array{DomainSubtype,1},
 			losses::Array{LossSubtype,1},
-			U::Array{Float64,2}) # U = X'*Y
+			U::Array{Float64,2}) where {DomainSubtype<:Domain,LossSubtype<:Loss}
 	m, d = size(U)
 	n = length(losses)
 	yidxs = get_yidxs(losses)
@@ -134,7 +134,7 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	# even if all data for some real loss take integer values
 	for j=1:n
 		if isa(domains[j], RealDomain) && isa(glrm.A[j], DataArray{Int64,1})
-			domains[j] = OrdinalDomain(minimum(dropna(glrm.A[j])), maximum(dropna(glrm.A[j])))
+			domains[j] = OrdinalDomain(minimum(dropmissing(glrm.A[j])), maximum(dropmissing(glrm.A[j])))
 		end
 	end
 	A_sampled = copy(glrm.A);
@@ -151,7 +151,7 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	return A_sampled
 end
 
-function sample{LossSubtype<:Loss}(losses::Array{LossSubtype,1}, U::Array{Float64,2})
+function sample(losses::Array{LossSubtype,1}, U::Array{Float64,2}) where LossSubtype<:Loss
 	domains = Domain[domain(l) for l in losses]
 	sample(domains, losses, U)
 end

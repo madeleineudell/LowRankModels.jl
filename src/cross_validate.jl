@@ -17,10 +17,10 @@ function cross_validate(glrm::AbstractGLRM;
     obs = flatten_observations(glrm.observed_features)
     if verbose println("computing CV folds") end
     folds = getfolds(obs, nfolds, size(glrm.A)..., do_check = do_obs_check)
-    train_glrms = Array{typeof(glrm)}(nfolds)
-    test_glrms = Array{typeof(glrm)}(nfolds)
-    train_error = @compat Array{Float64}(nfolds)
-    test_error = @compat Array{Float64}(nfolds)
+    train_glrms = Array{typeof(glrm)}(undef, nfolds)
+    test_glrms = Array{typeof(glrm)}(undef, nfolds)
+    train_error = Array{Float64}(undef, nfolds)
+    test_error = Array{Float64}(undef, nfolds)
     for ifold=1:use_folds
         if verbose println("\nforming train and test GLRM for fold $ifold") end
         train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = folds[ifold]
@@ -52,12 +52,12 @@ function cross_validate(glrm::AbstractGLRM;
     return train_error, test_error, train_glrms, test_glrms
 end
 
-@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)
+function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)
     # partition elements of obs into nfolds groups
-    groups = @compat Array{Int}(size(obs))
+    groups = Array{Int}(undef, size(obs))
     rand!(groups, 1:nfolds)  # fill an array with random 1 through N
     # create the training and testing observations for each fold
-    folds = @compat Array{Tuple}(nfolds)
+    folds = Array{Tuple}(undef, nfolds)
     for itrial = 1:ntrials
         enough_observations = 0
         for ifold=1:nfolds
@@ -89,7 +89,7 @@ end
 function get_train_and_test(obs, m, n, holdout_proportion=.1)
 
     # generate random uniform number for each observation
-    groups = @compat Array{Float64}(size(obs))
+    groups = Array{Float64}(undef, size(obs))
     rand!(groups)
 
     # create the training and testing observations
@@ -103,7 +103,7 @@ function get_train_and_test(obs, m, n, holdout_proportion=.1)
 end
 
 function flatten_observations(observed_features::ObsArray)
-    obs = @compat Array{Tuple{Int,Int}}(0)
+    obs = Array{Tuple{Int,Int}}(undef, 0)
     for (i, features_in_example_i) in enumerate(observed_features)
         for j in features_in_example_i
             push!(obs, (i,j))
@@ -124,7 +124,7 @@ function flatten(x, y)
     end
     y
 end
-flatten{T}(x::Array{T})=flatten(x,Array(T, 0))
+flatten(x::Array{T}) where T=flatten(x,Array(T, 0))
 
 function flattenarray(x, y)
     if typeof(x)<:Array
@@ -136,7 +136,7 @@ function flattenarray(x, y)
     end
     y
 end
-flattenarray{T}(x::Array{T})=flattenarray(x,Array(T, 0))
+flattenarray(x::Array{T}) where T=flattenarray(x,Array(T, 0))
 
 function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
                     params=Params(100,max_iter=1,abs_tol=.01,min_stepsize=.01),
@@ -163,8 +163,8 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
 
     niters = params.max_iter
     params.max_iter = 1
-    train_error = @compat Array{Float64}(niters)
-    test_error = @compat Array{Float64}(niters)
+    train_error = Array{Float64}(undef, niters)
+    test_error = Array{Float64}(undef, niters)
     if verbose
         @printf("%12s%12s%12s\n", "train error", "test error", "time")
         t0 = time()
@@ -181,7 +181,7 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
     return train_error, test_error
 end
 
-function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5),
+function regularization_path(glrm::AbstractGLRM; params=Params(), reg_params=exp10.(range(2,stop=-2,length=5)),
                                          holdout_proportion=.1, verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
     if verbose println("flattening observations") end
@@ -211,16 +211,16 @@ end
 # For each value of the regularization parameter,
 # compute the training error, ie, average error (sum over (i,j) in train_glrm.obs of L_j(A_ij, x_i y_j))
 # and the test error, ie, average error (sum over (i,j) in test_glrm.obs of L_j(A_ij, x_i y_j))
-function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; params=Params(), reg_params=logspace(2,-2,5),
+function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; params=Params(), reg_params=exp10.(range(2,stop=-2,length=5)),
                                          verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
-    train_error = @compat Array{Float64}(length(reg_params))
-    test_error = @compat Array{Float64}(length(reg_params))
+    train_error = Array{Float64}(undef, length(reg_params))
+    test_error = Array{Float64}(undef, length(reg_params))
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
     if verbose println("training model on $ntrain samples and testing on $ntest") end
     @show params
-    train_time = @compat Array{Float64}(length(reg_params))
+    train_time = Array{Float64}(undef, length(reg_params))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train and test error
@@ -240,18 +240,18 @@ function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; 
 end
 
 
-function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(), reg_params=logspace(2,-2,5),
+function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(), reg_params=exp10.(range(2,stop=-2,length=5)),
                         holdout_proportion=.1, verbose=true,
                         ch::ConvergenceHistory=ConvergenceHistory("reg_path"), kprec=10)
     m,n = size(train_glrm.A)
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_observed_features))
     train_observed_features = train_glrm.observed_features
-    train_error = @compat Array{Float64}(length(reg_params))
-    test_error = @compat Array{Float64}(length(reg_params))
-    prec_at_k = @compat Array{Float64}(length(reg_params))
-    @compat solution = @compat Array{Tuple{Float64,Float64}}(length(reg_params))
-    train_time = @compat Array{Float64}(length(reg_params))
+    train_error = Array{Float64}(undef, length(reg_params))
+    test_error = Array{Float64}(undef, length(reg_params))
+    prec_at_k = Array{Float64}(undef, length(reg_params))
+    solution = Array{Tuple{Float64,Float64}}(undef, length(reg_params))
+    train_time = Array{Float64}(undef, length(reg_params))
     test_glrm = GLRM(train_glrm.A, train_glrm.losses, train_glrm.rx, train_glrm.ry, train_glrm.k,
                      X=copy(train_glrm.X), Y=copy(train_glrm.Y),
                      observed_features = test_observed_features)
@@ -259,8 +259,8 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         reg_param = reg_params[iparam]
         # evaluate train error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        scale!(train_glrm.rx, reg_param)
-        scale!(train_glrm.ry, reg_param)
+        mul!(train_glrm.rx, reg_param)
+        mul!(train_glrm.ry, reg_param)
         train_glrm.X, train_glrm.Y = randn(train_glrm.k,m), randn(train_glrm.k,n) # this bypasses the error checking in GLRM(). Risky.
         X, Y, ch = fit!(train_glrm, params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]
@@ -296,8 +296,8 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
             end
         end
         prec_at_k[iparam] = true_pos / (true_pos + false_pos)
-        if verbose println("\prec_at_k:  $(prec_at_k[iparam])") end
-        solution[iparam] = (sum(X)+sum(Y), sum(abs(X))+sum(abs(Y)))
+        if verbose println("\tprec_at_k:  $(prec_at_k[iparam])") end
+        solution[iparam] = (sum(X)+sum(Y), sum(abs.(X))+sum(abs.(Y)))
         if verbose println("\tsum of solution, one norm of solution:  $(solution[iparam])") end
     end
     return train_error, test_error, prec_at_k, train_time, reg_params, solution

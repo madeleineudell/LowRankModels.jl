@@ -42,10 +42,10 @@ function equilibrate_variance!(glrm::AbstractGLRM, columns_to_scale = 1:size(glr
         end
         if varlossi > 0
             # rescale the losses and regularizers for each column by the inverse of the empirical variance
-            scale!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
+            mul!(glrm.losses[i], scale(glrm.losses[i])/varlossi)
         end
         if varregi > 0
-            scale!(glrm.ry[i], scale(glrm.ry[i])/varregi)
+            mul!(glrm.ry[i], scale(glrm.ry[i])/varregi)
         end
     end
     return glrm
@@ -62,19 +62,19 @@ function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
         if typeof(glrm.losses[i]) == QuadLoss && length(nomissing) > 0
             varlossi = var(skipmissing(glrm.A[i])) # estimate the variance
             if varlossi > TOL
-    		  scale!(glrm.losses[i], 1/(2*varlossi)) # this is the correct -loglik of gaussian with variance fixed at estimate
+    		  mul!(glrm.losses[i], 1/(2*varlossi)) # this is the correct -loglik of gaussian with variance fixed at estimate
     	    else
     		  warn("column $i has a variance of $varlossi; not scaling it to avoid dividing by zero.")
     	    end
         elseif typeof(glrm.losses[i]) == HuberLoss && length(nomissing) > 0
             varlossi = avgerror(glrm.losses[i], glrm.A[i]) # estimate the width of the distribution
             if varlossi > TOL
-              scale!(glrm.losses[i], 1/(2*varlossi)) # this is not the correct -loglik of huber with estimates for variance and mean of poisson, but that's probably ok
+              mul!(glrm.losses[i], 1/(2*varlossi)) # this is not the correct -loglik of huber with estimates for variance and mean of poisson, but that's probably ok
             else
               warn("column $i has a variance of $varlossi; not scaling it to avoid dividing by zero.")
             end
         else # none of the other distributions have any free parameters to estimate, so this is the correct -loglik
-            scale!(glrm.losses[i], 1)
+            mul!(glrm.losses[i], 1)
         end
     end
     return glrm

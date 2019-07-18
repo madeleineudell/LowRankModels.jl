@@ -3,7 +3,7 @@
 # the abstract type Regularizer.
 # Regularizers should implement `evaluate` and `prox`.
 
-import Base.scale!, Base.*
+import Base: *
 
 export Regularizer, ProductRegularizer, # abstract types
        # concrete regularizers
@@ -19,7 +19,7 @@ export Regularizer, ProductRegularizer, # abstract types
        # methods on regularizers
        prox!, prox,
        # utilities
-       scale, scale!, *
+       scale, mul!, *
 
 # numerical tolerance
 TOL = 1e-12
@@ -27,17 +27,17 @@ TOL = 1e-12
 # regularizers
 # regularizers r should have the method `prox` defined such that
 # prox(r)(u,alpha) = argmin_x( alpha r(x) + 1/2 \|x - u\|_2^2)
-@compat abstract type Regularizer end
-@compat abstract type MatrixRegularizer <: LowRankModels.Regularizer end
+abstract type Regularizer end
+abstract type MatrixRegularizer <: LowRankModels.Regularizer end
 
 # default inplace prox operator (slower than if inplace prox is implemented)
 prox!(r::Regularizer,u::AbstractArray,alpha::Number) = (v = prox(r,u,alpha); @simd for i=1:length(u) @inbounds u[i]=v[i] end; u)
 
 # default scaling
 scale(r::Regularizer) = r.scale
-scale!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
-scale!(rs::Array{Regularizer}, newscale::Number) = (for r in rs scale!(r, newscale) end; rs)
-*(newscale::Number, r::Regularizer) = (newr = typeof(r)(); scale!(newr, scale(r)*newscale); newr)
+mul!(r::Regularizer, newscale::Number) = (r.scale = newscale; r)
+mul!(rs::Array{Regularizer}, newscale::Number) = (for r in rs mul!(r, newscale) end; rs)
+*(newscale::Number, r::Regularizer) = (newr = typeof(r)(); mul!(newr, scale(r)*newscale); newr)
 
 ## utilities
 
@@ -49,12 +49,12 @@ function allnonneg(a::AbstractArray)
 end
 
 ## QuadLoss regularization
-type QuadReg<:Regularizer
+mutable struct QuadReg<:Regularizer
     scale::Float64
 end
 QuadReg() = QuadReg(1)
 prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+2*alpha*r.scale)*u
-prox!(r::QuadReg,u::Array{Float64},alpha::Number) = scale!(u, 1/(1+2*alpha*r.scale))
+prox!(r::QuadReg,u::Array{Float64},alpha::Number) = rmul!(u, 1/(1+2*alpha*r.scale))
 evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(abs2, a)
 
 ## constrained QuadLoss regularization
@@ -65,18 +65,18 @@ evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(abs2, a)
 ##   constraining the maxnorm of XY to be <= mu is achieved
 ##   by setting glrm.rx = QuadConstraint(sqrt(mu))
 ##   and the same for every element of glrm.ry
-type QuadConstraint<:Regularizer
+mutable struct QuadConstraint<:Regularizer
     max_2norm::Float64
 end
 QuadConstraint() = QuadConstraint(1)
 prox(r::QuadConstraint,u::AbstractArray,alpha::Number) = (r.max_2norm)/norm(u)*u
-prox!(r::QuadConstraint,u::Array{Float64},alpha::Number) = scale!(u, (r.max_2norm)/norm(u))
+prox!(r::QuadConstraint,u::Array{Float64},alpha::Number) = mul!(u, (r.max_2norm)/norm(u))
 evaluate(r::QuadConstraint,u::AbstractArray) = norm(u) > r.max_2norm + TOL ? Inf : 0
 scale(r::QuadConstraint) = 1
-scale!(r::QuadConstraint, newscale::Number) = 1
+mul!(r::QuadConstraint, newscale::Number) = 1
 
 ## one norm regularization
-type OneReg<:Regularizer
+mutable struct OneReg<:Regularizer
     scale::Float64
 end
 OneReg() = OneReg(1)
@@ -89,17 +89,17 @@ evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs,a)
 
 
 ## no regularization
-type ZeroReg<:Regularizer
+mutable struct ZeroReg<:Regularizer
 end
 prox(r::ZeroReg,u::AbstractArray,alpha::Number) = u
 prox!(r::ZeroReg,u::Array{Float64},alpha::Number) = u
 evaluate(r::ZeroReg,a::AbstractArray) = 0
 scale(r::ZeroReg) = 0
-scale!(r::ZeroReg, newscale::Number) = 0
+mul!(r::ZeroReg, newscale::Number) = 0
 
 ## indicator of the nonnegative orthant
 ## (enforces nonnegativity, eg for nonnegative matrix factorization)
-type NonNegConstraint<:Regularizer
+mutable struct NonNegConstraint<:Regularizer
 end
 prox(r::NonNegConstraint,u::AbstractArray,alpha::Number=1) = broadcast(max,u,0)
 prox!(r::NonNegConstraint,u::Array{Float64},alpha::Number=1) = (@simd for i=1:length(u) @inbounds u[i] = max(u[i], 0) end; u)
@@ -112,11 +112,11 @@ function evaluate(r::NonNegConstraint,a::AbstractArray)
     return 0
 end
 scale(r::NonNegConstraint) = 1
-scale!(r::NonNegConstraint, newscale::Number) = 1
+mul!(r::NonNegConstraint, newscale::Number) = 1
 
 ## one norm regularization restricted to nonnegative orthant
 ## (enforces nonnegativity, in addition to one norm regularization)
-type NonNegOneReg<:Regularizer
+mutable struct NonNegOneReg<:Regularizer
     scale::Float64
 end
 NonNegOneReg() = NonNegOneReg(1)
@@ -136,17 +136,17 @@ function evaluate(r::NonNegOneReg,a::AbstractArray)
     return r.scale*sum(a)
 end
 scale(r::NonNegOneReg) = 1
-scale!(r::NonNegOneReg, newscale::Number) = 1
+mul!(r::NonNegOneReg, newscale::Number) = 1
 
 ## Quadratic regularization restricted to nonnegative domain
 ## (Enforces nonnegativity alongside quadratic regularization)
-type NonNegQuadReg
+mutable struct NonNegQuadReg
     scale::Float64
 end
 NonNegQuadReg() = NonNegQuadReg(1)
 prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max.(1/(1+2*alpha*r.scale)*u, 0)
 prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = begin
-  scale!(u, 1/(1+2*alpha*r.scale))
+  mul!(u, 1/(1+2*alpha*r.scale))
   maxval = maximum(u)
   clamp!(u, 0, maxval)
 end
@@ -161,7 +161,7 @@ end
 
 ## indicator of the last entry being equal to 1
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry_unpenalized)
-type lastentry1<:Regularizer
+mutable struct lastentry1<:Regularizer
     r::Regularizer
 end
 lastentry1() = lastentry1(ZeroReg())
@@ -172,11 +172,11 @@ prox!(r::lastentry1,u::AbstractArray{Float64,2},alpha::Number=1) = (prox!(r.r,vi
 evaluate(r::lastentry1,a::AbstractArray{Float64,1}) = (a[end]==1 ? evaluate(r.r,a[1:end-1]) : Inf)
 evaluate(r::lastentry1,a::AbstractArray{Float64,2}) = (all(a[end,:].==1) ? evaluate(r.r,a[1:end-1,:]) : Inf)
 scale(r::lastentry1) = scale(r.r)
-scale!(r::lastentry1, newscale::Number) = scale!(r.r, newscale)
+mul!(r::lastentry1, newscale::Number) = mul!(r.r, newscale)
 
 ## makes the last entry unpenalized
 ## (allows an unpenalized offset term into the glrm when used in conjunction with lastentry1)
-type lastentry_unpenalized<:Regularizer
+mutable struct lastentry_unpenalized<:Regularizer
     r::Regularizer
 end
 lastentry_unpenalized() = lastentry_unpenalized(ZeroReg())
@@ -187,11 +187,11 @@ prox(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number=1) = [pr
 prox!(r::lastentry_unpenalized,u::AbstractArray{Float64,2},alpha::Number=1) = (prox!(r.r,view(u,1:size(u,1)-1,:),alpha); u)
 evaluate(r::lastentry_unpenalized,a::AbstractArray{Float64,2}) = evaluate(r.r,a[1:end-1,:])
 scale(r::lastentry_unpenalized) = scale(r.r)
-scale!(r::lastentry_unpenalized, newscale::Number) = scale!(r.r, newscale)
+mul!(r::lastentry_unpenalized, newscale::Number) = mul!(r.r, newscale)
 
 ## fixes the values of the first n elements of the column to be y
 ## optionally regularizes the last k-n elements with regularizer r
-type fixed_latent_features<:Regularizer
+mutable struct fixed_latent_features<:Regularizer
     r::Regularizer
     y::Array{Float64,1} # the values of the fixed latent features
     n::Int # length of y
@@ -208,11 +208,11 @@ function prox!(r::fixed_latent_features,u::Array{Float64},alpha::Number)
 end
 evaluate(r::fixed_latent_features, a::AbstractArray) = a[1:r.n]==r.y ? evaluate(r.r, a[(r.n+1):end]) : Inf
 scale(r::fixed_latent_features) = scale(r.r)
-scale!(r::fixed_latent_features, newscale::Number) = scale!(r.r, newscale)
+mul!(r::fixed_latent_features, newscale::Number) = mul!(r.r, newscale)
 
 ## fixes the values of the last n elements of the column to be y
 ## optionally regularizes the first k-n elements with regularizer r
-type fixed_last_latent_features<:Regularizer
+mutable struct fixed_last_latent_features<:Regularizer
     r::Regularizer
     y::Array{Float64,1} # the values of the fixed latent features
     n::Int # length of y
@@ -229,14 +229,14 @@ function prox!(r::fixed_last_latent_features,u::Array{Float64},alpha::Number)
 end
 evaluate(r::fixed_last_latent_features, a::AbstractArray) = a[length(a)-r.n+1:end]==r.y ? evaluate(r.r, a[1:length(a)-r.n]) : Inf
 scale(r::fixed_last_latent_features) = scale(r.r)
-scale!(r::fixed_last_latent_features, newscale::Number) = scale!(r.r, newscale)
+mul!(r::fixed_last_latent_features, newscale::Number) = mul!(r.r, newscale)
 
 ## indicator of 1-sparse vectors
 ## (enforces that exact 1 entry is nonzero, eg for orthogonal NNMF)
-type OneSparseConstraint<:Regularizer
+mutable struct OneSparseConstraint<:Regularizer
 end
-prox(r::OneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = indmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
-prox!(r::OneSparseConstraint, u::Array, alpha::Number=0) = (idx = indmax(u); ui = u[idx]; scale!(u,0); u[idx]=ui; u)
+prox(r::OneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = argmax(u); v=zeros(size(u)); v[idx]=u[idx]; v)
+prox!(r::OneSparseConstraint, u::Array, alpha::Number=0) = (idx = argmax(u); ui = u[idx]; mul!(u,0); u[idx]=ui; u)
 function evaluate(r::OneSparseConstraint, a::AbstractArray)
     oneflag = false
     for ai in a
@@ -253,10 +253,10 @@ function evaluate(r::OneSparseConstraint, a::AbstractArray)
     return 0
 end
 scale(r::OneSparseConstraint) = 1
-scale!(r::OneSparseConstraint, newscale::Number) = 1
+mul!(r::OneSparseConstraint, newscale::Number) = 1
 
 ## Indicator of k-sparse vectors
-type KSparseConstraint<:Regularizer
+mutable struct KSparseConstraint<:Regularizer
   k::Int
 end
 function evaluate(r::KSparseConstraint, a::AbstractArray)
@@ -286,17 +286,17 @@ function prox!(r::KSparseConstraint, u::Array, alpha::Number)
   k = r.k
   ids = selectperm(u, 1:k, by=abs, rev=true)
   vals = u[ids]
-  scale!(u,0)
+  mul!(u,0)
   u[ids] = vals
   u
 end
 
 ## indicator of 1-sparse unit vectors
 ## (enforces that exact 1 entry is 1 and all others are zero, eg for kmeans)
-type UnitOneSparseConstraint<:Regularizer
+mutable struct UnitOneSparseConstraint<:Regularizer
 end
-prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = indmax(u); v=zeros(size(u)); v[idx]=1; v)
-prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number=0) = (idx = indmax(u); scale!(u,0); u[idx]=1; u)
+prox(r::UnitOneSparseConstraint, u::AbstractArray, alpha::Number=0) = (idx = argmax(u); v=zeros(size(u)); v[idx]=1; v)
+prox!(r::UnitOneSparseConstraint, u::Array, alpha::Number=0) = (idx = argmax(u); mul!(u,0); u[idx]=1; u)
 
 function evaluate(r::UnitOneSparseConstraint, a::AbstractArray)
     oneflag = false
@@ -316,12 +316,12 @@ function evaluate(r::UnitOneSparseConstraint, a::AbstractArray)
     return 0
 end
 scale(r::UnitOneSparseConstraint) = 1
-scale!(r::UnitOneSparseConstraint, newscale::Number) = 1
+mul!(r::UnitOneSparseConstraint, newscale::Number) = 1
 
 ## indicator of vectors in the simplex: nonnegative vectors with unit l1 norm
 ## (eg for QuadLoss mixtures, ie soft kmeans)
 ## prox for the simplex is derived by Chen and Ye in [this paper](http://arxiv.org/pdf/1101.6081v2.pdf)
-type SimplexConstraint<:Regularizer
+mutable struct SimplexConstraint<:Regularizer
 end
 function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number=0)
     n = length(u)
@@ -334,7 +334,7 @@ function prox(r::SimplexConstraint, u::AbstractArray, alpha::Number=0)
             break
         end
     end
-    max.(u - t, 0)
+    max.(u .- t, 0)
 end
 function evaluate(r::SimplexConstraint,a::AbstractArray)
     # check it's a unit vector
@@ -346,7 +346,7 @@ function evaluate(r::SimplexConstraint,a::AbstractArray)
     return 0
 end
 scale(r::SimplexConstraint) = 1
-scale!(r::SimplexConstraint, newscale::Number) = 1
+mul!(r::SimplexConstraint, newscale::Number) = 1
 
 ## ordinal regularizer
 ## a block regularizer which
@@ -354,13 +354,13 @@ scale!(r::SimplexConstraint, newscale::Number) = 1
     # 2) forces the last entry of each column to be increasing
     # 3) applies an internal regularizer to the first k-1 entries of each column
 ## should always be used in conjunction with lastentry1 regularization on x
-type OrdinalReg<:Regularizer
+mutable struct OrdinalReg<:Regularizer
     r::Regularizer
 end
 OrdinalReg() = OrdinalReg(ZeroReg())
 prox(r::OrdinalReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
 function prox!(r::OrdinalReg,u::AbstractArray,alpha::Number)
-    um = mean(u[1:end-1, :], 2)
+    um = mean(u[1:end-1, :], dims=2)
     prox!(r.r,um,alpha)
     for i=1:size(u,1)-1
         for j=1:size(u,2)
@@ -378,18 +378,18 @@ function prox!(r::OrdinalReg,u::AbstractArray,alpha::Number)
 end
 evaluate(r::OrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
 scale(r::OrdinalReg) = scale(r.r)
-scale!(r::OrdinalReg, newscale::Number) = scale!(r.r, newscale)
+mul!(r::OrdinalReg, newscale::Number) = mul!(r.r, newscale)
 
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::OrdinalReg) = r
 
-type MNLOrdinalReg<:Regularizer
+mutable struct MNLOrdinalReg<:Regularizer
     r::Regularizer
 end
 MNLOrdinalReg() = MNLOrdinalReg(ZeroReg())
 prox(r::MNLOrdinalReg,u::AbstractArray,alpha::Number) = (uc = copy(u); prox!(r,uc,alpha))
 function prox!(r::MNLOrdinalReg,u::AbstractArray,alpha::Number; TOL=1e-3)
-    um = mean(u[1:end-1, :], 2)
+    um = mean(u[1:end-1, :], dims=2)
     prox!(r.r,um,alpha)
     for i=1:size(u,1)-1
         for j=1:size(u,2)
@@ -405,12 +405,12 @@ function prox!(r::MNLOrdinalReg,u::AbstractArray,alpha::Number; TOL=1e-3)
 end
 evaluate(r::MNLOrdinalReg,a::AbstractArray) = evaluate(r.r,a[1:end-1,1])
 scale(r::MNLOrdinalReg) = scale(r.r)
-scale!(r::MNLOrdinalReg, newscale::Number) = scale!(r.r, newscale)
+mul!(r::MNLOrdinalReg, newscale::Number) = mul!(r.r, newscale)
 # make sure we don't add two offsets cuz that's weird
 lastentry_unpenalized(r::MNLOrdinalReg) = r
 
 ## Quadratic regularization with non-zero mean
-type RemQuadReg<:Regularizer
+mutable struct RemQuadReg<:Regularizer
         scale::Float64
         m::Array{Float64, 1}
 end
@@ -419,7 +419,7 @@ prox(r::RemQuadReg, u::AbstractArray, alpha::Number) =
      (u + 2 * alpha * r.scale * r.m) / (1 + 2 * alpha * r.scale)
 prox!(r::RemQuadReg, u::Array{Float64}, alpha::Number) = begin
         broadcast!(.+, u, u, 2 * alpha * r.scale * r.m)
-        scale!(u, 1 / (1 + 2 * alpha * r.scale))
+        mul!(u, 1 / (1 + 2 * alpha * r.scale))
 end
 evaluate(r::RemQuadReg, a::AbstractArray) = r.scale * sum(abs2, a - r.m)
 

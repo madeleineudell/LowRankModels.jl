@@ -1,7 +1,7 @@
 using LowRankModels
 
 # test losses in losses.jl
-srand(1);
+Random.seed!(1);
 
 losses = [
 QuadLoss(),

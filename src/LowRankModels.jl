@@ -2,11 +2,14 @@ __precompile__()
 
 module LowRankModels
 
-using Compat
-using Missings
+using Printf
+using SharedArrays
+using SparseArrays
+using Random
 
-import Base: scale!, show
-import StatsBase: fit!, mode
+import LinearAlgebra: dot, norm, Diagonal, rmul!, mul!
+import Base: show
+import StatsBase: fit!, mode, mean, var, std
 
 # define losses, regularizers, convergence history
 include("domains.jl")

@@ -1,7 +1,7 @@
 ### Proximal gradient method
 export SparseProxGradParams, fit!
 
-type SparseProxGradParams<:AbstractParams
+mutable struct SparseProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
@@ -60,7 +60,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
 # STEP 1: X update
         for inneri=1:params.inner_iter
         for e=1:m # doing this means looping over XY in row-major order, but otherwise we couldn't parallelize over Xᵢs
-            scale!(g, 0)# reset gradient to 0
+            mul!(g, 0)# reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
             for f in glrm.observed_features[e]
@@ -71,7 +71,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_features[e]) + 1
-            scale!(g, -alpha/l)
+            mul!(g, -alpha/l)
             ## gradient step: Xᵢ += -(α/l) * ∇{Xᵢ}L
             axpy!(1,g,ve[e])
             ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
@@ -81,7 +81,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
 # STEP 2: Y update
         for inneri=1:params.inner_iter
         for f=1:n
-            scale!(g, 0) # reset gradient to 0
+            mul!(g, 0) # reset gradient to 0
             # compute gradient of L with respect to Yⱼ as follows:
             # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ
             for e in glrm.observed_examples[f]
@@ -91,7 +91,7 @@ function fit!(glrm::GLRM, params::SparseProxGradParams;
             end
             # take a proximal gradient step
             l = length(glrm.observed_examples[f]) + 1
-            scale!(g, -alpha/l)
+            mul!(g, -alpha/l)
             ## gradient step: Yⱼ += -(α/l) * ∇{Yⱼ}L
             axpy!(1,g,vf[f])
             ## prox step: Yⱼ = prox_ryⱼ(Yⱼ, α/l)

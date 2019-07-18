@@ -29,7 +29,7 @@ end
 function kmeans(A::AbstractArray, k::Int; kwargs...)
 	loss = QuadLoss()
 	ry = ZeroReg()
-	rx = UnitOneSparseConstraint() 
+	rx = UnitOneSparseConstraint()
 	return GLRM(A,loss,rx,ry,k; kwargs...)
 end
 

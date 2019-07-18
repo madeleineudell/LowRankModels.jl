@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using LowRankModels
 
 ## Tests for NNDSVD initialization

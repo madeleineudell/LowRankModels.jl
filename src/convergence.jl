@@ -1,6 +1,6 @@
 export ConvergenceHistory, update_ch!
 
-type ConvergenceHistory
+mutable struct ConvergenceHistory
     name::AbstractString
     objective::Array
     dual_objective::Array

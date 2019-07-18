@@ -1,7 +1,7 @@
 ### Proximal gradient method
 export ProxGradParams, fit!
 
-type ProxGradParams<:AbstractParams
+mutable struct ProxGradParams<:AbstractParams
     stepsize::Float64 # initial stepsize
     max_iter::Int # maximum number of outer iterations
     inner_iter_X::Int # how many prox grad steps to take on X before moving on to Y (and vice versa)
@@ -42,7 +42,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	ry = glrm.ry
 	X = glrm.X; Y = glrm.Y
   # check that we didn't initialize to zero (otherwise we will never move)
-  if vecnorm(Y) == 0
+  if norm(Y) == 0
   	Y = .1*randn(k,d)
   end
 	k = glrm.k
@@ -62,7 +62,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         glrm.Y = randn(glrm.k, d)
     end
 
-    XY = @compat Array{Float64}((m, d))
+    XY = Array{Float64}(undef, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)
@@ -116,7 +116,8 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 
         for inneri=1:params.inner_iter_X
         Threads.@threads for e=1:m # for every example x_e == ve[e]
-            scale!(g[Threads.threadid()], 0) # reset gradient to 0
+		# for e=1:m # for every example x_e == ve[e]
+            g[Threads.threadid()] .= 0 # reset gradient to 0
             # compute gradient of L with respect to Xᵢ as follows:
             # ∇{Xᵢ}L = Σⱼ dLⱼ(XᵢYⱼ)/dXᵢ
             for f in glrm.observed_features[e]
@@ -141,11 +142,11 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 ## prox step: Xᵢ = prox_rx(Xᵢ, α/l)
                 prox!(rx[e],newve[e],stepsize)
                 if row_objective(glrm, e, newve[e]) < obj_by_row[e]
-                    copy!(ve[e], newve[e])
+                    copyto!(ve[e], newve[e])
                     alpharow[e] *= 1.05 # choose a more aggressive stepsize
                     break
                 else # the stepsize was too big; undo and try again only smaller
-                    copy!(newve[e], ve[e])
+                    copyto!(newve[e], ve[e])
                     alpharow[e] *= .7 # choose a less aggressive stepsize
                     if alpharow[e] < params.min_stepsize
                         alpharow[e] = params.min_stepsize * 1.1
@@ -158,8 +159,9 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         end # inner iteration
 # STEP 2: Y update
         for inneri=1:params.inner_iter_Y
-        scale!(G, 0)
+        G .= 0
         Threads.@threads for f=1:n
+		# for f=1:n
             # compute gradient of L with respect to Yⱼ as follows:
             # ∇{Yⱼ}L = Σⱼ dLⱼ(XᵢYⱼ)/dYⱼ
             for e in glrm.observed_examples[f]
@@ -185,12 +187,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
                 prox!(ry[f],newvf[f],stepsize)
                 new_obj_by_col = col_objective(glrm, f, newvf[f])
                 if new_obj_by_col < obj_by_col[f]
-                    copy!(vf[f], newvf[f])
+                    copyto!(vf[f], newvf[f])
                     alphacol[f] *= 1.05
                     obj_by_col[f] = new_obj_by_col
                     break
                 else
-                    copy!(newvf[f], vf[f])
+                    copyto!(newvf[f], vf[f])
                     alphacol[f] *= .7
                     if alphacol[f] < params.min_stepsize
                         alphacol[f] = params.min_stepsize * 1.1
