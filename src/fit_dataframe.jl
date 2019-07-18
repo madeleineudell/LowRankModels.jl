@@ -242,7 +242,7 @@ function expand_categoricals!(df::DataFrame,categoricals::Array{Int,1})
         levels = sort(unique(df[:,col]))
         for level in levels
             if !ismissing(level)
-                colname = symbol(string(colnames[col])*"="*string(level))
+                colname = Symbol(string(colnames[col])*"="*string(level))
                 df[colname] = (df[:,col] .== level)
             end
         end
