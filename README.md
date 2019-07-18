@@ -99,7 +99,7 @@ Regularizers:
 
 Each of these losses and regularizers can be scaled
 (for example, to increase the importance of the loss relative to the regularizer)
-by calling `scale!(loss, newscale)`.
+by calling `mul!(loss, newscale)`.
 Users may also implement their own losses and regularizers,
 or adjust internal parameters of the losses and regularizers;
 see [losses.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/src/losses.jl) and [regularizers.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/regularizers.jl) for more details.

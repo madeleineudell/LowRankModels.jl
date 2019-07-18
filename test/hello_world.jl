@@ -17,7 +17,7 @@ losses = [real_losses..., bool_losses..., ordinal_losses..., categorical_losses.
 
 # scale losses for different columns
 for loss in losses
-  scale!(loss, rand())
+  mul!(loss, rand())
 end
 
 # regularizers to test

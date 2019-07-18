@@ -19,8 +19,8 @@ function cross_validate(glrm::AbstractGLRM;
     folds = getfolds(obs, nfolds, size(glrm.A)..., do_check = do_obs_check)
     train_glrms = Array{typeof(glrm)}(undef, nfolds)
     test_glrms = Array{typeof(glrm)}(undef, nfolds)
-    train_error = @compat Array{Float64}(undef, nfolds)
-    test_error = @compat Array{Float64}(undef, nfolds)
+    train_error = Array{Float64}(undef, nfolds)
+    test_error = Array{Float64}(undef, nfolds)
     for ifold=1:use_folds
         if verbose println("\nforming train and test GLRM for fold $ifold") end
         train_observed_features, train_observed_examples, test_observed_features, test_observed_examples = folds[ifold]
@@ -52,12 +52,12 @@ function cross_validate(glrm::AbstractGLRM;
     return train_error, test_error, train_glrms, test_glrms
 end
 
-@compat function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)
+function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_check = true)
     # partition elements of obs into nfolds groups
-    groups = @compat Array{Int}(undef, size(obs))
+    groups = Array{Int}(undef, size(obs))
     rand!(groups, 1:nfolds)  # fill an array with random 1 through N
     # create the training and testing observations for each fold
-    folds = @compat Array{Tuple}(undef, nfolds)
+    folds = Array{Tuple}(undef, nfolds)
     for itrial = 1:ntrials
         enough_observations = 0
         for ifold=1:nfolds
@@ -103,7 +103,7 @@ function get_train_and_test(obs, m, n, holdout_proportion=.1)
 end
 
 function flatten_observations(observed_features::ObsArray)
-    obs = @compat Array{Tuple{Int,Int}}(undef, 0)
+    obs = Array{Tuple{Int,Int}}(undef, 0)
     for (i, features_in_example_i) in enumerate(observed_features)
         for j in features_in_example_i
             push!(obs, (i,j))
@@ -163,8 +163,8 @@ function cv_by_iter(glrm::AbstractGLRM, holdout_proportion=.1,
 
     niters = params.max_iter
     params.max_iter = 1
-    train_error = @compat Array{Float64}(undef, niters)
-    test_error = @compat Array{Float64}(undef, niters)
+    train_error = Array{Float64}(undef, niters)
+    test_error = Array{Float64}(undef, niters)
     if verbose
         @printf("%12s%12s%12s\n", "train error", "test error", "time")
         t0 = time()
@@ -214,13 +214,13 @@ end
 function regularization_path(train_glrm::AbstractGLRM, test_glrm::AbstractGLRM; params=Params(), reg_params=exp10.(range(2,stop=-2,length=5)),
                                          verbose=true,
                                          ch::ConvergenceHistory=ConvergenceHistory("reg_path"))
-    train_error = @compat Array{Float64}(undef, length(reg_params))
-    test_error = @compat Array{Float64}(undef, length(reg_params))
+    train_error = Array{Float64}(undef, length(reg_params))
+    test_error = Array{Float64}(undef, length(reg_params))
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_glrm.observed_features))
     if verbose println("training model on $ntrain samples and testing on $ntest") end
     @show params
-    train_time = @compat Array{Float64}(undef, length(reg_params))
+    train_time = Array{Float64}(undef, length(reg_params))
     for iparam=1:length(reg_params)
         reg_param = reg_params[iparam]
         # evaluate train and test error
@@ -247,11 +247,11 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
     ntrain = sum(map(length, train_glrm.observed_features))
     ntest = sum(map(length, test_observed_features))
     train_observed_features = train_glrm.observed_features
-    train_error = @compat Array{Float64}(undef, length(reg_params))
-    test_error = @compat Array{Float64}(undef, length(reg_params))
-    prec_at_k = @compat Array{Float64}(undef, length(reg_params))
-    @compat solution = @compat Array{Tuple{Float64,Float64}}(undef, length(reg_params))
-    train_time = @compat Array{Float64}(undef, length(reg_params))
+    train_error = Array{Float64}(undef, length(reg_params))
+    test_error = Array{Float64}(undef, length(reg_params))
+    prec_at_k = Array{Float64}(undef, length(reg_params))
+    solution = Array{Tuple{Float64,Float64}}(undef, length(reg_params))
+    train_time = Array{Float64}(undef, length(reg_params))
     test_glrm = GLRM(train_glrm.A, train_glrm.losses, train_glrm.rx, train_glrm.ry, train_glrm.k,
                      X=copy(train_glrm.X), Y=copy(train_glrm.Y),
                      observed_features = test_observed_features)
@@ -259,8 +259,8 @@ function precision_at_k(train_glrm::GLRM, test_observed_features; params=Params(
         reg_param = reg_params[iparam]
         # evaluate train error
         if verbose println("fitting train GLRM for reg_param $reg_param") end
-        scale!(train_glrm.rx, reg_param)
-        scale!(train_glrm.ry, reg_param)
+        mul!(train_glrm.rx, reg_param)
+        mul!(train_glrm.ry, reg_param)
         train_glrm.X, train_glrm.Y = randn(train_glrm.k,m), randn(train_glrm.k,n) # this bypasses the error checking in GLRM(). Risky.
         X, Y, ch = fit!(train_glrm, params, ch=ch, verbose=verbose)
         train_time[iparam] = ch.times[end]

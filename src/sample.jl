@@ -13,7 +13,7 @@
 # In order to accomplish this we define a series of domains that describe how imputation should be performed over
 # them. Each combination of domain and loss must have the following:
 #	Methods:
-#     `sample(D::my_Domain, l::my_loss_mutable struct, u::Float64) ::Float64`
+#     `sample(D::my_Domain, l::my_loss_type, u::Float64) ::Float64`
 #           Samples aᵤ from among the range of possible values of a. The range of
 #			possible values of a should be implicitly or explicitly provided by `D`.
 #			There should be an sample method for every combination of datatype and loss.
@@ -130,7 +130,7 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	n = length(glrm.losses)
 	yidxs = get_yidxs(glrm.losses)
 	domains = Domain[domain(l) for l in glrm.losses]
-	# make sure we don't mutate the mutable struct of the array A
+	# make sure we don't mutate the type of the array A
 	# even if all data for some real loss take integer values
 	for j=1:n
 		if isa(domains[j], RealDomain) && isa(glrm.A[j], DataArray{Int64,1})

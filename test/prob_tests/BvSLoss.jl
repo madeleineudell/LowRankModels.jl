@@ -1,6 +1,6 @@
 using LowRankModels,  Random
 import StatsBase: sample, Weights
-import LinearAlgebra: norm 
+import LinearAlgebra: norm
 
 # test ordistic loss
 
@@ -21,7 +21,7 @@ for j=1:n # this scheme doesn't work to ensure uniform sampling
 	T_real[:,j] = sort(T_real[:,j])
 end
 
-signedsums = @compat Array{Float64}(undef, d, nlevels)
+signedsums = Array{Float64}(undef, d, nlevels)
 for i=1:d
     for j=1:nlevels
         signedsums[i,j] = i<j ? 1 : -1
@@ -79,4 +79,4 @@ println("After fitting, imputed entries are off by $(sum(abs.(A_imputed - A)) / 
 println("(Picking randomly, $((nlevels-1)/nlevels*100)% of entries would be wrong.)\n")
 
 # test scaling
-scale!(glrm.ry, 3)
+mul!(glrm.ry, 3)

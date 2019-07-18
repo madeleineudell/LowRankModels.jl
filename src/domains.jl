@@ -18,7 +18,7 @@ export Domain, # the abstract type
 	   RealDomain, BoolDomain, OrdinalDomain, PeriodicDomain, CountDomain, CategoricalDomain, # the domains
 	   copy
 
-@compat abstract type Domain end
+abstract type Domain end
 
 ########################################## REALS ##########################################
 # Real data can take values from ℜ

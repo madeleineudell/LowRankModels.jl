@@ -62,7 +62,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
         glrm.Y = randn(glrm.k, d)
     end
 
-    XY = @compat Array{Float64}(undef, (m, d))
+    XY = Array{Float64}(undef, (m, d))
     gemm!('T','N',1.0,X,Y,0.0,XY) # XY = X' * Y initial calculation
 
     # step size (will be scaled below to ensure it never exceeds 1/\|g\|_2 or so for any subproblem)

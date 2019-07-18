@@ -172,7 +172,7 @@ end
 
 ## sanity check the choice of loss
 
-# this default definition could be tighter: only needs to be defined for arguments of mutable structs that submutable struct Loss
+# this default definition could be tighter: only needs to be defined for arguments of types that subtype Loss
 function pick_loss(l, col)
     return l()
 end
@@ -205,7 +205,7 @@ observations(da::Array{Union{T, Missing}}) where T = df_observations(da)
 observations(df::DataFrame) = df_observations(df)
 # isnan -> ismissing
 function df_observations(da)
-    obs = @compat Tuple{Int, Int}[]
+    obs = Tuple{Int, Int}[]
     m,n = size(da)
     for j=1:n # follow column-major order. First element of index in innermost loop
         for i=1:m
@@ -264,37 +264,9 @@ function expand_categoricals!(df::DataFrame,categoricals::Array)
 end
 
 # convert NaNs to NAs
-# isnan(x::NAmutable struct) = false
+# isnan(x::NAtype) = false
 isnan(x::AbstractString) = false
 isnan(x::Union{T, Nothing}) where T = isnan(x.value)
-
-
-# letting these two functions be here for now, just to catch bugs.
-#= function NaNs_to_NAs!(df::DataFrame)
-    m,n = size(df)
-    for j=1:n # follow column-major order. First element of index in innermost loop
-        for i=1:m
-            if !isna(df[i,j]) && isnan(df[i,j])
-                df[i,j] = NA
-            end
-        end
-    end
-    return df
-end
-
-
-function NAs_to_0s!(df::DataFrame)
-    m,n = size(df)
-    for j=1:n # follow column-major order. First element of index in innermost loop
-        for i=1:m
-            if isna(df[i,j])
-                df[i,j] = 0
-            end
-        end
-    end
-    return df
-end
-=#
 
 # same functionality as above.
 function NaNs_to_Missing!(df::DataFrame)

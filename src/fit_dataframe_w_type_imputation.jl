@@ -130,7 +130,7 @@ end
 
 function get_ordinals(df::DataFrame)
     m,n = size(df)
-    # there must be a better way to check mutable structs...
+    # there must be a better way to check types...
     ordinals = [(isa(df[i], AbstractArray{Int,1}) ||
                  isa(df[i], AbstractArray{Int32,1}) ||
                  isa(df[i], AbstractArray{Int64,1})) for i in 1:n]
