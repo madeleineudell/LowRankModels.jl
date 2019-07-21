@@ -3,7 +3,7 @@ import LowRankModels: keep_rows
 import StatsBase: sample, Weights
 
 ## generate data
-srand(1);
+Random.seed!(1);
 m,n,k = 2000,30,3;
 p = .05 # probability of observing any given matrix entry
 kfit = k+1
@@ -20,8 +20,7 @@ A = XY + sqrt(sigmasq)*randn(m,n)
 
 # missing values
 M = sprand(m,n,p)
-I,J = findn(M) # observed indices (vectors)
-obs = [(I[a],J[a]) for a = 1:length(I)] # observed indices (list of tuples)
+obs = findall(!iszero, M) # observed indices (CartesianIndices)
 
 # and the model
 losses = QuadLoss()

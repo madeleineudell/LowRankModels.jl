@@ -44,8 +44,7 @@ function GLRM(A, losses::Array, rx::Array, ry::Array, k::Int;
 
     # Determine observed entries of data
     if obs==nothing && sparse_na && isa(A,SparseMatrixCSC)
-        ii,jj = findn(A) # observed indices (vectors)
-        obs = collect(zip(ii,jj)) # observed indices (list of tuples)
+        obs = findall(!iszero, A) # observed indices (list of CartesianIndices)
     end
     if obs==nothing # if no specified array of tuples, use what was explicitly passed in or the defaults (all)
         # println("no obs given, using observed_features and observed_examples")

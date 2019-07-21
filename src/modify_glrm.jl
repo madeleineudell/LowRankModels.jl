@@ -2,10 +2,11 @@ export sort_observations, add_offset!, fix_latent_features!,
        equilibrate_variance!, prob_scale!
 
 ### OBSERVATION TUPLES TO ARRAYS
-function sort_observations(obs::Array{Tuple{Int,Int},1}, m::Int, n::Int; check_empty=false)
+function sort_observations(obs::Union{Array{CartesianIndex{2},1},Array{Tuple{Int,Int},1}}, m::Int, n::Int; check_empty=false)
     observed_features = Array{Int,1}[Int[] for i=1:m]
     observed_examples = Array{Int,1}[Int[] for j=1:n]
-    for (i,j) in obs
+    for obsij in obs
+        i,j = obsij[1], obsij[2]
         push!(observed_features[i],j)
         push!(observed_examples[j],i)
     end
@@ -60,7 +61,7 @@ function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
     for i in columns_to_scale
         nomissing = glrm.A[glrm.observed_examples[i],i]
         if typeof(glrm.losses[i]) == QuadLoss && length(nomissing) > 0
-            varlossi = var(skipmissing(glrm.A[i])) # estimate the variance
+            varlossi = var(skipmissing(glrm.A[:,i])) # estimate the variance
             if varlossi > TOL
     		  mul!(glrm.losses[i], 1/(2*varlossi)) # this is the correct -loglik of gaussian with variance fixed at estimate
     	    else

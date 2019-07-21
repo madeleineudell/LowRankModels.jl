@@ -18,3 +18,7 @@
 * Poisson loss
 	* scaling?
 	* to log or not to log? that is the interpretative issue
+
+# Bugs
+
+* init_nndsvd! doesn't work (probably an upgrade-to-1.0 bug)

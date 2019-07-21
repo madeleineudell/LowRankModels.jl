@@ -1,5 +1,5 @@
 using Test
-using LowRankModels
+using LowRankModels, Random, SparseArrays
 
 # Check that sparse algorithm converges to the same solution
 # from the same initial conditions for simple pca.
@@ -19,7 +19,6 @@ X2,Y2,ch2 = fit!(glrm_2,SparseProxGradParams())
 
 # Check that the sparsity pattern in the data is correctly identified.
 A = sprand(m,n,0.5)
-I,J = findn(A)
 
 glrm = GLRM(A,loss,r,r,k) # create glrm from sparse matrix
 

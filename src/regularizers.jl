@@ -277,14 +277,14 @@ function evaluate(r::KSparseConstraint, a::AbstractArray)
 end
 function prox(r::KSparseConstraint, u::AbstractArray, alpha::Number)
   k = r.k
-  ids = selectperm(u, 1:k, by=abs, rev=true)
+  ids = partialsortperm(u, 1:k, by=abs, rev=true)
   uk = zeros(u)
   uk[ids] = u[ids]
   uk
 end
 function prox!(r::KSparseConstraint, u::Array, alpha::Number)
   k = r.k
-  ids = selectperm(u, 1:k, by=abs, rev=true)
+  ids = partialsortperm(u, 1:k, by=abs, rev=true)
   vals = u[ids]
   mul!(u,0)
   u[ids] = vals

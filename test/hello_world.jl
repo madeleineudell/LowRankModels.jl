@@ -1,18 +1,18 @@
-using LowRankModels
+using LowRankModels, DataFrames, Random, SparseArrays
 
-# loss mutable structs to test
-real_loss_mutable structs = [QuadLoss, HuberLoss]
-bool_loss_mutable structs = [HingeLoss]
-ordinal_loss_mutable structs = [OrdinalHingeLoss, BvSLoss]
-categorical_loss_mutable structs = [MultinomialLoss, OvALoss]
+# loss types to test
+real_loss_types = [QuadLoss, HuberLoss]
+bool_loss_types = [HingeLoss]
+ordinal_loss_types = [OrdinalHingeLoss, BvSLoss]
+categorical_loss_types = [MultinomialLoss, OvALoss]
 
 #instantiate losses
 ncat = 4 # maximum categorical levels
 nord = 5 # maximum ordinal levels
-real_losses = [l() for l in real_loss_mutable structs]
-bool_losses = [l() for l in bool_loss_mutable structs]
-ordinal_losses = [l(rand(3:nord)) for l in ordinal_loss_mutable structs]
-categorical_losses = [l(rand(3:ncat)) for l in categorical_loss_mutable structs]
+real_losses = [l() for l in real_loss_types]
+bool_losses = [l() for l in bool_loss_types]
+ordinal_losses = [l(rand(3:nord)) for l in ordinal_loss_types]
+categorical_losses = [l(rand(3:ncat)) for l in categorical_loss_types]
 losses = [real_losses..., bool_losses..., ordinal_losses..., categorical_losses...]
 
 # scale losses for different columns
@@ -39,13 +39,12 @@ println("successfully fit matrix")
 
 ### now fit data frame
 
-using DataFrames
-A = DataFrame(A)
-for i=1:10
-  A[rand(1:m), rand(1:n)] = NA
-end
-obs = observations(A)
-glrm = GLRM(A, losses, QuadReg(), QuadReg(), 2, obs=obs)
+df = NaNs_to_Missing!(DataFrame(Array(0 ./ A_sparse + A_sparse)))
+obs = observations(df)
+glrm = GLRM(df, losses, QuadReg(), QuadReg(), 2, obs=obs)
+fit!(glrm)
+
+glrm = GLRM(df, 5, fill(:real, size(df,1)))
 fit!(glrm)
 println("successfully fit dataframe")
 
@@ -58,8 +57,8 @@ println("successfully sampled from model")
 
 ### now fit sparse matrix
 
-m, n = 100, 200
-A = sprandn(m, n, .5)
+m, n = 10, 10
+sparseA = sprandn(m, n, .5)
 glrm = GLRM(A, QuadLoss(), QuadReg(), QuadReg(), 5)
 fit!(glrm)
 println("successfully fit sparse GLRM")

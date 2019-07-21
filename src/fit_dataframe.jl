@@ -28,8 +28,7 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
         error("third argument (datatypes) must have one entry for each column of data frame.")
     end
     # validate input
-    # XXX check for undefined entry?
-    for dt in datatype
+    for dt in datatypes
         if !(dt in keys(loss_map))
             error("data types must be either :real, :bool, :ord, or :cat, not $dt")
         end
@@ -42,22 +41,22 @@ function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
     end
 
     # define loss functions for each column
-    losses = Array(Loss, ncol(A))
+    losses = Array{Loss}(undef, ncol(A))
     for j=1:ncol(df)
         losstype = loss_map[datatypes[j]]
         if transform_data_to_numbers
             map_to_numbers!(A, j, datatypes[j])
         end
-        losses[j] = pick_loss(losstype, A[j])
+        losses[j] = pick_loss(losstype, A[:,j])
     end
 
-    # identify which entries in data frame have been observed (ie are not N/A)
+    # identify which entries in data frame have been observed (ie are not missing)
     obs = observations(df)
 
     # form model
-    rys = Array(Regularizer, length(losses))
+    rys = Array{Regularizer}(undef, length(losses))
     for i=1:length(losses)
-        if isa(losses[i].domain, OrdinalDomain) && embedding_dim(losses[i])>1 #losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
+        if isa(losses[i].domain, OrdinalDomain) && embedding_dim(losses[i])>1 # losses[i], MultinomialOrdinalLoss) || isa(losses[i], OrdisticLoss)
             rys[i] = OrdinalReg(copy(ry))
         else
             rys[i] = copy(ry)
@@ -85,15 +84,15 @@ end
 function map_to_numbers!(df, j::Int, datatype::Symbol)
     # easy case
     if datatype == :real
-        if all(xi -> is_number_or_null(xi), df[j][!ismissing_vec(df[j])])
-            return df[j]
+        if all(xi -> is_number_or_null(xi), df[:,j][.!ismissing_vec(df[:,j])])
+            return df[:,j]
         else
             error("column contains non-numerical values")
         end
     end
 
     # harder cases
-    col = copy(df[j])
+    col = copy(df[:,j])
     levels = Set(col[!ismissing_vec(col)])
     if datatype == :bool
         if length(levels)>2
@@ -107,13 +106,13 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
     end
 
     # for after the Nullapocalypse
-    df[j] = DataArray(Int, length(df[j]))
+    df[:,j] = DataArray(Int, length(df[:,j]))
     for i in 1:length(col)
         if !ismissing(col[i])
-            df[j][i] = getval(colmap[col[i]])
+            df[i,j] = getval(colmap[col[i]])
         end
     end
-    return df[j]
+    return df[:,j]
 end
 
 getval(x::Union{T, Nothing}) where T = x.value
@@ -121,53 +120,53 @@ getval(x::T) where T<:Number = x
 
 
 function map_to_numbers!(df, j::Int, loss::Type{QuadLoss})
-    if all(xi -> is_number_or_null(xi), df[j][!ismissing_vec(df[j])])
-        return df[j]
+    if all(xi -> is_number_or_null(xi), df[:,j][!ismissing_vec(df[:,j])])
+        return df[:,j]
     else
         error("column contains non-numerical values")
     end
 end
 
 function map_to_numbers!(df, j::Int, loss::Type{LogisticLoss})
-    col = copy(df[j])
+    col = copy(df[:,j])
     levels = Set(col[!ismissing_vec(col)])
     if length(levels)>2
         error("Boolean variable should have at most two levels")
     end
     colmap = Dict{Any,Int}(zip(sort(collect(levels)), [-1,1][1:length(levels)]))
-    df[j] = DataArray(Int, length(df[j]))
+    df[:,j] = DataArray(Int, length(df[:,j]))
     for i in 1:length(col)
         if !ismissing(col[i])
-            df[j][i] = colmap[col[i]]
+            df[i,j] = colmap[col[i]]
         end
     end
-    return df[j]
+    return df[:,j]
 end
 
 function map_to_numbers!(df, j::Int, loss::Type{MultinomialLoss})
-    col = copy(df[j])
+    col = copy(df[:,j])
     levels = Set(col[!ismissing_vec(col)])
     colmap = Dict{Any,Int}(zip(sort(collect(levels)), 1:length(levels)))
-    df[j] = DataArray(Int, length(df[j]))
+    df[:,j] = DataArray(Int, length(df[:,j]))
     for i in 1:length(col)
         if !ismissing(col[i])
-            df[j][i] = colmap[col[i]]
+            df[i,j] = colmap[col[i]]
         end
     end
-    return df[j]
+    return df[:,j]
 end
 
 function map_to_numbers!(df, j::Int, loss::Type{MultinomialOrdinalLoss})
-    col = copy(df[j])
+    col = copy(df[:,j])
     levels = Set(col[!ismissing_vec(col)])
     colmap = Dict{Any,Int}(zip(sort(collect(levels)), 1:length(levels)))
-    df[j] = DataArray(Int, length(df[j]))
+    df[:,j] = DataArray(Int, length(df[:,j]))
     for i in 1:length(col)
         if !ismissing(col[i])
-            df[j][i] = colmap[col[i]]
+            df[i,j] = colmap[col[i]]
         end
     end
-    return df[j]
+    return df[:,j]
 end
 
 ## sanity check the choice of loss
@@ -272,10 +271,9 @@ isnan(x::Union{T, Nothing}) where T = isnan(x.value)
 function NaNs_to_Missing!(df::DataFrame)
     m,n = size(df)
     for j=1:n
-        df[j] = [isnan(df[j][i]) ? missing : value for (i,value) in enumerate(df[j])];
+        df[!,j] = [ismissing(df[i,j]) || isnan(df[i,j]) ? missing : value for (i,value) in enumerate(df[:,j])];
 	end
     return df
 end
 
-# ismissing(Array{Union{T,Missing},1}) doesn't exist.
-ismissing_vec(V::Array{Any,1}) = Bool[ismissing(x) for x in V[:]]
+ismissing_vec(V::AbstractArray) = Bool[ismissing(x) for x in V[:]]
