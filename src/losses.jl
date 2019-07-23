@@ -465,14 +465,14 @@ mutable struct BvSLoss<:Loss
     scale::Float64
     domain::Domain
 end
-BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=LogisticLoss(scale)) = BvSLoss(m,bin_loss,scale,domain)
+function BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=LogisticLoss(scale))
+  @assert(m >= 2, error("Number of levels of ordinal variable must be at least 2; got $m."))
+  BvSLoss(m,bin_loss,scale,domain)
+end
 BvSLoss() = BvSLoss(10) # for copying correctly
 embedding_dim(l::BvSLoss) = l.max-1
 datalevels(l::BvSLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
-# function evaluate(l::BvSLoss, u::Array{Float64,2}, a::Int)
-# this breaks compatibility with v0.4
 function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
     loss = 0
     for j in 1:length(u)
@@ -481,9 +481,6 @@ function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
     return l.scale*loss
 end
 
-# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
-# function grad(l::BvSLoss, u::Array{Float64,2}, a::Int)
-# this breaks compatibility with v0.4
 function grad(l::BvSLoss, u::Array{Float64,1}, a::Int)
   g = zeros(length(u))
   for j in 1:length(u)

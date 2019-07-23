@@ -133,7 +133,7 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	# make sure we don't mutate the type of the array A
 	# even if all data for some real loss take integer values
 	for j=1:n
-		if isa(domains[j], RealDomain) && isa(glrm.A[j], DataArray{Int64,1})
+		if isa(domains[j], RealDomain) && isa(glrm.A[:,j], Array{Union{Missing, Int},1})
 			domains[j] = OrdinalDomain(minimum(dropmissing(glrm.A[j])), maximum(dropmissing(glrm.A[j])))
 		end
 	end

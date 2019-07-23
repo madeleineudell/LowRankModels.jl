@@ -1,4 +1,5 @@
 using LowRankModels, DataFrames, Random, SparseArrays
+Random.seed!(0)
 
 # loss types to test
 real_loss_types = [QuadLoss, HuberLoss]
@@ -27,6 +28,8 @@ end
 
 # regularizers to test
 regularizers = [QuadReg(), OneReg(5), NonNegConstraint(), KSparseConstraint(2)]
+# add more regularizers = more rows so the data isn't degenerate
+regularizers = cat(regularizers, fill(QuadReg(), 10), dims=1)
 
 m,n = length(regularizers), length(losses)
 
@@ -39,7 +42,7 @@ A_cat = rand(1:3, m, length(categorical_losses))
 A = Any[A_real A_bool A_ord A_cat]
 
 glrm = GLRM(A, losses, regularizers, QuadReg(), 2)
-fit!(glrm)
+fit!(glrm, verbose=false)
 println("successfully fit matrix")
 
 ### now fit data frame
@@ -48,18 +51,18 @@ df = NaNs_to_Missing!(DataFrame(Array(0 ./ A_sparse + A_sparse)))
 # explicitly encoding missing
 obs = observations(df)
 glrm = GLRM(df, QuadLoss(), QuadReg(), QuadReg(), 2, obs=obs)
-fit!(glrm)
+fit!(glrm, verbose=false)
 
 # implicitly encoding missings from dataframe - this functionality has not been implemented for dataframes
 # glrm = GLRM(df, QuadLoss(), QuadReg(), QuadReg(), 2)
-# fit!(glrm)
+# fit!(glrm, verbose=false)
 
 # without specifying losses directly
 glrm = GLRM(DataFrame(A), 3, data_types)
-fit!(glrm)
+fit!(glrm, verbose=false)
 println("successfully fit dataframe")
 
-# imputation and sampling
+### imputation and sampling
 impute(glrm)
 println("successfully imputed entries")
 sample(glrm)
@@ -71,5 +74,5 @@ println("successfully sampled from model")
 m, n = 10, 10
 sparseA = sprandn(m, n, .5)
 glrm = GLRM(A, QuadLoss(), QuadReg(), QuadReg(), 5)
-fit!(glrm)
+fit!(glrm, verbose=false)
 println("successfully fit sparse GLRM")
