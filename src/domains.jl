@@ -37,7 +37,7 @@ struct OrdinalDomain<:Domain
 	max::Int
 	function OrdinalDomain(min, max)
 		if max - min < 2
-			warn("The ordinal variable you've created is degenerate: it has only two levels. Consider using a Boolean variable instead; ordinal loss functions may have unexpected behavior on a degenerate ordinal domain.")
+			@warn("The ordinal variable you've created is degenerate: it has only two levels. Consider using a Boolean variable instead; ordinal loss functions may have unexpected behavior on a degenerate ordinal domain.")
 		end
 		return new(min, max)
 	end

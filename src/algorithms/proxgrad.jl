@@ -53,7 +53,7 @@ function fit!(glrm::GLRM, params::ProxGradParams;
     d = maximum(yidxs[end])
     # check Y is the right size
     if d != size(Y,2)
-        warn("The width of Y should match the embedding dimension of the losses.
+        @warn("The width of Y should match the embedding dimension of the losses.
             Instead, embedding_dim(glrm.losses) = $(embedding_dim(glrm.losses))
             and size(glrm.Y, 2) = $(size(glrm.Y, 2)).
             Reinitializing Y as randn(glrm.k, embedding_dim(glrm.losses).")

@@ -1,6 +1,8 @@
 using LowRankModels
 using Test, Random, SparseArrays
 
+using LinearAlgebra: norm
+
 ###############################################################
 # verify basic functionality works
 include("basic_functionality.jl")
