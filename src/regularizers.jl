@@ -278,7 +278,7 @@ end
 function prox(r::KSparseConstraint, u::AbstractArray, alpha::Number)
   k = r.k
   ids = partialsortperm(u, 1:k, by=abs, rev=true)
-  uk = zeros(u)
+  uk = zero(u)
   uk[ids] = u[ids]
   uk
 end

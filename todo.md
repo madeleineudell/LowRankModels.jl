@@ -22,3 +22,7 @@
 # Bugs
 
 * init_nndsvd! doesn't work (probably an upgrade-to-1.0 bug)
+* M_estimator doesn't work (losses.jl); bug in Optim?
+* sample doesn't work
+* lots of bugs in fit_dataframe_w_type_imputation; deprecated for now. (also it's an odd thing to do.)
+* imputation doesn't return correct type (for dataframes)

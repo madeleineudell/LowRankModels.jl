@@ -83,6 +83,16 @@ Losses:
 * periodic loss `PeriodicLoss`
 * multinomial categorical loss `MultinomialLoss`
 * multinomial ordinal (aka ordered logit) loss `OrderedMultinomialLoss`
+* bigger-vs-smaller loss `BvSLoss` (for ordinal data)
+* one-vs all-loss `OvALoss` (for categorical data)
+
+The constructors for all the ordinal and categorical losses take as an
+argument  the maximum (or both minimum and maximum) value the variable may  take.
+Using the one-vs-all loss is equivalent to transforming a categorical value
+to a one-hot vector and using a binary loss on each entry in that vector.
+Using the bigger-vs-smaller loss is equivalent to transforming the ordinal value
+to a boolean vector and using a binary loss on each entry in that vector.
+By default,  the binary loss used is the logistic loss.
 
 Regularizers:
 

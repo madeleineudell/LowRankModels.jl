@@ -68,7 +68,7 @@ function prob_scale!(glrm, columns_to_scale = 1:size(glrm.A,2))
     		  warn("column $i has a variance of $varlossi; not scaling it to avoid dividing by zero.")
     	    end
         elseif typeof(glrm.losses[i]) == HuberLoss && length(nomissing) > 0
-            varlossi = avgerror(glrm.losses[i], glrm.A[i]) # estimate the width of the distribution
+            varlossi = avgerror(glrm.losses[i], glrm.A[:,i]) # estimate the width of the distribution
             if varlossi > TOL
               mul!(glrm.losses[i], 1/(2*varlossi)) # this is not the correct -loglik of huber with estimates for variance and mean of poisson, but that's probably ok
             else

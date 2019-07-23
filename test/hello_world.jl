@@ -14,6 +14,11 @@ bool_losses = [l() for l in bool_loss_types]
 ordinal_losses = [l(rand(3:nord)) for l in ordinal_loss_types]
 categorical_losses = [l(rand(3:ncat)) for l in categorical_loss_types]
 losses = [real_losses..., bool_losses..., ordinal_losses..., categorical_losses...]
+data_types = cat([:real for l in real_losses],
+                  [:bool for l in bool_losses],
+                  [:ord for l in ordinal_losses],
+                  [:cat for l in categorical_losses],
+                  dims=1)
 
 # scale losses for different columns
 for loss in losses
@@ -31,20 +36,26 @@ A_ord = rand(1:5, m, length(ordinal_losses))
 A_cat = rand(1:3, m, length(categorical_losses))
 
 # without saying "Any", upconverts to array of Floats
-A = Any[A_real A_bool A_ord A_cat] # XXX upconverts to Array{Float64,2}
+A = Any[A_real A_bool A_ord A_cat]
 
 glrm = GLRM(A, losses, regularizers, QuadReg(), 2)
 fit!(glrm)
 println("successfully fit matrix")
 
 ### now fit data frame
-
+A_sparse = sprandn(10, 10, .5)
 df = NaNs_to_Missing!(DataFrame(Array(0 ./ A_sparse + A_sparse)))
+# explicitly encoding missing
 obs = observations(df)
-glrm = GLRM(df, losses, QuadReg(), QuadReg(), 2, obs=obs)
+glrm = GLRM(df, QuadLoss(), QuadReg(), QuadReg(), 2, obs=obs)
 fit!(glrm)
 
-glrm = GLRM(df, 5, fill(:real, size(df,1)))
+# implicitly encoding missings from dataframe - this functionality has not been implemented for dataframes
+# glrm = GLRM(df, QuadLoss(), QuadReg(), QuadReg(), 2)
+# fit!(glrm)
+
+# without specifying losses directly
+glrm = GLRM(DataFrame(A), 3, data_types)
 fit!(glrm)
 println("successfully fit dataframe")
 

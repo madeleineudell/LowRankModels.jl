@@ -6,6 +6,8 @@ using Printf
 using SharedArrays
 using SparseArrays
 using Random
+using Statistics
+using DataFrames
 
 import LinearAlgebra: dot, norm, Diagonal, rmul!, mul!
 import Base: show

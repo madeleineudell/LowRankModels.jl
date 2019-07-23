@@ -21,12 +21,6 @@ git-tree-sha1 = "c7361ce8a2129f20b0e05a89f7070820cfed6648"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
 version = "0.5.6"
 
-[[CSV]]
-deps = ["CategoricalArrays", "DataFrames", "Dates", "Mmap", "Parsers", "PooledArrays", "Profile", "Tables", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "a7df9250dff3aba96436580dd6ac00d712364cab"
-uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.5.9"
-
 [[Calculus]]
 deps = ["Compat"]
 git-tree-sha1 = "f60954495a7afcee4136f78d1d60350abd37a409"
@@ -38,12 +32,6 @@ deps = ["Compat", "Future", "JSON", "Missings", "Printf", "Reexport"]
 git-tree-sha1 = "26601961df6afacdd16d67c1eec6cfe75e5ae9ab"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 version = "0.5.4"
-
-[[CodecZlib]]
-deps = ["BinaryProvider", "Libdl", "Test", "TranscodingStreams"]
-git-tree-sha1 = "36bbf5374c661054d41410dc53ff752972583b9b"
-uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
-version = "0.5.2"
 
 [[CommonSubexpressions]]
 deps = ["Test"]
@@ -103,18 +91,6 @@ version = "0.0.10"
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
-
-[[EzXML]]
-deps = ["BinaryProvider", "Libdl", "Printf"]
-git-tree-sha1 = "724e13b7522563a18ae4a5cc4a9792ae3b0da3e6"
-uuid = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
-version = "0.9.3"
-
-[[FileIO]]
-deps = ["Pkg"]
-git-tree-sha1 = "351f001a78aa1b7ad2696e386e110b5abd071c71"
-uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.0.7"
 
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Test"]
@@ -185,12 +161,6 @@ version = "0.4.1"
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
-[[Mocking]]
-deps = ["Compat", "Dates"]
-git-tree-sha1 = "4bf69aaf823b119b034e091e16b18311aa191663"
-uuid = "78c3b35d-d492-501b-9361-3d52fe80e533"
-version = "0.5.7"
-
 [[NLSolversBase]]
 deps = ["Calculus", "DiffEqDiffTools", "DiffResults", "Distributed", "ForwardDiff", "LinearAlgebra", "Random", "SparseArrays", "Test"]
 git-tree-sha1 = "0c6f0e7f2178f78239cfb75310359eed10f2cacb"
@@ -251,22 +221,6 @@ version = "0.2.2"
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-
-[[Profile]]
-deps = ["Printf"]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
-
-[[RData]]
-deps = ["CategoricalArrays", "CodecZlib", "DataFrames", "Dates", "FileIO", "TimeZones"]
-git-tree-sha1 = "3b0fc2f7df61b8890502851281c1eb0d2407d6ac"
-uuid = "df47a6cb-8c03-5eed-afd8-b6050d6c41da"
-version = "0.6.2"
-
-[[RDatasets]]
-deps = ["CSV", "CodecZlib", "DataFrames", "FileIO", "Printf", "RData", "Reexport", "Test"]
-git-tree-sha1 = "4d93a52b94397bf0a9477d04e7a151a688672695"
-uuid = "ce6b1742-4840-55fa-b093-852dadbb1d8b"
-version = "0.6.1"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
@@ -355,18 +309,6 @@ version = "0.2.9"
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
-[[TimeZones]]
-deps = ["Dates", "EzXML", "Mocking", "Printf", "Serialization", "Unicode"]
-git-tree-sha1 = "859bfc1832ea52e413c96fa5c92130516db62bdb"
-uuid = "f269a46b-ccf7-5d73-abea-4c690281aa53"
-version = "0.9.1"
-
-[[TranscodingStreams]]
-deps = ["Random", "Test"]
-git-tree-sha1 = "a25d8e5a28c3b1b06d3859f30757d43106791919"
-uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
-version = "0.9.4"
-
 [[URIParser]]
 deps = ["Test", "Unicode"]
 git-tree-sha1 = "6ddf8244220dfda2f17539fa8c9de20d6c575b69"
@@ -379,9 +321,3 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
-
-[[WeakRefStrings]]
-deps = ["Random", "Test"]
-git-tree-sha1 = "9a0bb82eede528debe631b642eeb48a631a69bc2"
-uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
-version = "0.6.1"

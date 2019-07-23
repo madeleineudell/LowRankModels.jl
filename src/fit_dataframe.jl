@@ -17,6 +17,13 @@ probabilistic_losses = Dict{Symbol, Any}(
     :cat         => MultinomialLoss
 )
 
+robust_losses = Dict{Symbol, Any}(
+    :real        => HuberLoss,
+    :bool        => LogisticLoss,
+    :ord         => BvSLoss,
+    :cat         => OvALoss
+)
+
 function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
               loss_map = probabilistic_losses,
               rx = QuadReg(.01), ry = QuadReg(.01),
@@ -75,10 +82,10 @@ end
 ## transform data to numbers
 
 function is_number_or_null(x)
-  isa(x, Number) || (:value in fieldnames(x) && isa(x.value, Number))
+  isa(x, Number) || ismissing(x) # (:value in fieldnames(x) && isa(x.value, Number))
 end
 function is_int_or_null(x)
-  isa(x, Int) || (:value in fieldnames(x) && isa(x.value, Int))
+  isa(x, Int) || ismissing(x) # (:value in fieldnames(x) && isa(x.value, Int))
 end
 
 function map_to_numbers!(df, j::Int, datatype::Symbol)
@@ -93,7 +100,7 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
 
     # harder cases
     col = copy(df[:,j])
-    levels = Set(col[!ismissing_vec(col)])
+    levels = Set(col[.!ismissing_vec(col)])
     if datatype == :bool
         if length(levels)>2
             error("Boolean variable should have at most two levels; instead, got:\n$levels")
@@ -105,8 +112,8 @@ function map_to_numbers!(df, j::Int, datatype::Symbol)
         error("datatype $datatype not recognized")
     end
 
-    # for after the Nullapocalypse
-    df[:,j] = DataArray(Int, length(df[:,j]))
+    m = size(df,1)
+    df[!,j] = Array{Union{Missing, Int},1}(undef, m)
     for i in 1:length(col)
         if !ismissing(col[i])
             df[i,j] = getval(colmap[col[i]])
