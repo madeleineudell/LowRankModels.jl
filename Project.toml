@@ -2,7 +2,7 @@ name = "LowRankModels"
 uuid = "15d4e49f-4837-5ea3-a885-5b28bfa376dc"
 keywords = ["matrix factorization", "missing data", "imputation"]
 license = "MIT"
-version = "1.0.0"
+version = "1.0.1"
 
 [deps]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
@@ -20,3 +20,6 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [extras]
 RDatasets = "ce6b1742-4840-55fa-b093-852dadbb1d8b"
+
+[compat]
+julia = "1"
