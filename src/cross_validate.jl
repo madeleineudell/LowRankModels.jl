@@ -67,7 +67,7 @@ function getfolds(obs::Array{Tuple{Int,Int},1}, nfolds, m, n; ntrials = 5, do_ch
                 (check_enough_observations(train_observed_features) && check_enough_observations(train_observed_examples))
                     enough_observations += 1
             else
-                warn("Not enough data to cross validate; one of the cross validation folds has no observations in one row or column. Trying again...")
+                @warn("Not enough data to cross validate; one of the cross validation folds has no observations in one row or column. Trying again...")
                 break
             end
             test = obs[filter(i->groups[i]==ifold, 1:length(obs))] # all the obs that did

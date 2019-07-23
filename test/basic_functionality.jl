@@ -1,4 +1,5 @@
 using LowRankModels
+
 # tests basic functionality of glrm.jl
 Random.seed!(1);
 m,n,k,s = 100,100,5,100*100;

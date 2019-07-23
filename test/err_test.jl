@@ -61,11 +61,11 @@ for test_iteration = 1:500
 	end
 	train_err_at_k = [train_err_at_k[k] for k in k_range]
 	if !all([de<0 for de in diff(train_err_at_k)]) #check that errors monotonically decrease as k increases
-		warn("==================================================================================")
-		warn("ERRORS WENT UP FOR THIS CONFIGURATION")
-		warn("Model:\nlosses = $(losses)\nrx,ry = $(rx), $(ry)")
-		warn("Ranks: $(string(k_range))")
-		warn("Training errors: $(string(train_err_at_k))")
-		warn("==================================================================================")
+		@warn("==================================================================================")
+		@warn("ERRORS WENT UP FOR THIS CONFIGURATION")
+		@warn("Model:\nlosses = $(losses)\nrx,ry = $(rx), $(ry)")
+		@warn("Ranks: $(string(k_range))")
+		@warn("Training errors: $(string(train_err_at_k))")
+		@warn("==================================================================================")
 	end
 end
