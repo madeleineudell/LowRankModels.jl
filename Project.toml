@@ -20,6 +20,8 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [extras]
 RDatasets = "ce6b1742-4840-55fa-b093-852dadbb1d8b"
+ScikitLearnBase = "6e75b9c4-186b-50bd-896f-2d2496a4843e"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 
 [compat]
 julia = "1"

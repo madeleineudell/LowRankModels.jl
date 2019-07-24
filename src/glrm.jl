@@ -40,7 +40,7 @@ function GLRM(A, losses::Array, rx::Array, ry::Array, k::Int;
     if length(rx)!=m error("There must be either one X regularizer or as many X regularizers as there are rows in the data matrix") end
     if length(ry)!=n error("There must be either one Y regularizer or as many Y regularizers as there are columns in the data matrix") end
     if size(X)!=(k,m) error("X must be of size (k,m) where m is the number of rows in the data matrix. This is the transpose of the standard notation used in the paper, but it makes for better memory management. \nsize(X) = $(size(X)), size(A) = $(size(A)), k = $k") end
-    if size(Y)!=(k,sum(map(embedding_dim, losses))) error("Y must be of size (k,d) where d is the sum of the embedding dimensions of all the losses. \n(1 for real-valued losses, and the number of categories for categorical losses).") end
+    if size(Y)!=(k,embedding_dim(losses)) error("Y must be of size (k,d) where d is the sum of the embedding dimensions of all the losses. \n(1 for real-valued losses, and the number of categories for categorical losses).") end
 
     # Determine observed entries of data
     if obs==nothing && sparse_na && isa(A,SparseMatrixCSC)

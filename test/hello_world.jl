@@ -45,6 +45,11 @@ glrm = GLRM(A, losses, regularizers, QuadReg(), 2)
 fit!(glrm, verbose=false)
 println("successfully fit matrix")
 
+Ω = [(rand(1:m), rand(1:n)) for iobs in 1:(5*max(m,n))] # observe some random entries, with replacement
+glrm = GLRM(A, losses, regularizers, QuadReg(), 2, obs=Ω);
+fit!(glrm, verbose=false)
+println("successfully fit matrix with some entries unobserved")
+
 ### now fit data frame
 A_sparse = sprandn(10, 10, .5)
 df = NaNs_to_Missing!(DataFrame(Array(0 ./ A_sparse + A_sparse)))
