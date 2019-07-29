@@ -369,7 +369,7 @@ datalevels(l::MultinomialLoss) = 1:l.max # levels are encoded as the numbers 1:l
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Integer)
     sumexp = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
@@ -385,7 +385,7 @@ end
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
+function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Integer)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = -1
@@ -430,7 +430,7 @@ datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function evaluate(l::OvALoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function evaluate(l::OvALoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::OvALoss, u::Array{Float64,1}, a::Integer)
     loss = 0
     for j in 1:length(u)
         loss += evaluate(l.bin_loss, u[j], a==j)
@@ -441,7 +441,7 @@ end
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function grad(l::OvALoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function grad(l::OvALoss, u::Array{Float64,1}, a::Int)
+function grad(l::OvALoss, u::Array{Float64,1}, a::Integer)
   g = zeros(length(u))
   for j in 1:length(u)
       g[j] = grad(l.bin_loss, u[j], a==j)
@@ -473,7 +473,7 @@ BvSLoss() = BvSLoss(10) # for copying correctly
 embedding_dim(l::BvSLoss) = l.max-1
 datalevels(l::BvSLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Integer)
     loss = 0
     for j in 1:length(u)
         loss += evaluate(l.bin_loss, u[j], a>j)
@@ -481,7 +481,7 @@ function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
     return l.scale*loss
 end
 
-function grad(l::BvSLoss, u::Array{Float64,1}, a::Int)
+function grad(l::BvSLoss, u::Array{Float64,1}, a::Integer)
   g = zeros(length(u))
   for j in 1:length(u)
       g[j] = grad(l.bin_loss, u[j], a>j)
@@ -511,7 +511,7 @@ OrdisticLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = OrdisticLo
 embedding_dim(l::OrdisticLoss) = l.max
 datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Integer)
     diffusquared = u[a]^2 .- u.^2
     M = maximum(diffusquared)
     invlik = sum(exp, (diffusquared .- M))
@@ -519,7 +519,7 @@ function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
     return l.scale*loss
 end
 
-function grad(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
+function grad(l::OrdisticLoss, u::Array{Float64,1}, a::Integer)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = 2*u[a]
@@ -593,7 +593,7 @@ function enforce_MNLOrdRules!(u; TOL=1e-3)
 end
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 # todo: increase numerical stability
-function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Integer)
   enforce_MNLOrdRules!(u)
   if a == 1
     return -l.scale*log(exp(0) - exp(u[1])) # (log(1 - exp(u[a] - 1)))
@@ -605,7 +605,7 @@ function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
 end
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
-function grad(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
+function grad(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Integer)
   enforce_MNLOrdRules!(u)
   g = zeros(size(u))
   if a == 1
