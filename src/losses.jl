@@ -102,8 +102,8 @@ end
 ### -1,0,1::Int are translated to Booleans if loss is not defined on numbers
 # convert(::Type{Bool}, x::Int) = x==1 ? true : (x==-1 || x==0) ? false : throw(InexactError("Bool method successfully overloaded by LowRankModels"))
 myBool(x::Int) = x==1 ? true : (x==-1 || x==0) ? false : throw(InexactError())
-evaluate(l::ClassificationLoss, u::Float64, a::Int) = evaluate(l,u,myBool(a))
-grad(l::ClassificationLoss, u::Float64, a::Int) = grad(l,u,myBool(a))
+evaluate(l::ClassificationLoss, u::Real, a::Int) = evaluate(l,u,myBool(a))
+grad(l::ClassificationLoss, u::Real, a::Int) = grad(l,u,myBool(a))
 M_estimator(l::ClassificationLoss, a::AbstractArray{Int,1}) = M_estimator(l,myBool(a))
 
 ### M-estimators
@@ -141,9 +141,9 @@ mutable struct QuadLoss<:DiffLoss
 end
 QuadLoss(scale=1.0::Float64; domain=RealDomain()) = QuadLoss(scale, domain)
 
-evaluate(l::QuadLoss, u::Float64, a::Number) = l.scale*(u-a)^2
+evaluate(l::QuadLoss, u::Real, a::Number) = l.scale*(u-a)^2
 
-grad(l::QuadLoss, u::Float64, a::Number) = 2*(u-a)*l.scale
+grad(l::QuadLoss, u::Real, a::Number) = 2*(u-a)*l.scale
 
 M_estimator(l::QuadLoss, a::AbstractArray) = mean(a)
 
@@ -155,9 +155,9 @@ mutable struct L1Loss<:DiffLoss
 end
 L1Loss(scale=1.0::Float64; domain=RealDomain()) = L1Loss(scale, domain)
 
-evaluate(l::L1Loss, u::Float64, a::Number) = l.scale*abs(u-a)
+evaluate(l::L1Loss, u::Real, a::Number) = l.scale*abs(u-a)
 
-grad(l::L1Loss, u::Float64, a::Number) = sign(u-a)*l.scale
+grad(l::L1Loss, u::Real, a::Number) = sign(u-a)*l.scale
 
 M_estimator(l::L1Loss, a::AbstractArray) = median(a)
 
@@ -170,11 +170,11 @@ mutable struct HuberLoss<:DiffLoss
 end
 HuberLoss(scale=1.0::Float64; domain=RealDomain(), crossover=1.0::Float64) = HuberLoss(scale, domain, crossover)
 
-function evaluate(l::HuberLoss, u::Float64, a::Number)
+function evaluate(l::HuberLoss, u::Real, a::Number)
     abs(u-a) > l.crossover ? (abs(u-a) - l.crossover + l.crossover^2)*l.scale : (u-a)^2*l.scale
 end
 
-grad(l::HuberLoss,u::Float64,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
+grad(l::HuberLoss,u::Real,a::Number) = abs(u-a)>l.crossover ? sign(u-a)*l.scale : (u-a)*l.scale
 
 M_estimator(l::HuberLoss, a::AbstractArray) = median(a) # a heuristic, not the true estimator
 
@@ -190,12 +190,12 @@ mutable struct QuantileLoss<:DiffLoss
 end
 QuantileLoss(scale=1.0::Float64; domain=RealDomain(), quantile=.5::Float64) = QuantileLoss(scale, domain, quantile)
 
-function evaluate(l::QuantileLoss, u::Float64, a::Number)
+function evaluate(l::QuantileLoss, u::Real, a::Number)
     diff = a-u
     diff > 0  ?  l.scale * l.quantile * diff  :  - l.scale * (1-l.quantile) * diff
 end
 
-function grad(l::QuantileLoss,u::Float64,a::Number)
+function grad(l::QuantileLoss,u::Real,a::Number)
   diff = a-u
   diff > 0  ?  -l.scale * l.quantile  :  l.scale * (1-l.quantile)
 end
@@ -213,11 +213,11 @@ mutable struct PeriodicLoss<:DiffLoss
 end
 PeriodicLoss(T, scale=1.0::Float64; domain=PeriodicDomain(T)) = PeriodicLoss(T, scale, domain)
 
-evaluate(l::PeriodicLoss, u::Float64, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
+evaluate(l::PeriodicLoss, u::Real, a::Number) = l.scale*(1-cos((a-u)*(2*pi)/l.T))
 
-grad(l::PeriodicLoss, u::Float64, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
+grad(l::PeriodicLoss, u::Real, a::Number) = -l.scale*((2*pi)/l.T)*sin((a-u)*(2*pi)/l.T)
 
-function M_estimator(l::PeriodicLoss, a::AbstractArray{Float64})
+function M_estimator(l::PeriodicLoss, a::AbstractArray{<:Real})
     (l.T/(2*pi))*atan( sum(sin(2*pi*a/l.T)) / sum(cos(2*pi*a/l.T)) ) + l.T/2 # not kidding.
     # this is the estimator, and there is a form that works with weighted measurements (aka a prior on a)
     # see: http://www.tandfonline.com/doi/pdf/10.1080/17442507308833101 eq. 5.2
@@ -234,11 +234,11 @@ mutable struct PoissonLoss<:Loss
 end
 PoissonLoss(max_count=2^31::Int; domain=CountDomain(max_count)::Domain) = PoissonLoss(1.0, domain)
 
-function evaluate(l::PoissonLoss, u::Float64, a::Number)
+function evaluate(l::PoissonLoss, u::Real, a::Number)
     l.scale*(exp(u) - a*u + (a==0 ? 0 : a*(log(a)-1))) # log(a!) ~ a==0 ? 0 : a*(log(a)-1)
 end
 
-grad(l::PoissonLoss, u::Float64, a::Number) = l.scale*(exp(u) - a)
+grad(l::PoissonLoss, u::Real, a::Number) = l.scale*(exp(u) - a)
 
 M_estimator(l::PoissonLoss, a::AbstractArray) = log(mean(a))
 
@@ -255,7 +255,7 @@ OrdinalHingeLoss(m1, m2, scale=1.0::Float64; domain=OrdinalDomain(m1,m2)) = Ordi
 OrdinalHingeLoss() = OrdinalHingeLoss(1, 10, 1.0, OrdinalDomain(1,10))
 OrdinalHingeLoss(m2) = OrdinalHingeLoss(1, m2, 1.0, OrdinalDomain(1, m2))
 
-function evaluate(l::OrdinalHingeLoss, u::Float64, a::Number)
+function evaluate(l::OrdinalHingeLoss, u::Real, a::Number)
     #a = round(a)
     if u > l.max-1
         # number of levels higher than true level
@@ -277,7 +277,7 @@ function evaluate(l::OrdinalHingeLoss, u::Float64, a::Number)
     return l.scale*loss
 end
 
-function grad(l::OrdinalHingeLoss, u::Float64, a::Number)
+function grad(l::OrdinalHingeLoss, u::Real, a::Number)
     #a = round(a)
     if u > a
         # number of levels higher than true level
@@ -301,9 +301,9 @@ mutable struct LogisticLoss<:ClassificationLoss
 end
 LogisticLoss(scale=1.0::Float64; domain=BoolDomain()) = LogisticLoss(scale, domain)
 
-evaluate(l::LogisticLoss, u::Float64, a::Bool) = l.scale*log(1+exp(-(2a-1)*u))
+evaluate(l::LogisticLoss, u::Real, a::Bool) = l.scale*log(1+exp(-(2a-1)*u))
 
-grad(l::LogisticLoss, u::Float64, a::Bool) = (aa = 2a-1; -aa*l.scale/(1+exp(aa*u)))
+grad(l::LogisticLoss, u::Real, a::Bool) = (aa = 2a-1; -aa*l.scale/(1+exp(aa*u)))
 
 function M_estimator(l::LogisticLoss, a::AbstractArray{Bool,1})
     d, N = sum(a), length(a)
@@ -323,7 +323,7 @@ WeightedHingeLoss(scale=1.0; domain=BoolDomain(), case_weight_ratio=1.0) =
     WeightedHingeLoss(scale, domain, case_weight_ratio)
 HingeLoss(scale=1.0::Float64; kwargs...) = WeightedHingeLoss(scale; kwargs...) # the standard HingeLoss is a special case of WeightedHingeLoss
 
-function evaluate(l::WeightedHingeLoss, u::Float64, a::Bool)
+function evaluate(l::WeightedHingeLoss, u::Real, a::Bool)
     loss = l.scale*max(1-(2*a-1)*u, 0)
     if l.case_weight_ratio !==1. && a
         loss *= l.case_weight_ratio
@@ -331,7 +331,7 @@ function evaluate(l::WeightedHingeLoss, u::Float64, a::Bool)
     return loss
 end
 
-function grad(l::WeightedHingeLoss, u::Float64, a::Bool)
+function grad(l::WeightedHingeLoss, u::Real, a::Bool)
     an = (2*a-1) # change to {-1,1}
     g = (an*u>=1 ? 0 : -an*l.scale)
     if l.case_weight_ratio !==1. && a
@@ -369,7 +369,7 @@ datalevels(l::MultinomialLoss) = 1:l.max # levels are encoded as the numbers 1:l
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function evaluate(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::MultinomialLoss, u::Array{<:Real,1}, a::Int)
     sumexp = 0 # inverse likelihood of observation
     # computing soft max directly is numerically unstable
     # instead note logsumexp(a_j) = logsumexp(a_j - M) + M
@@ -383,9 +383,9 @@ function evaluate(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
 end
 
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
-# function grad(l::MultinomialLoss, u::Array{Float64,2}, a::Int)
+# function grad(l::MultinomialLoss, u::Array{<:Real,2}, a::Int)
 # this breaks compatibility with v0.4
-function grad(l::MultinomialLoss, u::Array{Float64,1}, a::Int)
+function grad(l::MultinomialLoss, u::Array{<:Real,1}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = -1
@@ -430,7 +430,7 @@ datalevels(l::OvALoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
 # function evaluate(l::OvALoss, u::Array{Float64,2}, a::Int)
 # this breaks compatibility with v0.4
-function evaluate(l::OvALoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::OvALoss, u::Array{<:Real,1}, a::Int)
     loss = 0
     for j in 1:length(u)
         loss += evaluate(l.bin_loss, u[j], a==j)
@@ -439,9 +439,9 @@ function evaluate(l::OvALoss, u::Array{Float64,1}, a::Int)
 end
 
 # in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
-# function grad(l::OvALoss, u::Array{Float64,2}, a::Int)
+# function grad(l::OvALoss, u::Array{<:Real,2}, a::Int)
 # this breaks compatibility with v0.4
-function grad(l::OvALoss, u::Array{Float64,1}, a::Int)
+function grad(l::OvALoss, u::Array{<:Real,1}, a::Int)
   g = zeros(length(u))
   for j in 1:length(u)
       g[j] = grad(l.bin_loss, u[j], a==j)
@@ -465,15 +465,15 @@ mutable struct BvSLoss<:Loss
     scale::Float64
     domain::Domain
 end
-function BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=LogisticLoss(scale))
-  @assert(m >= 2, error("Number of levels of ordinal variable must be at least 2; got $m."))
-  BvSLoss(m,bin_loss,scale,domain)
-end
+BvSLoss(m::Integer, scale::Float64=1.0; domain=OrdinalDomain(1,m), bin_loss::Loss=LogisticLoss(scale)) = BvSLoss(m,bin_loss,scale,domain)
 BvSLoss() = BvSLoss(10) # for copying correctly
 embedding_dim(l::BvSLoss) = l.max-1
 datalevels(l::BvSLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function evaluate(l::BvSLoss, u::Array{Float64,2}, a::Int)
+# this breaks compatibility with v0.4
+function evaluate(l::BvSLoss, u::Array{<:Real,1}, a::Int)
     loss = 0
     for j in 1:length(u)
         loss += evaluate(l.bin_loss, u[j], a>j)
@@ -481,7 +481,10 @@ function evaluate(l::BvSLoss, u::Array{Float64,1}, a::Int)
     return l.scale*loss
 end
 
-function grad(l::BvSLoss, u::Array{Float64,1}, a::Int)
+# in Julia v0.4, argument u is a row vector (row slice of a matrix), which in julia is 2d
+# function grad(l::BvSLoss, u::Array{<:Real,2}, a::Int)
+# this breaks compatibility with v0.4
+function grad(l::BvSLoss, u::Array{<:Real,1}, a::Int)
   g = zeros(length(u))
   for j in 1:length(u)
       g[j] = grad(l.bin_loss, u[j], a>j)
@@ -511,7 +514,7 @@ OrdisticLoss(m::Int, scale=1.0::Float64; domain=OrdinalDomain(1,m)) = OrdisticLo
 embedding_dim(l::OrdisticLoss) = l.max
 datalevels(l::OrdisticLoss) = 1:l.max # levels are encoded as the numbers 1:l.max
 
-function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::OrdisticLoss, u::Array{<:Real,1}, a::Int)
     diffusquared = u[a]^2 .- u.^2
     M = maximum(diffusquared)
     invlik = sum(exp, (diffusquared .- M))
@@ -519,7 +522,7 @@ function evaluate(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
     return l.scale*loss
 end
 
-function grad(l::OrdisticLoss, u::Array{Float64,1}, a::Int)
+function grad(l::OrdisticLoss, u::Array{<:Real,1}, a::Int)
     g = zeros(size(u))
     # Using some nice algebra, you can show
     g[a] = 2*u[a]
@@ -593,7 +596,7 @@ function enforce_MNLOrdRules!(u; TOL=1e-3)
 end
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
 # todo: increase numerical stability
-function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
+function evaluate(l::MultinomialOrdinalLoss, u::Array{<:Real,1}, a::Int)
   enforce_MNLOrdRules!(u)
   if a == 1
     return -l.scale*log(exp(0) - exp(u[1])) # (log(1 - exp(u[a] - 1)))
@@ -605,7 +608,7 @@ function evaluate(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
 end
 
 # argument u is a row vector (row slice of a matrix), which in julia is 2d
-function grad(l::MultinomialOrdinalLoss, u::Array{Float64,1}, a::Int)
+function grad(l::MultinomialOrdinalLoss, u::Array{<:Real,1}, a::Int)
   enforce_MNLOrdRules!(u)
   g = zeros(size(u))
   if a == 1
@@ -636,7 +639,7 @@ function M_estimator(l::MultinomialOrdinalLoss, a::AbstractVector)
 end
 
 ### convenience methods for evaluating and computing gradients on vectorized arguments
-function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractVector)
+function evaluate(l::Loss, u::Array{<:Real,1}, a::AbstractVector)
   @assert size(u) == size(a)
   out = 0
   for i=1:length(a)
@@ -646,15 +649,15 @@ function evaluate(l::Loss, u::Array{Float64,1}, a::AbstractVector)
 end
 
 #Optimized vector evaluate on single-dimensional losses
-function evaluate(l::SingleDimLoss, u::Vector{Float64}, a::AbstractVector)
-  losseval = (x::Float64, y::Number) -> evaluate(l, x, y)
+function evaluate(l::SingleDimLoss, u::Vector{<:Real}, a::AbstractVector)
+  losseval = (x::Real, y::Number) -> evaluate(l, x, y)
   mapped = fill!(similar(u),0.)
   map!(losseval, mapped, u, a)
   reduce(+, mapped)
 end
 
 # now for multidimensional losses
-function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractVector)
+function evaluate(l::Loss, u::Array{<:Real,2}, a::AbstractVector)
   # @show size(u,1)
   # @show size(a)
   @assert size(u,1) == length(a)
@@ -665,7 +668,7 @@ function evaluate(l::Loss, u::Array{Float64,2}, a::AbstractVector)
   return out
 end
 
-function grad(l::Loss, u::Array{Float64,1}, a::AbstractVector)
+function grad(l::Loss, u::Array{<:Real,1}, a::AbstractVector)
   @assert size(u) == size(a)
   mygrad = zeros(size(u))
   for i=1:length(a)
@@ -675,14 +678,14 @@ function grad(l::Loss, u::Array{Float64,1}, a::AbstractVector)
 end
 
 # Optimized vector grad on single-dimensional losses
-function grad(l::SingleDimLoss, u::Vector{Float64}, a::AbstractVector)
-  lossgrad = (x::Float64,y::Number) -> grad(l, x, y)
+function grad(l::SingleDimLoss, u::Vector{<:Real}, a::AbstractVector)
+  lossgrad = (x::Real,y::Number) -> grad(l, x, y)
   mapped = fill!(similar(u),0.)
   map!(lossgrad, mapped, u, a)
 end
 
 # now for multidimensional losses
-function grad(l::Loss, u::Array{Float64,2}, a::AbstractVector)
+function grad(l::Loss, u::Array{<:Real,2}, a::AbstractVector)
   @assert size(u,1) == length(a)
   mygrad = zeros(size(u))
   for i=1:length(a)
