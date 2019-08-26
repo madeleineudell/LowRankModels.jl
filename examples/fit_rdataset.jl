@@ -6,12 +6,13 @@ using LowRankModels
 df = RDatasets.dataset("psych", "msq")
 
 # make a GLRM on the whole dataframe using type imputation
-auto_glrm = GLRM(df, 3)
+auto_glrm, labels = GLRM(df, 3)
+# fit!(auto_glrm)  - this doesn't work yet, because the data contains some trivial columns (ordinals with <2 levels)
 
 # now we'll try it without type imputation
 # we'll just fit four of the columns, to try out all four data types
 dd = DataFrame([df[s] for s in [:TOD, :Scale, :Vigorous, :Wakeful]])
-dd[end] = (dd[end].==1)
+dd[!,end] = (dd[:,end].==1)
 datatypes = [:real, :cat, :ord, :bool]
 
 # fit it!

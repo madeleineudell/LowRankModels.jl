@@ -28,7 +28,7 @@ export sample, sample_missing
 # Real data can take values from ℜ
 
 # l.scale should be 1/var
-sample(D::RealDomain, l::QuadLoss, u::Float64) = u + randn()/sqrt(l.scale)
+sample(D::RealDomain, l::QuadLoss, u::Float64; noisevar=l.scale) = u + randn()/sqrt(noisevar)
 
 ########################################## BOOLS ##########################################
 # Boolean data should take values from {true, false}
@@ -130,6 +130,7 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	n = length(glrm.losses)
 	yidxs = get_yidxs(glrm.losses)
 	domains = Domain[domain(l) for l in glrm.losses]
+
 	# make sure we don't mutate the type of the array A
 	# even if all data for some real loss take integer values
 	for j=1:n
@@ -137,6 +138,17 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 			domains[j] = OrdinalDomain(minimum(dropmissing(glrm.A[j])), maximum(dropmissing(glrm.A[j])))
 		end
 	end
+
+	# compute the correct variance for real valued losses
+	original_scales = [l.scale for l in glrm.losses]
+	for j=1:n
+		if isa(domains[j], RealDomain)
+			println("old scale:", glrm.losses[j].scale)
+			glrm.losses[j].scale = mean((U[glrm.observed_examples[j],j] - glrm.A[glrm.observed_examples[j],j])^2)
+			println("new scale:", glrm.losses[j].scale)
+		end
+	end
+
 	A_sampled = copy(glrm.A);
 	if is_dense && isa(A_sampled, SparseMatrixCSC)
 		A_sampled = Matrix(A_sampled)
@@ -148,6 +160,12 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 			end
 		end
 	end
+
+	# revert scales to previously defined values
+	for j=1:n
+		glrm.losses[j].scale = original_scales[j]
+	end
+
 	return A_sampled
 end
 

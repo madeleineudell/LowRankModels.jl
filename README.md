@@ -19,7 +19,7 @@ to construct a model suitable for a particular data set.
 In particular, it supports
 
 * using different loss functions for different columns of the data array,
-  which is useful when data mutable structs are heterogeneous
+  which is useful when data types are heterogeneous
   (eg, real, boolean, and ordinal columns);
 * fitting the model to only *some* of the entries in the table, which is useful for data tables with many missing (unobserved) entries; and
 * adding offsets and scalings to the model without destroying sparsity,
@@ -38,7 +38,7 @@ at the julia prompt.
 GLRMs form a low rank model for tabular data `A` with `m` rows and `n` columns,
 which can be input as an array or any array-like object (for example, a data frame).
 It is fine if only some of the entries have been observed
-(i.e., the others are missing or `NA`); the GLRM will only be fit on the observed entries `obs`.
+(i.e., the others are `missing`); the GLRM will only be fit on the `!ismissing` entries.
 The desired model is specified by choosing a rank `k` for the model,
 an array of loss functions `losses`, and two regularizers, `rx` and `ry`.
 The data is modeled as `X'*Y`, where `X` is a `k`x`m` matrix and `Y` is a `k`x`n` matrix.
@@ -47,7 +47,7 @@ The data is modeled as `X'*Y`, where `X` is a `k`x`m` matrix and `Y` is a `k`x`n
 
     minimize sum_{(i,j) in obs} losses[j]((X'*Y)[i,j], A[i,j]) + sum_i rx(X[:,i]) + sum_j ry(Y[:,j])
 
-The basic mutable struct used by LowRankModels.jl is the GLRM. To form a GLRM,
+The basic type used by LowRankModels.jl is the GLRM. To form a GLRM,
 the user specifies
 
 * the data `A` (any `AbstractArray`, such as an array, a sparse matrix, or a data frame)
@@ -68,7 +68,7 @@ see the discussion of [sparse matrices](https://github.com/madeleineudell/LowRan
 `X₀` and `Y₀` are initialization
 matrices that represent a starting guess for the optimization.
 
-Losses and regularizers must be of mutable struct `Loss` and `Regularizer`, respectively,
+Losses and regularizers must be of type `Loss` and `Regularizer`, respectively,
 and may be chosen from a list of supported losses and regularizers, which include
 
 Losses:
@@ -155,13 +155,14 @@ and constrains the third (and last) column of `Y` to be equal to `[1,2,3]`.
 # Missing data
 
 If not all entries are present in your data table, just tell the GLRM
-which observations to fit the model to by listing tuples of their indices in `obs`.
+which observations to fit the model to by listing tuples of their indices in `obs`,
+eg, if `obs=[(1,2),(5,3)]`, exactly two entries have been observed.
 Then initialize the model using
 
-    GLRM(A,losses,rx,ry,k, obs=obs)
+    GLRM(A,losses,rx,ry,k,obs=obs)
 
 If `A` is a DataFrame and you just want the model to ignore
-any entry that is of mutable struct `NA`, you can use
+any entry that is `missing`, you can use
 
     obs = observations(A)
 
@@ -204,7 +205,7 @@ You can also add offsets and scalings to previously unscaled models:
 
       equilibrate_variance!(glrm)
 
-* Scale only the columns using `QuadLoss` or `HuberLoss`
+* Scale only the columns associated to `QuadLoss` or `HuberLoss` loss functions.
 
       prob_scale!(glrm)
 
@@ -229,7 +230,7 @@ and ordinal HingeLoss loss for integer columns,
 a small amount of QuadLoss regularization,
 and scaling and adding an offset to the model as described [here](#scaling).
 It returns the column labels for the columns it fit, along with the model.
-Right now, all other data mutable structs are ignored.
+Right now, all other data types are ignored.
 `NaN` values are treated as missing values (`NA`s) and ignored in the fit.
 
 The full call signature is
@@ -242,7 +243,7 @@ function GLRM(df::DataFrame, k::Int;
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.
 
-Or to specify a map from data mutable structs to losses, define a new loss_map from datatypes to losses (like probabilistic_losses, below):
+Or to specify a map from data types to losses, define a new loss_map from datatypes to losses (like probabilistic_losses, below):
 ```
 probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
