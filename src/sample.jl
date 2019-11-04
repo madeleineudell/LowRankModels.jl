@@ -144,7 +144,7 @@ function sample(glrm::GLRM, do_sample::Function=all_entries, is_dense::Bool=true
 	for j=1:n
 		if isa(domains[j], RealDomain)
 			println("old scale:", glrm.losses[j].scale)
-			glrm.losses[j].scale = mean((U[glrm.observed_examples[j],j] - glrm.A[glrm.observed_examples[j],j])^2)
+			glrm.losses[j].scale = mean((U[glrm.observed_examples[j],j] - glrm.A[glrm.observed_examples[j],j]).^2)
 			println("new scale:", glrm.losses[j].scale)
 		end
 	end

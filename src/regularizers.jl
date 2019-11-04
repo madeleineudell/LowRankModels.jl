@@ -48,7 +48,7 @@ function allnonneg(a::AbstractArray)
   return true
 end
 
-## QuadLoss regularization
+## Quadratic regularization
 mutable struct QuadReg<:Regularizer
     scale::Float64
 end
@@ -57,7 +57,7 @@ prox(r::QuadReg,u::AbstractArray,alpha::Number) = 1/(1+2*alpha*r.scale)*u
 prox!(r::QuadReg,u::Array{Float64},alpha::Number) = rmul!(u, 1/(1+2*alpha*r.scale))
 evaluate(r::QuadReg,a::AbstractArray) = r.scale*sum(abs2, a)
 
-## constrained QuadLoss regularization
+## constrained quadratic regularization
 ## the function r such that
 ## r(x) = inf    if norm(x) > max_2norm
 ##        0      otherwise
@@ -80,13 +80,12 @@ mutable struct OneReg<:Regularizer
     scale::Float64
 end
 OneReg() = OneReg(1)
-prox(r::OneReg,u::AbstractArray,alpha::Number) = max.(u-alpha,0) + min.(u+alpha,0)
-prox!(r::OneReg,u::AbstractArray,alpha::Number) = begin
-  softthreshold = (x::Number -> max.(x-alpha,0) + min.(x+alpha,0))
-  map!(softthreshold, u, u)
+function softthreshold(x::Number; alpha=1)
+ return max(x-alpha,0) + min(x+alpha,0)
 end
+prox(r::OneReg,u::AbstractArray,alpha::Number) = (st(x) = softthreshold(x; alpha=alpha); st.(u))
+prox!(r::OneReg,u::AbstractArray,alpha::Number) = (st(x) = softthreshold(x; alpha=alpha); map!(st, u, u))
 evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs,a)
-
 
 ## no regularization
 mutable struct ZeroReg<:Regularizer
