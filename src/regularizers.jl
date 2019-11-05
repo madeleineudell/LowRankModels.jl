@@ -83,8 +83,8 @@ OneReg() = OneReg(1)
 function softthreshold(x::Number; alpha=1)
  return max(x-alpha,0) + min(x+alpha,0)
 end
-prox(r::OneReg,u::AbstractArray,alpha::Number) = (st(x) = softthreshold(x; alpha=alpha); st.(u))
-prox!(r::OneReg,u::AbstractArray,alpha::Number) = (st(x) = softthreshold(x; alpha=alpha); map!(st, u, u))
+prox(r::OneReg,u::AbstractArray,alpha::Number) = (st(x) = softthreshold(x; alpha=r.scale*alpha); st.(u))
+prox!(r::OneReg,u::AbstractArray,alpha::Number) = (st(x) = softthreshold(x; alpha=r.scale*alpha); map!(st, u, u))
 evaluate(r::OneReg,a::AbstractArray) = r.scale*sum(abs,a)
 
 ## no regularization
