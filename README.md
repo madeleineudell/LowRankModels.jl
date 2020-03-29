@@ -1,8 +1,8 @@
 # LowRankModels.jl
 
-[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)
+[![Build Status](https://travis-ci.com/jiahao/LowRankModels.jl.svg?branch=master)](https://travis-ci.com/jiahao/LowRankModels.jl)
 
-LowRankModels.jl is a Julia package for modeling and fitting generalized low rank models (GLRMs).
+`LowRankModels.jl` is a Julia package for modeling and fitting generalized low rank models (GLRMs).
 GLRMs model a data array by a low rank matrix, and
 include many well known models in data analysis, such as
 principal components analysis (PCA), matrix completion, robust PCA,
@@ -14,7 +14,7 @@ and a GLRM implementation in
 [the H2O machine learning platform](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/glrm.html)
 with interfaces in a variety of languages.
 
-LowRankModels.jl makes it easy to mix and match loss functions and regularizers
+`LowRankModels.jl` makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
 In particular, it supports
 
