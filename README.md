@@ -1,6 +1,7 @@
 # LowRankModels.jl
 
 [![Build Status](https://travis-ci.com/jiahao/LowRankModels.jl.svg?branch=master)](https://travis-ci.com/jiahao/LowRankModels.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/jjk1poiwtnflc61m?svg=true)](https://ci.appveyor.com/project/jiahao/lowrankmodels-jl)
 [![codecov](https://codecov.io/gh/jiahao/LowRankModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jiahao/LowRankModels.jl)
 
 `LowRankModels.jl` is a Julia package for modeling and fitting generalized low rank models (GLRMs).
