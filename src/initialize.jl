@@ -13,7 +13,7 @@ function init_kmeanspp!(glrm::GLRM)
 	# assign first center randomly
 	i = sample(1:m)
 	setdiff!(possible_centers, i)
-	glrm.Y[1,glrm.observed_features[i]] = glrm.A[i,glrm.observed_features[i]]
+	glrm.Y[1,glrm.observed_features[i]] = Array(glrm.A[i,glrm.observed_features[i]])
 	# assign next centers one by one
 	for l=1:k-1
 		min_dists_per_obs = zeros(m)
