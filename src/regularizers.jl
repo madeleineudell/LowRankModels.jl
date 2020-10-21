@@ -119,11 +119,11 @@ mutable struct NonNegOneReg<:Regularizer
     scale::Float64
 end
 NonNegOneReg() = NonNegOneReg(1)
-prox(r::NonNegOneReg,u::AbstractArray,alpha::Number) = max.(u-alpha,0)
+prox(r::NonNegOneReg,u::AbstractArray,alpha::Number) = max.(u.-alpha,0)
 
-prox!(r::NonNegOneReg,u::AbstractArray,alpha::Number) = begin
-  nonnegsoftthreshold = (x::Number -> max.(x-alpha,0))
-  map!(nonnegsoftthreshold, u)
+function prox!(r::NonNegOneReg,u::AbstractArray,alpha::Number)
+  nonnegsoftthreshold = (x::Number -> max(x-alpha,0))
+  map!(nonnegsoftthreshold, u, u)
 end
 
 function evaluate(r::NonNegOneReg,a::AbstractArray)

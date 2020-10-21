@@ -32,7 +32,7 @@ function streaming_fit!(glrm::GLRM, params::StreamingParams=StreamingParams();
   init_glrm = keep_rows(glrm, params.T0)
   init_svd!(init_glrm)
   copy!(glrm.Y, init_glrm.Y)
-  copy!(view(glrm.X, :, 1:params.T0), init_glrm.X)
+  glrm.X[:, 1:params.T0] = init_glrm.X
 
   ### initialization
   A = glrm.A # rename these for easier local access
@@ -49,9 +49,9 @@ function streaming_fit!(glrm::GLRM, params::StreamingParams=StreamingParams();
     obs = glrm.observed_features[i]
     Yobs = Y[:, obs]
     Aobs = A[i, obs]
-    xi = view(X, :, i)
 
-    copy!(xi, (Yobs * Yobs' + 2 * rx[i].scale * I) \ (Yobs * Aobs))
+    X[:, i] = (Yobs * Yobs' + 2 * rx[i].scale * I) \ (Yobs * Aobs)
+    xi = view(X, :, i)
 
     # update objective
     r = Yobs'*xi - Aobs
@@ -106,9 +106,9 @@ function streaming_impute!(glrm::GLRM, params::StreamingParams=StreamingParams()
     obs = glrm.observed_features[i]
     Yobs = Y[:, obs]
     Aobs = A[i, obs]
-    xi = view(X, :, i)
 
-    copy!(xi, (Yobs * Yobs' + 2 * rx[i].scale * I) \ (Yobs * Aobs))
+    X[:, i] = (Yobs * Yobs' + 2 * rx[i].scale * I) \ (Yobs * Aobs)
+    xi = view(X, :, i)
 
     # impute
     not_obs = setdiff(Set(1:n), Set(obs))

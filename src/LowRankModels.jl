@@ -2,6 +2,7 @@ __precompile__()
 
 module LowRankModels
 
+using LinearAlgebra
 using Printf
 using SharedArrays
 using SparseArrays

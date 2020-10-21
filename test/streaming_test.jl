@@ -43,8 +43,8 @@ println("Standard fit")
 @time fit!(glrm)
 standard_obj = objective(keep_rows(glrm, (T+1):m), include_regularization=false)
 
-println("Streaming GLRM performs ", round(streaming_obj / svd_obj, 2), " times worse than SVD initialization")
-println("Streaming GLRM performs ", round(streaming_obj / standard_obj, 2), " times worse than standard GLRM")
+println("Streaming GLRM performs ", round(streaming_obj / svd_obj; digits=2), " times worse than SVD initialization")
+println("Streaming GLRM performs ", round(streaming_obj / standard_obj; digits=2), " times worse than standard GLRM")
 
 println("Streaming impute")
 @time streaming_impute!(glrm, StreamingParams(T, Y_update_interval=100))

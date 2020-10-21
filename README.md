@@ -1,8 +1,10 @@
 # LowRankModels.jl
 
-[![Build Status](https://travis-ci.org/madeleineudell/LowRankModels.jl.svg?branch=master)](https://travis-ci.org/madeleineudell/LowRankModels.jl)
+[![Build Status](https://travis-ci.com/jiahao/LowRankModels.jl.svg?branch=master)](https://travis-ci.com/jiahao/LowRankModels.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/jjk1poiwtnflc61m?svg=true)](https://ci.appveyor.com/project/jiahao/lowrankmodels-jl)
+[![codecov](https://codecov.io/gh/jiahao/LowRankModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jiahao/LowRankModels.jl)
 
-LowRankModels.jl is a julia package for modeling and fitting generalized low rank models (GLRMs).
+`LowRankModels.jl` is a Julia package for modeling and fitting generalized low rank models (GLRMs).
 GLRMs model a data array by a low rank matrix, and
 include many well known models in data analysis, such as
 principal components analysis (PCA), matrix completion, robust PCA,
@@ -14,13 +16,13 @@ and a GLRM implementation in
 [the H2O machine learning platform](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/glrm.html)
 with interfaces in a variety of languages.
 
-LowRankModels.jl makes it easy to mix and match loss functions and regularizers
+`LowRankModels.jl` makes it easy to mix and match loss functions and regularizers
 to construct a model suitable for a particular data set.
 In particular, it supports
 
 * using different loss functions for different columns of the data array,
   which is useful when data types are heterogeneous
-  (eg, real, boolean, and ordinal columns);
+  (e.g., real, boolean, and ordinal columns);
 * fitting the model to only *some* of the entries in the table, which is useful for data tables with many missing (unobserved) entries; and
 * adding offsets and scalings to the model without destroying sparsity,
   which is useful when the data is poorly scaled.
@@ -28,10 +30,10 @@ In particular, it supports
 ## Installation
 
 To install, just call
-```
+```julia
 Pkg.add("LowRankModels")
 ```
-at the julia prompt.
+at the Julia prompt.
 
 # Generalized Low Rank Models
 
@@ -64,7 +66,7 @@ The user may also specify
 and may be omitted if all the entries in the matrix have been observed.
 If `A` is a sparse matrix, implicit zeros are interpreted
 as missing entries by default;
-see the discussion of [sparse matrices](https://github.com/madeleineudell/LowRankModels.jl#fitting-sparse-matrices) below for more details.
+see the discussion of [sparse matrices](#fitting-sparse-matrices) below for more details.
 `X₀` and `Y₀` are initialization
 matrices that represent a starting guess for the optimization.
 
@@ -76,7 +78,7 @@ Losses:
 * quadratic loss `QuadLoss`
 * hinge loss `HingeLoss`
 * logistic loss `LogisticLoss`
-* poisson loss `PoissonLoss`
+* Poisson loss `PoissonLoss`
 * weighted hinge loss `WeightedHingeLoss`
 * l1 loss `L1Loss`
 * ordinal hinge loss `OrdinalHingeLoss`
@@ -91,7 +93,7 @@ argument  the maximum (or both minimum and maximum) value the variable may  take
 Using the one-vs-all loss is equivalent to transforming a categorical value
 to a one-hot vector and using a binary loss on each entry in that vector.
 Using the bigger-vs-smaller loss is equivalent to transforming the ordinal value
-to a boolean vector and using a binary loss on each entry in that vector.
+to a Boolean vector and using a binary loss on each entry in that vector.
 By default,  the binary loss used is the logistic loss.
 
 Regularizers:
@@ -100,9 +102,9 @@ Regularizers:
 * constrained squared euclidean norm `QuadConstraint`
 * l1 regularization `OneReg`
 * no regularization `ZeroReg`
-* nonnegative constraint `NonNegConstraint` (eg, for nonnegative matrix factorization)
-* 1-sparse constraint `OneSparseConstraint` (eg, for orthogonal NNMF)
-* unit 1-sparse constraint `UnitOneSparseConstraint` (eg, for k-means)
+* nonnegative constraint `NonNegConstraint` (e.g., for nonnegative matrix factorization)
+* 1-sparse constraint `OneSparseConstraint` (e.g., for orthogonal NNMF)
+* unit 1-sparse constraint `UnitOneSparseConstraint` (e.g., for k-means)
 * simplex constraint `SimplexConstraint`
 * l1 regularization, combined with nonnegative constraint `NonNegOneReg`
 * fix features at values `y0` `FixedLatentFeaturesConstraint(y0)`
@@ -112,60 +114,61 @@ Each of these losses and regularizers can be scaled
 by calling `mul!(loss, newscale)`.
 Users may also implement their own losses and regularizers,
 or adjust internal parameters of the losses and regularizers;
-see [losses.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/src/losses.jl) and [regularizers.jl](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/regularizers.jl) for more details.
+see [losses.jl](src/losses.jl) and [regularizers.jl](src/regularizers.jl) for more details.
 
 ## Example
 
 For example, the following code forms a k-means model with `k=5` on the `100`x`100` matrix `A`:
-
-    using LowRankModels
-    m,n,k = 100,100,5
-    losses = QuadLoss() # minimize squared distance to cluster centroids
-    rx = UnitOneSparseConstraint() # each row is assigned to exactly one cluster
-    ry = ZeroReg() # no regularization on the cluster centroids
-    glrm = GLRM(A,losses,rx,ry,k)
+```julia
+using LowRankModels
+m, n, k = 100, 100, 5
+losses = QuadLoss() # minimize squared distance to cluster centroids
+rx = UnitOneSparseConstraint() # each row is assigned to exactly one cluster
+ry = ZeroReg() # no regularization on the cluster centroids
+glrm = GLRM(A, losses, rx, ry, k)
+```
 
 To fit the model, call
-
-	X,Y,ch = fit!(glrm)
-
+```julia
+X, Y, ch = fit!(glrm)
+```
 which runs an alternating directions proximal gradient method on `glrm` to find the
 `X` and `Y` minimizing the objective function.
 (`ch` gives the convergence history; see
-[Technical details](https://github.com/madeleineudell/LowRankModels.jl#technical-details)
+[Technical details](#technical-details)
 below for more information.)
 
 The `losses` argument can also be an array of loss functions,
 with one for each column (in order). For example,
 for a data set with 3 columns, you could use
-
-    losses = Loss[QuadLoss(), LogisticLoss(), HingeLoss()]
-
+```julia
+losses = Loss[QuadLoss(), LogisticLoss(), HingeLoss()]
+```
 Similiarly, the `ry` argument can be an array of regularizers,
 with one for each column (in order). For example,
 for a data set with 3 columns, you could use
-
-    ry = Regularizer[QuadReg(1), QuadReg(10), FixedLatentFeaturesConstraint([1.,2.,3.])]
-
+```julia
+ry = Regularizer[QuadReg(1), QuadReg(10), FixedLatentFeaturesConstraint([1.,2.,3.])]
+```
 This regularizes the first to columns of `Y` with `||Y[:,1]||^2 + 10||Y[:,2]||^2`
 and constrains the third (and last) column of `Y` to be equal to `[1,2,3]`.
 
-[More examples here.](https://github.com/madeleineudell/LowRankModels.jl/blob/master/examples/simple_glrms.jl)
+[More examples here.](examples/simple_glrms.jl)
 
 # Missing data
 
 If not all entries are present in your data table, just tell the GLRM
 which observations to fit the model to by listing tuples of their indices in `obs`,
-eg, if `obs=[(1,2),(5,3)]`, exactly two entries have been observed.
+e.g., if `obs=[(1,2), (5,3)]`, exactly two entries have been observed.
 Then initialize the model using
-
-    GLRM(A,losses,rx,ry,k,obs=obs)
-
+```julia
+GLRM(A, losses, rx, ry, k, obs=obs)
+```
 If `A` is a DataFrame and you just want the model to ignore
 any entry that is `missing`, you can use
-
-    obs = observations(A)
-
+```julia
+obs = observations(A)
+```
 # Standard low rank models
 
 Low rank models can easily be used to fit standard models such as PCA, k-means, and nonnegative matrix factorization.
@@ -177,7 +180,7 @@ The following functions are available:
 * `nnmf`: nonnegative matrix factorization
 * `k-means`: k-means
 
-See [the code](https://github.com/madeleineudell/LowRankModels.jl/blob/master/src/simple_glrms.jl) for usage.
+See [the code](src/simple_glrms.jl) for usage.
 Any keyword argument valid for a `GLRM` object,
 such as an initial value for `X` or `Y`
 or a list of observations,
@@ -189,40 +192,41 @@ If you choose, LowRankModels.jl can add an offset to your model and scale the lo
 functions and regularizers so all columns have the same pull in the model.
 Simply call
 
-    glrm = GLRM(A,losses,rx,ry,k, offset=true, scale=true)
-
-This transformation generalizes standardization, a common proprocessing technique applied before PCA.
+```julia
+glrm = GLRM(A, losses, rx, ry, k, offset=true, scale=true)
+```
+This transformation generalizes standardization, a common preprocessing technique applied before PCA.
 (For more about offsets and scaling, see the code or the paper.)
 
 You can also add offsets and scalings to previously unscaled models:
 
 * Add an offset to the model (by applying no regularization to the last row
   of the matrix `Y`, and enforcing that the last column of `X` be all 1s) using
-
-      add_offset!(glrm)
-
+```julia
+add_offset!(glrm)
+```
 * Scale the loss functions and regularizers by calling
-
-      equilibrate_variance!(glrm)
-
+```julia
+equilibrate_variance!(glrm)
+```
 * Scale only the columns associated to `QuadLoss` or `HuberLoss` loss functions.
-
-      prob_scale!(glrm)
-
+```julia
+prob_scale!(glrm)
+```
 # Fitting DataFrames
 
 Perhaps all this sounds like too much work. Perhaps you happen to have a
 [DataFrame](https://github.com/JuliaStats/DataFrames.jl) `df` lying around
-that you'd like a low rank (eg, `k=2`) model for. For example,
-
-    import RDatasets
-    df = RDatasets.dataset("psych", "msq")
-
+that you'd like a low rank (e.g., `k=2`) model for. For example,
+```julia
+import RDatasets
+df = RDatasets.dataset("psych", "msq")
+```
 Never fear! Just call
-
-	glrm, labels = GLRM(df, k)
-	X, Y, ch = fit!(glrm)
-
+```julia
+glrm, labels = GLRM(df, k)
+X, Y, ch = fit!(glrm)
+```
 This will fit a GLRM with rank `k` to your data,
 using a QuadLoss loss for real valued columns,
 HingeLoss loss for boolean columns,
@@ -231,10 +235,10 @@ a small amount of QuadLoss regularization,
 and scaling and adding an offset to the model as described [here](#scaling).
 It returns the column labels for the columns it fit, along with the model.
 Right now, all other data types are ignored.
-`NaN` values are treated as missing values (`NA`s) and ignored in the fit.
+`NaN` values are treated as missing values (`missing`s) and ignored in the fit.
 
 The full call signature is
-```
+```julia
 function GLRM(df::DataFrame, k::Int;
               losses = Loss[], rx = QuadReg(.01), ry = QuadReg(.01),
               offset = true, scale = false,
@@ -243,8 +247,8 @@ function GLRM(df::DataFrame, k::Int;
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.
 
-Or to specify a map from data types to losses, define a new loss_map from datatypes to losses (like probabilistic_losses, below):
-```
+Or to specify a map from data types to losses, define a new `loss_map` from datatypes to losses (like probabilistic_losses, below):
+```julia
 probabilistic_losses = Dict{Symbol, Any}(
     :real        => QuadLoss,
     :bool        => LogisticLoss,
@@ -253,13 +257,15 @@ probabilistic_losses = Dict{Symbol, Any}(
 )
 ```
 and input an array of datatypes (one for each column of your data frame: `GLRM(A, k, datatypes; loss_map = loss_map)`. The full call signature is
-```
+
+```julia
 function GLRM(df::DataFrame, k::Int, datatypes::Array{Symbol,1};
               loss_map = probabilistic_losses,
               rx = QuadReg(.01), ry = QuadReg(.01),
               offset = true, scale = false, prob_scale = true,
               transform_data_to_numbers = true, NaNs_to_NAs = true)
 ```
+
 You can modify the losses or regularizers, or turn off offsets or scaling,
 using these keyword arguments.
 
@@ -290,9 +296,11 @@ will use the sparse variant of the proximal gradient descent algorithm,
 
 If, instead, you'd like to interpret the sparse entries as zeros, rather
 than missing or `NA` entries, use:
+
 ```julia
-glrm = GLRM(...;sparse_na=false)
+glrm = GLRM(...; sparse_na=false)
 ```
+
 In this case, the dataset is dense in terms of observations, but sparse
 in terms of nonzero values. Thus, it may make more sense to fit the
 model with the vanilla proximal gradient descent algorithm,
@@ -304,8 +312,8 @@ LowRankModels makes use of Julia v0.5's new multithreading functionality
 to fit models in parallel.
 To fit a LowRankModel in parallel using multithreading,
 simply set the number of threads
-from the command line before starting Julia: eg,
-```
+from the command line before starting Julia: e.g.,
+```sh
 export JULIA_NUM_THREADS=4
 ```
 
@@ -329,7 +337,7 @@ GLRM (so as to construct a new initial random point) and see if the model you ob
 The function `fit!` sets the fields `glrm.X` and `glrm.Y`
 after fitting the model. This is particularly useful if you want to use
 the model you generate as a warm start for further iterations.
-If you prefer to preserve the original `glrm.X` and `glrm.Y` (eg, for cross validation),
+If you prefer to preserve the original `glrm.X` and `glrm.Y` (e.g., for cross validation),
 you should call the function `fit`, which does not mutate its arguments.
 
 You can even start with an easy-to-optimize loss function, run `fit!`,
@@ -355,7 +363,7 @@ reconstruction, `X' * Y`, to compute the gradient and objective function;
 (B) only compute the model estimate for entries of `A` that are observed.
 The first method is likely preferred when there are few missing entries
 for `A` because of hardware level optimizations
-(e.g. chucking the operations so they just fit in various caches). The
+(e.g. chunking the operations so they just fit in various caches). The
 second method is likely preferred when there are many missing entries of
 `A`.
 
@@ -418,7 +426,7 @@ These functions should help you choose adequate regularization for your model.
     **Optional arguments:**
     * `use_folds`: build `use_folds` new GLRMs instead of `n_folds` new GLRMs, each with `1/nfolds` of the entries left out. (`use_folds` defaults to `nfolds`.)
     * `error_fn`: use a custom error function to evaluate the fit, rather than the objective. For example, one might use the imputation error by setting `error_fn = error_metric`.
-    * `init`: initialize the fit using a particular procedure. For example, consider `init=init_svd!`. See [Initialization](https://github.com/madeleineudell/LowRankModels.jl#initialization) for more options.
+    * `init`: initialize the fit using a particular procedure. For example, consider `init=init_svd!`. See [Initialization](#initialization) for more options.
 
 * `cv_by_iter(glrm::GLRM, holdout_proportion=.1, params=Params(1,1,.01,.01), niters=30; verbose=true)`: computes the test error and train error of the GLRM as it is trained. Splits the observations into a training set (`1-holdout_proportion` of the original observations) and a test set (`holdout_proportion` of the original observations). Performs `params.maxiter` iterations of the fitting algorithm on the training set `niters` times, and returns the test and train error as a function of iteration.
 
@@ -435,7 +443,7 @@ These functions should help you choose adequate regularization for your model.
 This library implements the
 [ScikitLearn.jl](https://github.com/cstjean/ScikitLearn.jl) interface. These
 models are available: `SkGLRM, PCA, QPCA, NNMF, KMeans, RPCA`. See their
-docstrings for more information (eg. `?QPCA`). All models support the
+docstrings for more information (e.g. `?QPCA`). All models support the
 `ScikitLearnBase.fit!` and `ScikitLearnBase.transform` interface. Examples:
 
 ```julia
@@ -475,19 +483,21 @@ we encourage you to cite the software.
 
 Use the following BibTeX citation:
 
-    @article{glrm,
-      title = {Generalized Low Rank Models},
-      author ={Madeleine Udell and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
-      doi = {10.1561/2200000055},
-      year = {2016},
-      archivePrefix = "arXiv",
-      eprint = {1410.0342},
-      primaryClass = "stat-ml",
-      journal = {Foundations and Trends in Machine Learning},
-      number = {1},
-      volume = {9},
-      issn = {1935-8237},
-      url = {http://dx.doi.org/10.1561/2200000055},
-    }
+```bibtex
+@article{glrm,
+    title = {Generalized Low Rank Models},
+    author ={Madeleine Udell and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
+    doi = {10.1561/2200000055},
+    year = {2016},
+    archivePrefix = "arXiv",
+    eprint = {1410.0342},
+    primaryClass = "stat-ml",
+    journal = {Foundations and Trends in Machine Learning},
+    number = {1},
+    volume = {9},
+    issn = {1935-8237},
+    url = {http://dx.doi.org/10.1561/2200000055},
+}
+```
 
 [glrmpaper]: https://people.orie.cornell.edu/mru8/doc/udell16_glrm.pdf
