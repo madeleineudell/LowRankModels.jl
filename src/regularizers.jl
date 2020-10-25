@@ -139,7 +139,7 @@ mul!(r::NonNegOneReg, newscale::Number) = 1
 
 ## Quadratic regularization restricted to nonnegative domain
 ## (Enforces nonnegativity alongside quadratic regularization)
-mutable struct NonNegQuadReg
+mutable struct NonNegQuadReg<:Regularizer
     scale::Float64
 end
 NonNegQuadReg() = NonNegQuadReg(1)
