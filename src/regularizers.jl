@@ -155,7 +155,7 @@ function evaluate(r::NonNegQuadReg,a::AbstractArray)
             return Inf
         end
     end
-    return r.scale*sumabs2(a)
+    return r.scale*sum(abs2, a)
 end
 
 ## indicator of the last entry being equal to 1
