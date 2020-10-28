@@ -144,10 +144,9 @@ mutable struct NonNegQuadReg<:Regularizer
 end
 NonNegQuadReg() = NonNegQuadReg(1)
 prox(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = max.(1/(1+2*alpha*r.scale)*u, 0)
-prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number) = begin
-  mul!(u, 1/(1+2*alpha*r.scale))
-  maxval = maximum(u)
-  clamp!(u, 0, maxval)
+function prox!(r::NonNegQuadReg,u::AbstractArray,alpha::Number)
+  nonnegsoftthreshold = (x::Number -> max(1/(1+2*alpha*r.scale)*x, 0))
+  map!(nonnegsoftthreshold, u, u)
 end
 function evaluate(r::NonNegQuadReg,a::AbstractArray)
     for ai in a
