@@ -22,8 +22,8 @@ function init_nndsvd!(glrm::GLRM; scale::Bool=true, zeroh::Bool=false,
 
     # run the first nndsvd initialization
     W,H = nndsvd(A_init, glrm.k, zeroh=zeroh, variant=variant)
-    glrm.X = W'
-    glrm.Y = H
+    glrm.X = Matrix(W')
+    glrm.Y = Matrix(H)
 
     # If max_iters>0 do a soft impute for the missing entries of A.
     #   Iterate: Estimate missing entries of A with W*H
