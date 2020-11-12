@@ -2,7 +2,7 @@ name = "LowRankModels"
 uuid = "15d4e49f-4837-5ea3-a885-5b28bfa376dc"
 keywords = ["matrix factorization", "missing data", "imputation"]
 license = "MIT"
-version = "1.1.0"
+version = "1.1.1"
 
 [deps]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
