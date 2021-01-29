@@ -2,7 +2,6 @@
 # REVIEW THIS IN LIGHT OF NEW DATAFRAMES
 # ========================================
 
-import Base: isnan
 import DataFrames: DataFrame, ncol, convert
 
 
@@ -269,16 +268,12 @@ function expand_categoricals!(df::DataFrame,categoricals::Array)
     return expand_categoricals!(df, categoricalidxs)
 end
 
-# convert NaNs to NAs
-# isnan(x::NAtype) = false
-isnan(x::AbstractString) = false
-isnan(x::Union{T, Nothing}) where T = isnan(x.value)
 
 # same functionality as above.
 function NaNs_to_Missing!(df::DataFrame)
     m,n = size(df)
     for j=1:n
-        df[!,j] = [ismissing(df[i,j]) || isnan(df[i,j]) ? missing : value for (i,value) in enumerate(df[:,j])];
+        df[!,j] = [(value isa Number && isnan(value)) ? missing : value for value in df[!,j]];
 	end
     return df
 end
