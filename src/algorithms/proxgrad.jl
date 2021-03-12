@@ -41,11 +41,12 @@ function fit!(glrm::GLRM, params::ProxGradParams;
 	rx = glrm.rx
 	ry = glrm.ry
 	X = glrm.X; Y = glrm.Y
-    # check that we didn't initialize to zero (otherwise we will never move)
-    if norm(Y) == 0
-    	Y = .1*randn(k,d)
-    end
 	k = glrm.k
+	# check that we didn't initialize to zero (otherwise we will never move)
+	if norm(Y) == 0
+    		Y = .1*randn(k,d)
+	end
+	
     m,n = size(A)
 
     # find spans of loss functions (for multidimensional losses)
