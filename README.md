@@ -125,6 +125,7 @@ m, n, k = 100, 100, 5
 losses = QuadLoss() # minimize squared distance to cluster centroids
 rx = UnitOneSparseConstraint() # each row is assigned to exactly one cluster
 ry = ZeroReg() # no regularization on the cluster centroids
+A = rand(m, n) # define A using random numbers
 glrm = GLRM(A, losses, rx, ry, k)
 ```
 
