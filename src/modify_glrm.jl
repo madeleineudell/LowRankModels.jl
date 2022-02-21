@@ -19,7 +19,7 @@ end
 
 ### SCALINGS AND OFFSETS ON GLRM
 function add_offset!(glrm::AbstractGLRM)
-    glrm.rx, glrm.ry = map(lastentry1, glrm.rx), map(lastentry_unpenalized, glrm.ry)
+    glrm.rx, glrm.ry = lastentry1.(glrm.rx), lastentry_unpenalized.(glrm.ry)
     return glrm
 end
 function fix_latent_features!(glrm::AbstractGLRM, n)

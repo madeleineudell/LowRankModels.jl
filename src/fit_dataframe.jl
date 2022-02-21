@@ -3,6 +3,7 @@
 # ========================================
 
 import Base: isnan
+import CategoricalArrays: CategoricalValue, unwrap
 import DataFrames: DataFrame, ncol, convert
 
 
@@ -272,6 +273,7 @@ end
 # convert NaNs to NAs
 # isnan(x::NAtype) = false
 isnan(x::AbstractString) = false
+isnan(x::CategoricalValue) = isnan(unwrap(x))
 isnan(x::Union{T, Nothing}) where T = isnan(x.value)
 
 # same functionality as above.
