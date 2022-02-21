@@ -52,7 +52,7 @@ println("successfully fit matrix with some entries unobserved")
 
 ### now fit data frame
 A_sparse = sprandn(10, 10, .5)
-df = NaNs_to_Missing!(DataFrame(Array(0 ./ A_sparse + A_sparse)))
+df = NaNs_to_Missing!(DataFrame(Array(0 ./ A_sparse + A_sparse), :auto))
 # explicitly encoding missing
 obs = observations(df)
 glrm = GLRM(df, QuadLoss(), QuadReg(), QuadReg(), 2, obs=obs)
@@ -63,7 +63,7 @@ fit!(glrm, verbose=false)
 # fit!(glrm, verbose=false)
 
 # without specifying losses directly
-glrm = GLRM(DataFrame(A), 3, data_types)
+glrm = GLRM(DataFrame(A, :auto), 3, data_types)
 fit!(glrm, verbose=false)
 println("successfully fit dataframe")
 
